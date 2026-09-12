@@ -51,7 +51,16 @@
       <a href="{{url_for('change_password')}}">{{t('password')}}</a>
       <span class="user">{{current_user['display_name']}} · {{current_user['role']}}</span>
       <a href="{{url_for('logout')}}">{{t('logout')}}</a>
-    </nav>
+          <a href="{{url_for('productivity_hub')}}">Productivity</a>
+      <a href="{{url_for('global_search')}}">Search</a>
+      <a href="{{url_for('advanced_planning')}}">Planning Pro</a>
+      <a href="{{url_for('automation_center')}}">Automation</a>
+      <a href="{{url_for('executive_reporting')}}">Executive Reports</a>
+      <a href="{{url_for('integration_center_v35')}}">Integrations</a>
+      <a href="{{url_for('security_center')}}">Security</a>
+      <a href="{{url_for('delivery_center')}}">Delivery</a>
+      <a href="{{url_for('intelligence_center')}}">Intelligence</a>
+</nav>
     {% endif %}
   </div>
 </header>
@@ -69,6 +78,17 @@
 document.addEventListener("click", function(e){
   document.querySelectorAll(".language-menu.open").forEach(function(m){
     if(!m.contains(e.target)) m.classList.remove("open");
+  });
+});
+</script>
+
+<script data-auto-csrf>
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('form').forEach(f=>{
+    const m=(f.getAttribute('method')||'GET').toUpperCase();
+    if(['POST','PUT','PATCH','DELETE'].includes(m) && !f.querySelector('input[name="_csrf"]')){
+      const i=document.createElement('input'); i.type='hidden'; i.name='_csrf'; i.value={{ csrf_token|tojson }}; f.appendChild(i);
+    }
   });
 });
 </script>

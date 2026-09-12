@@ -1,11 +1,3 @@
-# Project Planer LXC v3.0.0 – Complete Platform
+# Project Planer LXC v4.0.0 – Intelligent Project Platform
 
-Cumulative release containing the v2.2–v2.6 roadmap plus:
-- personal Workspace / dashboard preferences
-- Report Center
-- rule-based Project Assistant and automatic project summaries
-- OIDC/SSO configuration surface
-- integrations/automation admin center
-- API health capability endpoint
-
-The Project Assistant in this release is deterministic and self-hosted; it does not send project data to an external AI provider.
+Cumulative platform release with Project Intelligence, natural-language-like project questions, health scoring/trends, weekly-change analysis, blocker/risk queries, and meeting-note conversion using `ACTION:` and `DECISION:` markers. The assistant is deterministic and self-hosted; it does not transmit project data to an external AI provider.

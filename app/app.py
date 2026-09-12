@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "3.0.0"
+APP_VERSION = "4.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -622,6 +622,153 @@ def init_db():
 
         """)
 
+        conn.executescript("""
+
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS favorites (
+    user_id INTEGER NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(user_id,entity_type,entity_id),
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS recent_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER NOT NULL,
+    label TEXT NOT NULL,
+    url TEXT NOT NULL,
+    viewed_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS task_constraints (
+    task_id INTEGER PRIMARY KEY,
+    constraint_type TEXT NOT NULL DEFAULT 'ASAP',
+    constraint_date TEXT DEFAULT '',
+    calendar_name TEXT DEFAULT 'Standard',
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS planning_scenarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    created_by INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS automation_executions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id INTEGER,
+    project_id INTEGER,
+    status TEXT NOT NULL,
+    details TEXT DEFAULT '',
+    started_at TEXT NOT NULL,
+    finished_at TEXT DEFAULT '',
+    FOREIGN KEY(rule_id) REFERENCES automation_rules(id) ON DELETE SET NULL
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS scheduled_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER,
+    name TEXT NOT NULL,
+    format TEXT NOT NULL DEFAULT 'pdf',
+    cadence TEXT NOT NULL DEFAULT 'weekly',
+    recipient TEXT DEFAULT '',
+    active INTEGER NOT NULL DEFAULT 1,
+    created_by INTEGER,
+    created_at TEXT NOT NULL
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS integration_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    provider TEXT NOT NULL UNIQUE,
+    enabled INTEGER NOT NULL DEFAULT 0,
+    base_url TEXT DEFAULT '',
+    config_json TEXT NOT NULL DEFAULT '{}',
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    webhook_id INTEGER,
+    event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'Pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(webhook_id) REFERENCES webhooks(id) ON DELETE CASCADE
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id TEXT PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    last_seen TEXT NOT NULL,
+    ip_address TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    revoked_at TEXT DEFAULT '',
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE TABLE IF NOT EXISTS login_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    username TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    ip_address TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE TABLE IF NOT EXISTS security_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    severity TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    user_id INTEGER,
+    details TEXT DEFAULT '',
+    ip_address TEXT DEFAULT '',
+    created_at TEXT NOT NULL
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS project_environments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL, base_url TEXT DEFAULT '', owner TEXT DEFAULT '', status TEXT DEFAULT 'Ready', notes TEXT DEFAULT '', UNIQUE(project_id,name), FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS deliverables (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL, owner TEXT DEFAULT '', due_date TEXT DEFAULT '', status TEXT DEFAULT 'Planned', acceptance_criteria TEXT DEFAULT '', FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS interface_register (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL, source_system TEXT DEFAULT '', target_system TEXT DEFAULT '', protocol TEXT DEFAULT '', owner TEXT DEFAULT '', status TEXT DEFAULT 'Design', notes TEXT DEFAULT '', FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS test_cycles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, name TEXT NOT NULL, test_type TEXT NOT NULL DEFAULT 'SIT', start_date TEXT DEFAULT '', end_date TEXT DEFAULT '', status TEXT DEFAULT 'Planned', passed INTEGER NOT NULL DEFAULT 0, failed INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS requirements_traceability (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, requirement_id TEXT NOT NULL, requirement TEXT NOT NULL, deliverable_id INTEGER, test_cycle_id INTEGER, status TEXT DEFAULT 'Open', UNIQUE(project_id,requirement_id), FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS cutover_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, sequence_no INTEGER NOT NULL DEFAULT 0, title TEXT NOT NULL, owner TEXT DEFAULT '', planned_at TEXT DEFAULT '', status TEXT DEFAULT 'Planned', rollback_step TEXT DEFAULT '', FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS project_health_snapshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, snapshot_date TEXT NOT NULL, progress INTEGER NOT NULL, overdue_count INTEGER NOT NULL, blocked_count INTEGER NOT NULL, high_risk_count INTEGER NOT NULL, open_change_count INTEGER NOT NULL, health_score INTEGER NOT NULL, details_json TEXT NOT NULL DEFAULT '{}', UNIQUE(project_id,snapshot_date), FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS assistant_queries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, project_id INTEGER, question TEXT NOT NULL, answer TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+        """)
+
         # Migration from older versions
         ensure_column(conn, "users", "force_password_change", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "users", "failed_logins", "INTEGER NOT NULL DEFAULT 0")
@@ -636,6 +783,19 @@ def init_db():
         ensure_column(conn, "tasks", "parent_task_id", "INTEGER")
         ensure_column(conn, "tasks", "duration_days", "INTEGER DEFAULT 1")
         ensure_column(conn, "tasks", "owner_user_id", "INTEGER")
+
+        ensure_column(conn, "change_requests", "reason", "TEXT DEFAULT ''")
+        ensure_column(conn, "change_requests", "decided_by", "INTEGER")
+        ensure_column(conn, "change_requests", "decided_at", "TEXT DEFAULT ''")
+        ensure_column(conn, "decisions", "owner", "TEXT DEFAULT ''")
+        ensure_column(conn, "decisions", "decided_at", "TEXT DEFAULT ''")
+
+        ensure_column(conn, "api_keys", "scopes", "TEXT NOT NULL DEFAULT 'read'")
+        ensure_column(conn, "api_keys", "expires_at", "TEXT DEFAULT ''")
+
+        ensure_column(conn, "projects", "archived_at", "TEXT DEFAULT ''")
+        ensure_column(conn, "projects", "deleted_at", "TEXT DEFAULT ''")
+        ensure_column(conn, "tasks", "deleted_at", "TEXT DEFAULT ''")
 
         conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)",
                      (APP_VERSION, datetime.now().isoformat(timespec="seconds")))
@@ -1987,10 +2147,10 @@ def control_center():
 def roadmap_raid_new(project_id):
     project_or_404(project_id,write=True)
     with db() as conn:
-        conn.execute("""INSERT INTO raid_items(project_id,kind,title,description,owner,status,due_date,created_at)
-                        VALUES(?,?,?,?,?,?,?,?)""",(project_id,request.form.get("kind","Risk"),request.form["title"].strip(),
-                        request.form.get("description","").strip(),request.form.get("owner","").strip(),
-                        request.form.get("status","Open"),request.form.get("due_date",""),datetime.now().isoformat(timespec="seconds")))
+        conn.execute("""INSERT INTO raid_items(project_id,item_type,title,owner,status,due_date,details)
+                        VALUES(?,?,?,?,?,?,?)""",(project_id,request.form.get("kind","Risk"),request.form["title"].strip(),
+                        request.form.get("owner","").strip(),request.form.get("status","Open"),request.form.get("due_date",""),
+                        request.form.get("description","").strip()))
     audit(project_id,"raid",None,"created",request.form["title"].strip())
     return redirect(url_for("control_center",project_id=project_id))
 
@@ -2023,9 +2183,10 @@ def roadmap_change_decision(project_id,change_id,decision):
 def roadmap_decision_new(project_id):
     project_or_404(project_id,write=True)
     with db() as conn:
-        conn.execute("""INSERT INTO decisions(project_id,title,decision,owner,decided_at)
-                        VALUES(?,?,?,?,?)""",(project_id,request.form["title"].strip(),request.form.get("decision","").strip(),
-                        request.form.get("owner","").strip(),datetime.now().isoformat(timespec="seconds")))
+        conn.execute("""INSERT INTO decisions(project_id,title,decision,decided_by,decision_date,owner,decided_at)
+                        VALUES(?,?,?,?,?,?,?)""",(project_id,request.form["title"].strip(),request.form.get("decision","").strip(),
+                        request.form.get("owner","").strip(),date.today().isoformat(),request.form.get("owner","").strip(),
+                        datetime.now().isoformat(timespec="seconds")))
     return redirect(url_for("control_center",project_id=project_id))
 
 @app.route("/resource-plan",methods=["GET","POST"])
@@ -2132,8 +2293,9 @@ def create_mention(project_id):
             conn.execute("""INSERT INTO mentions(project_id,mentioned_user_id,source_type,message,created_at)
                             VALUES(?,?,?,?,?)""",(project_id,user["id"],request.form.get("source_type","message"),
                             request.form.get("message","").strip(),datetime.now().isoformat(timespec="seconds")))
-            conn.execute("""INSERT INTO notifications(user_id,project_id,title,body,created_at)
-                            VALUES(?,?,?,?,?)""",(user["id"],project_id,"Du blev omnämnd",request.form.get("message","").strip(),datetime.now().isoformat(timespec="seconds")))
+            conn.execute("""INSERT INTO notifications(user_id,project_id,message,link,created_at)
+                            VALUES(?,?,?,?,?)""",(user["id"],project_id,request.form.get("message","").strip(),
+                            url_for("collaboration",project_id=project_id),datetime.now().isoformat(timespec="seconds")))
     return redirect(url_for("collaboration",project_id=project_id))
 
 @app.post("/documents/<int:document_id>/version")
@@ -2147,7 +2309,7 @@ def document_new_version(document_id):
         n=conn.execute("SELECT COALESCE(MAX(version_no),0)+1 n FROM document_versions WHERE document_id=?",(document_id,)).fetchone()["n"]
         conn.execute("""INSERT INTO document_versions(document_id,version_no,content,created_by,created_at)
                         VALUES(?,?,?,?,?)""",(document_id,n,request.form.get("content",""),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
-        conn.execute("UPDATE documents SET content=?,updated_at=? WHERE id=?",(request.form.get("content",""),datetime.now().isoformat(timespec="seconds"),document_id))
+        conn.execute("UPDATE documents SET body=?,updated_at=? WHERE id=?",(request.form.get("content",""),datetime.now().isoformat(timespec="seconds"),document_id))
     return redirect(url_for("collaboration",project_id=doc["project_id"]))
 
 def project_assistant_summary(project_id):
@@ -2233,6 +2395,479 @@ def admin_integrations():
 @app.get("/api/v1/health/summary")
 def api_health_summary():
     return jsonify(status="ok",version=APP_VERSION,features=["planning","control","resources","finance","pmo","collaboration","reports","assistant"])
+
+
+def record_recent(entity_type,entity_id,label,url):
+    u=current_user()
+    if not u: return
+    with db() as conn:
+        conn.execute("DELETE FROM recent_items WHERE user_id=? AND entity_type=? AND entity_id=?",(u["id"],entity_type,entity_id))
+        conn.execute("INSERT INTO recent_items(user_id,entity_type,entity_id,label,url,viewed_at) VALUES(?,?,?,?,?,?)",
+                     (u["id"],entity_type,entity_id,label,url,datetime.now().isoformat(timespec="seconds")))
+        conn.execute("DELETE FROM recent_items WHERE id IN (SELECT id FROM recent_items WHERE user_id=? ORDER BY viewed_at DESC LIMIT -1 OFFSET 20)",(u["id"],))
+
+@app.get("/productivity")
+@login_required
+def productivity_hub():
+    u=current_user()
+    with db() as conn:
+        fav=conn.execute("SELECT * FROM favorites WHERE user_id=? ORDER BY created_at DESC",(u["id"],)).fetchall()
+        recent=conn.execute("SELECT * FROM recent_items WHERE user_id=? ORDER BY viewed_at DESC LIMIT 12",(u["id"],)).fetchall()
+        views=conn.execute("SELECT * FROM saved_views WHERE user_id=? ORDER BY created_at DESC",(u["id"],)).fetchall()
+    return render_template("productivity.html",favorites=fav,recent=recent,views=views)
+
+@app.get("/global-search")
+@login_required
+def global_search():
+    q=request.args.get("q","").strip(); results=[]
+    if q:
+        like=f"%{q}%"; projects=roadmap_accessible_projects(); ids=[p["id"] for p in projects]
+        with db() as conn:
+            for p in projects:
+                if q.lower() in (p["name"]+" "+(p["customer"] or "")).lower():
+                    results.append({"type":"Projekt","label":p["name"],"detail":p["customer"],"url":url_for("project_cockpit",project_id=p["id"])})
+            if ids:
+                ph=",".join("?" for _ in ids)
+                rows=conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({ph}) AND (t.title LIKE ? OR t.wbs LIKE ?) LIMIT 50",(*ids,like,like)).fetchall()
+                for t in rows: results.append({"type":"Aktivitet","label":t["title"],"detail":f"{t['project_name']} · {t['wbs']}","url":url_for("edit_task",project_id=t["project_id"],task_id=t["id"])})
+    return render_template("global_search.html",q=q,results=results)
+
+@app.post("/favorites/toggle")
+@login_required
+def toggle_favorite():
+    et=request.form["entity_type"]; eid=int(request.form["entity_id"]); u=current_user()
+    with db() as conn:
+        row=conn.execute("SELECT 1 FROM favorites WHERE user_id=? AND entity_type=? AND entity_id=?",(u["id"],et,eid)).fetchone()
+        if row: conn.execute("DELETE FROM favorites WHERE user_id=? AND entity_type=? AND entity_id=?",(u["id"],et,eid))
+        else: conn.execute("INSERT INTO favorites(user_id,entity_type,entity_id,created_at) VALUES(?,?,?,?)",(u["id"],et,eid,datetime.now().isoformat(timespec="seconds")))
+    return redirect(request.referrer or url_for("productivity_hub"))
+
+@app.post("/projects/<int:project_id>/tasks/bulk")
+@login_required
+def tasks_bulk_update(project_id):
+    project_or_404(project_id,write=True)
+    ids=[int(x) for x in request.form.getlist("task_id") if x.isdigit()]
+    if ids:
+        status=request.form.get("status",""); priority=request.form.get("priority","")
+        with db() as conn:
+            for tid in ids:
+                if status: conn.execute("UPDATE tasks SET status=? WHERE id=? AND project_id=?",(status,tid,project_id))
+                if priority: conn.execute("UPDATE tasks SET priority=? WHERE id=? AND project_id=?",(priority,tid,project_id))
+        audit(project_id,"task",None,"bulk_updated",f"{len(ids)} activities")
+    return redirect(request.referrer or url_for("project_wbs",project_id=project_id))
+
+@app.get("/projects/<int:project_id>/timeline")
+@login_required
+def project_timeline(project_id):
+    p=project_or_404(project_id); record_recent("project",project_id,p["name"],url_for("project_cockpit",project_id=project_id))
+    with db() as conn:
+        rows=conn.execute("SELECT a.*,u.display_name FROM audit_log a LEFT JOIN users u ON u.id=a.user_id WHERE a.project_id=? ORDER BY a.id DESC LIMIT 100",(project_id,)).fetchall()
+    return render_template("project_timeline.html",project=p,rows=rows)
+
+
+def planning_network(project_id):
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
+        links=[dict(r) for r in conn.execute("SELECT * FROM task_links WHERE project_id=?",(project_id,))]
+    by={int(t["id"]):t for t in tasks}; preds={k:[] for k in by}; succ={k:[] for k in by}
+    for l in links:
+        a=int(l["predecessor_id"]); b=int(l["successor_id"])
+        if a in by and b in by: preds[b].append(l); succ[a].append(l)
+    indeg={k:len(preds[k]) for k in by}; q=[k for k,v in indeg.items() if v==0]; order=[]
+    while q:
+        n=q.pop(0); order.append(n)
+        for l in succ[n]:
+            b=int(l["successor_id"]); indeg[b]-=1
+            if indeg[b]==0:q.append(b)
+    cycle=len(order)!=len(by)
+    if cycle: order=list(by)
+    es={k:0 for k in by}; ef={}
+    for k in order:
+        dur=max(1,int(by[k].get("duration_days") or 1)); start=0
+        for l in preds[k]:
+            a=int(l["predecessor_id"]); lag=int(l.get("lag_days") or 0); typ=l.get("link_type") or "FS"
+            pd=max(1,int(by[a].get("duration_days") or 1))
+            if typ=="FS": cand=ef.get(a,pd)+lag
+            elif typ=="SS": cand=es.get(a,0)+lag
+            elif typ=="FF": cand=ef.get(a,pd)+lag-dur
+            else: cand=es.get(a,0)+lag-dur
+            start=max(start,cand)
+        es[k]=max(0,start); ef[k]=es[k]+dur
+    finish=max(ef.values(),default=0); lf={k:finish for k in by}; ls={}
+    for k in reversed(order):
+        dur=max(1,int(by[k].get("duration_days") or 1)); latest=finish-dur
+        if succ[k]:
+            vals=[]
+            for l in succ[k]:
+                b=int(l["successor_id"]); lag=int(l.get("lag_days") or 0); typ=l.get("link_type") or "FS"; bd=max(1,int(by[b].get("duration_days") or 1))
+                if typ=="FS": vals.append(ls.get(b,finish-bd)-lag-dur)
+                elif typ=="SS": vals.append(ls.get(b,finish-bd)-lag)
+                elif typ=="FF": vals.append(lf.get(b,finish)-lag-dur)
+                else: vals.append(lf.get(b,finish)-lag)
+            latest=min(vals)
+        ls[k]=max(0,latest); lf[k]=ls[k]+dur
+    rows=[]
+    for k in order:
+        t=dict(by[k]); t.update(es=es[k],ef=ef[k],ls=ls[k],lf=lf[k],slack=max(0,ls[k]-es[k]),critical=(ls[k]-es[k])==0); rows.append(t)
+    return rows,links,cycle,finish
+
+@app.get("/projects/<int:project_id>/advanced-planning")
+@login_required
+def advanced_planning(project_id):
+    p=project_or_404(project_id); rows,links,cycle,finish=planning_network(project_id)
+    with db() as conn: scenarios=conn.execute("SELECT * FROM planning_scenarios WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall()
+    return render_template("advanced_planning.html",project=p,rows=rows,links=links,cycle=cycle,finish=finish,scenarios=scenarios)
+
+@app.post("/projects/<int:project_id>/dependencies/new")
+@login_required
+def advanced_dependency_new(project_id):
+    project_or_404(project_id,write=True); a=int(request.form["predecessor_id"]); b=int(request.form["successor_id"])
+    if a==b: abort(400,"En aktivitet kan inte bero på sig själv")
+    with db() as conn:
+        conn.execute("INSERT INTO task_links(project_id,predecessor_id,successor_id,link_type,lag_days) VALUES(?,?,?,?,?)",(project_id,a,b,request.form.get("link_type","FS"),int(request.form.get("lag_days","0") or 0)))
+    audit(project_id,"dependency",None,"created",f"{a}->{b}")
+    return redirect(url_for("advanced_planning",project_id=project_id))
+
+@app.post("/projects/<int:project_id>/scenario")
+@login_required
+def planning_scenario_save(project_id):
+    project_or_404(project_id,write=True)
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]; links=[dict(r) for r in conn.execute("SELECT * FROM task_links WHERE project_id=?",(project_id,))]
+        conn.execute("INSERT INTO planning_scenarios(project_id,name,snapshot_json,created_by,created_at) VALUES(?,?,?,?,?)",(project_id,request.form["name"].strip(),json.dumps({"tasks":tasks,"links":links},ensure_ascii=False),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+    return redirect(url_for("advanced_planning",project_id=project_id))
+
+@app.get("/projects/<int:project_id>/baseline-variance")
+@login_required
+def baseline_variance(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        current=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,))]
+        base=conn.execute("SELECT * FROM baselines WHERE project_id=? ORDER BY id DESC LIMIT 1",(project_id,)).fetchone()
+    snap=json.loads(base["snapshot_json"]) if base else []
+    if isinstance(snap,dict): snap=snap.get("tasks",[])
+    bm={str(x.get("id")):x for x in snap if isinstance(x,dict)}
+    rows=[]
+    for t in current:
+        b=bm.get(str(t["id"])) or next((x for x in snap if isinstance(x,dict) and x.get("wbs")==t.get("wbs")),{})
+        delay=0
+        if b and parse_date(b.get("end_date")) and parse_date(t.get("end_date")): delay=(parse_date(t["end_date"])-parse_date(b["end_date"])).days
+        rows.append({"task":t,"baseline":b,"delay":delay})
+    return render_template("baseline_variance.html",project=p,baseline=base,rows=rows)
+
+
+def evaluate_automation_rule(rule):
+    cfg=json.loads(rule["config_json"] or "{}")
+    pid=rule["project_id"]; trigger=rule["trigger_type"]; action=rule["action_type"]; matched=[]
+    with db() as conn:
+        if trigger=="task.overdue" and pid:
+            for t in conn.execute("SELECT * FROM tasks WHERE project_id=? AND progress<100 AND end_date<>''",(pid,)).fetchall():
+                if parse_date(t["end_date"]) and parse_date(t["end_date"])<date.today(): matched.append(dict(t))
+        elif trigger=="risk.high" and pid:
+            matched=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND probability*impact>=? AND status<>'Stängd'",(pid,int(cfg.get("score",12)))).fetchall()]
+        elif trigger=="milestone.due" and pid:
+            days=int(cfg.get("days",7)); until=date.today()+timedelta(days=days)
+            for t in conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 AND progress<100",(pid,)).fetchall():
+                d=parse_date(t["end_date"]); matched += [dict(t)] if d and date.today()<=d<=until else []
+        if matched and action=="notify.project.members" and pid:
+            members=conn.execute("SELECT user_id FROM project_members WHERE project_id=?",(pid,)).fetchall()
+            msg=cfg.get("message") or f"Automation: {rule['name']} matched {len(matched)} item(s)."
+            for m in members: conn.execute("INSERT INTO notifications(user_id,project_id,message,link,created_at) VALUES(?,?,?,?,?)",(m["user_id"],pid,msg,url_for("project_cockpit",project_id=pid),datetime.now().isoformat(timespec="seconds")))
+    return matched
+
+def run_automation_rules(project_id=None):
+    with db() as conn:
+        if project_id: rules=conn.execute("SELECT * FROM automation_rules WHERE active=1 AND (project_id=? OR project_id IS NULL)",(project_id,)).fetchall()
+        else: rules=conn.execute("SELECT * FROM automation_rules WHERE active=1").fetchall()
+    results=[]
+    for rule in rules:
+        started=datetime.now().isoformat(timespec="seconds")
+        try:
+            matched=evaluate_automation_rule(rule); status="Matched" if matched else "No match"; detail=f"{len(matched)} item(s)"
+        except Exception as ex: status="Failed"; detail=str(ex)
+        with db() as conn: conn.execute("INSERT INTO automation_executions(rule_id,project_id,status,details,started_at,finished_at) VALUES(?,?,?,?,?,?)",(rule["id"],rule["project_id"],status,detail,started,datetime.now().isoformat(timespec="seconds")))
+        results.append((rule,status,detail))
+    return results
+
+@app.route("/automation-center",methods=["GET","POST"])
+@login_required
+def automation_center():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST":
+        pid=int(request.form["project_id"]) if request.form.get("project_id") else None
+        if pid: project_or_404(pid,manager=True)
+        with db() as conn: conn.execute("INSERT INTO automation_rules(project_id,name,trigger_type,action_type,config_json,active) VALUES(?,?,?,?,?,1)",(pid,request.form["name"].strip(),request.form["trigger_type"],request.form["action_type"],request.form.get("config_json","{}")))
+        return redirect(url_for("automation_center"))
+    with db() as conn:
+        rules=conn.execute("SELECT * FROM automation_rules ORDER BY id DESC").fetchall(); history=conn.execute("SELECT e.*,r.name rule_name FROM automation_executions e LEFT JOIN automation_rules r ON r.id=e.rule_id ORDER BY e.id DESC LIMIT 100").fetchall()
+    return render_template("automation_center.html",projects=projects,rules=rules,history=history)
+
+@app.post("/automation/run")
+@login_required
+@role_required("admin","pm")
+def automation_run_now():
+    results=run_automation_rules(); flash(f"Automation körd: {len(results)} regel/regler.","success"); return redirect(url_for("automation_center"))
+
+@app.post("/internal/automation/run")
+def automation_internal_run():
+    token=request.headers.get("X-Automation-Token","")
+    expected=os.getenv("PROJECT_PLAN_AUTOMATION_TOKEN","")
+    if not expected or not hmac.compare_digest(token,expected): abort(401)
+    return jsonify(results=[{"rule":r[0]["name"],"status":r[1],"details":r[2]} for r in run_automation_rules()])
+
+
+def project_report_payload(project_id):
+    s=project_assistant_summary(project_id); p=s["project"]
+    with db() as conn:
+        milestones=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date",(project_id,))]
+        finance=conn.execute("SELECT * FROM project_finance WHERE project_id=?",(project_id,)).fetchone()
+        costs=conn.execute("SELECT COALESCE(SUM(actual),0) actual,COALESCE(SUM(planned),0) planned FROM project_costs WHERE project_id=?",(project_id,)).fetchone()
+    return {"summary":s,"project":p,"milestones":milestones,"finance":dict(finance) if finance else {},"costs":dict(costs)}
+
+@app.get("/projects/<int:project_id>/report.pdf")
+@login_required
+def project_report_pdf(project_id):
+    payload=project_report_payload(project_id)
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    b=BytesIO(); c=canvas.Canvas(b,pagesize=A4); w,h=A4; y=h-55
+    c.setFont("Helvetica-Bold",18); c.drawString(45,y,f"Project Status – {payload['project']['name']}"); y-=30
+    c.setFont("Helvetica",10); c.drawString(45,y,f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')} · Project Planer {APP_VERSION}"); y-=28
+    text=c.beginText(45,y); text.setFont("Helvetica",11)
+    for line in [payload["summary"]["text"],f"Progress: {payload['summary']['progress']}%",f"Overdue: {len(payload['summary']['overdue'])}",f"High risks: {len(payload['summary']['high'])}"]:
+        for part in [line[i:i+95] for i in range(0,len(line),95)]: text.textLine(part)
+    c.drawText(text); y=text.getY()-20; c.setFont("Helvetica-Bold",12); c.drawString(45,y,"Milestones"); y-=18; c.setFont("Helvetica",10)
+    for m in payload["milestones"][:18]: c.drawString(55,y,f"{m.get('end_date','')}  {m.get('title','')}  {m.get('progress',0)}%"); y-=15
+    c.showPage(); c.save(); b.seek(0)
+    return send_file(b,mimetype="application/pdf",as_attachment=True,download_name=f"{secure_filename(payload['project']['name'])}-status.pdf")
+
+@app.get("/projects/<int:project_id>/report.pptx")
+@login_required
+def project_report_pptx(project_id):
+    payload=project_report_payload(project_id); from pptx import Presentation
+    prs=Presentation(); slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text=payload["project"]["name"]+" – Project Status"; slide.placeholders[1].text=payload["summary"]["text"]
+    slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text="Key metrics"; slide.placeholders[1].text=f"Progress: {payload['summary']['progress']}%\nOverdue: {len(payload['summary']['overdue'])}\nBlocked: {len(payload['summary']['blocked'])}\nHigh risks: {len(payload['summary']['high'])}"
+    slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text="Milestones"; slide.placeholders[1].text="\n".join(f"{m.get('end_date','')} – {m.get('title','')} ({m.get('progress',0)}%)" for m in payload["milestones"][:12]) or "No milestones"
+    b=BytesIO(); prs.save(b); b.seek(0); return send_file(b,mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",as_attachment=True,download_name=f"{secure_filename(payload['project']['name'])}-status.pptx")
+
+@app.get("/executive-reporting")
+@login_required
+def executive_reporting():
+    rows=[]
+    for p in roadmap_accessible_projects():
+        s=project_assistant_summary(p["id"]); rag="red" if s["overdue"] or len(s["high"])>=2 else ("amber" if s["blocked"] or s["high"] else "green")
+        rows.append({"p":p,"s":s,"rag":rag})
+    return render_template("executive_reporting.html",rows=rows)
+
+@app.route("/scheduled-reports",methods=["GET","POST"])
+@login_required
+def scheduled_reports():
+    if request.method=="POST":
+        pid=int(request.form["project_id"]) if request.form.get("project_id") else None
+        if pid: project_or_404(pid,manager=True)
+        with db() as conn: conn.execute("INSERT INTO scheduled_reports(project_id,name,format,cadence,recipient,created_by,created_at) VALUES(?,?,?,?,?,?,?)",(pid,request.form["name"],request.form.get("format","pdf"),request.form.get("cadence","weekly"),request.form.get("recipient",""),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+        return redirect(url_for("scheduled_reports"))
+    with db() as conn: rows=conn.execute("SELECT * FROM scheduled_reports ORDER BY id DESC").fetchall()
+    return render_template("scheduled_reports.html",rows=rows,projects=roadmap_accessible_projects())
+
+
+def api_auth_scope(scope="read"):
+    def deco(fn):
+        @wraps(fn)
+        def wrapper(*args,**kwargs):
+            auth=request.headers.get("Authorization","")
+            if not auth.startswith("Bearer "): return jsonify(error="unauthorized"),401
+            raw=auth[7:]; h=hashlib.sha256(raw.encode()).hexdigest()
+            with db() as conn: key=conn.execute("SELECT * FROM api_keys WHERE key_hash=? AND active=1",(h,)).fetchone()
+            if not key: return jsonify(error="unauthorized"),401
+            scopes=set((key["scopes"] or "read").split());
+            if scope not in scopes and "admin" not in scopes: return jsonify(error="insufficient_scope"),403
+            if key["expires_at"] and parse_date(key["expires_at"]) and parse_date(key["expires_at"])<date.today(): return jsonify(error="key_expired"),401
+            request.api_user=key["user_id"]; conn.execute("UPDATE api_keys SET last_used=? WHERE id=?",(datetime.now().isoformat(timespec="seconds"),key["id"]))
+            return fn(*args,**kwargs)
+        return wrapper
+    return deco
+
+@app.route("/api/v2/projects",methods=["GET","POST"])
+@api_auth_scope("read")
+def api_v2_projects():
+    uid=request.api_user
+    with db() as conn:
+        u=conn.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone()
+        if request.method=="POST":
+            scopes=request.headers.get("X-API-Scope-Check","")
+            # write authorization is revalidated against token below
+            auth=request.headers.get("Authorization","")[7:]; kh=hashlib.sha256(auth.encode()).hexdigest(); key=conn.execute("SELECT * FROM api_keys WHERE key_hash=?",(kh,)).fetchone()
+            if "write" not in set((key["scopes"] or "").split()) and "admin" not in set((key["scopes"] or "").split()): return jsonify(error="insufficient_scope"),403
+            data=request.get_json(silent=True) or {}; name=(data.get("name") or "").strip()
+            if not name:return jsonify(error="name_required"),400
+            cur=conn.execute("INSERT INTO projects(name,customer,project_manager,description,created_by,created_at) VALUES(?,?,?,?,?,?)",(name,data.get("customer",""),data.get("project_manager",""),data.get("description",""),uid,datetime.now().isoformat(timespec="seconds")))
+            pid=cur.lastrowid; conn.execute("INSERT OR IGNORE INTO project_members(project_id,user_id,project_role,added_at,added_by) VALUES(?,?,?,?,?)",(pid,uid,"pm",datetime.now().isoformat(timespec="seconds"),uid)); return jsonify(id=pid,name=name),201
+        if u["role"]=="admin": rows=conn.execute("SELECT * FROM projects ORDER BY id DESC").fetchall()
+        else: rows=conn.execute("SELECT p.* FROM projects p JOIN project_members pm ON pm.project_id=p.id WHERE pm.user_id=? ORDER BY p.id DESC",(uid,)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/api/v2/projects/<int:project_id>/tasks",methods=["GET","POST"])
+@api_auth_scope("read")
+def api_v2_tasks(project_id):
+    uid=request.api_user
+    with db() as conn:
+        u=conn.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone(); allowed=u["role"]=="admin" or conn.execute("SELECT 1 FROM project_members WHERE project_id=? AND user_id=?",(project_id,uid)).fetchone()
+        if not allowed:return jsonify(error="forbidden"),403
+        if request.method=="POST":
+            auth=request.headers.get("Authorization","")[7:]; key=conn.execute("SELECT * FROM api_keys WHERE key_hash=?",(hashlib.sha256(auth.encode()).hexdigest(),)).fetchone(); scopes=set((key["scopes"] or "").split())
+            if "write" not in scopes and "admin" not in scopes:return jsonify(error="insufficient_scope"),403
+            d=request.get_json(silent=True) or {}; title=(d.get("title") or "").strip()
+            if not title:return jsonify(error="title_required"),400
+            cur=conn.execute("INSERT INTO tasks(project_id,wbs,title,owner,start_date,end_date,status,priority,progress) VALUES(?,?,?,?,?,?,?,?,?)",(project_id,d.get("wbs",""),title,d.get("owner",""),d.get("start_date",""),d.get("end_date",""),d.get("status","Ej startad"),d.get("priority","Normal"),int(d.get("progress",0))))
+            return jsonify(id=cur.lastrowid,title=title),201
+        rows=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@app.route("/integration-center",methods=["GET","POST"])
+@login_required
+@role_required("admin")
+def integration_center_v35():
+    providers=["Azure DevOps","GitHub","Jira","Microsoft Teams","SMTP"]
+    if request.method=="POST":
+        provider=request.form["provider"]
+        with db() as conn: conn.execute("INSERT INTO integration_settings(provider,enabled,base_url,config_json,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(provider) DO UPDATE SET enabled=excluded.enabled,base_url=excluded.base_url,config_json=excluded.config_json,updated_at=excluded.updated_at",(provider,1 if request.form.get("enabled") else 0,request.form.get("base_url",""),request.form.get("config_json","{}"),datetime.now().isoformat(timespec="seconds")))
+        return redirect(url_for("integration_center_v35"))
+    with db() as conn: settings={r["provider"]:r for r in conn.execute("SELECT * FROM integration_settings").fetchall()}
+    return render_template("integration_center_v35.html",providers=providers,settings=settings)
+
+
+@app.get("/security-center")
+@login_required
+@role_required("admin")
+def security_center():
+    with db() as conn:
+        logins=conn.execute("SELECT * FROM login_history ORDER BY id DESC LIMIT 100").fetchall(); events=conn.execute("SELECT * FROM security_events ORDER BY id DESC LIMIT 100").fetchall(); sessions=conn.execute("SELECT s.*,u.username,u.display_name FROM user_sessions s JOIN users u ON u.id=s.user_id WHERE s.revoked_at='' ORDER BY s.last_seen DESC").fetchall()
+    return render_template("security_center.html",logins=logins,events=events,sessions=sessions)
+
+@app.post("/projects/<int:project_id>/archive")
+@login_required
+def project_archive(project_id):
+    project_or_404(project_id,manager=True)
+    with db() as conn: conn.execute("UPDATE projects SET archived_at=? WHERE id=?",(datetime.now().isoformat(timespec="seconds"),project_id))
+    audit(project_id,"project",project_id,"archived",""); return redirect(url_for("index"))
+
+@app.post("/projects/<int:project_id>/trash")
+@login_required
+def project_trash(project_id):
+    project_or_404(project_id,manager=True)
+    with db() as conn: conn.execute("UPDATE projects SET deleted_at=? WHERE id=?",(datetime.now().isoformat(timespec="seconds"),project_id))
+    audit(project_id,"project",project_id,"trashed",""); return redirect(url_for("index"))
+
+@app.get("/admin/trash")
+@login_required
+@role_required("admin")
+def admin_trash():
+    with db() as conn: rows=conn.execute("SELECT * FROM projects WHERE deleted_at<>'' ORDER BY deleted_at DESC").fetchall()
+    return render_template("trash.html",rows=rows)
+
+@app.post("/admin/trash/<int:project_id>/restore")
+@login_required
+@role_required("admin")
+def admin_trash_restore(project_id):
+    with db() as conn: conn.execute("UPDATE projects SET deleted_at='' WHERE id=?",(project_id,))
+    return redirect(url_for("admin_trash"))
+
+@app.get("/admin/backup/download-latest")
+@login_required
+@role_required("admin")
+def download_live_database():
+    if not DB_PATH.exists(): abort(404)
+    stamp=datetime.now().strftime("%Y%m%d-%H%M%S")
+    return send_file(DB_PATH,as_attachment=True,download_name=f"projectplan-{stamp}.db")
+
+@app.after_request
+def enterprise_security_headers(response):
+    response.headers.setdefault("X-Content-Type-Options","nosniff"); response.headers.setdefault("X-Frame-Options","SAMEORIGIN"); response.headers.setdefault("Referrer-Policy","strict-origin-when-cross-origin"); response.headers.setdefault("Permissions-Policy","camera=(), microphone=(), geolocation=()")
+    if request.is_secure: response.headers.setdefault("Strict-Transport-Security","max-age=31536000; includeSubDomains")
+    return response
+
+
+@app.route("/projects/<int:project_id>/delivery",methods=["GET","POST"])
+@login_required
+def delivery_center(project_id):
+    p=project_or_404(project_id)
+    if request.method=="POST":
+        project_or_404(project_id,write=True); kind=request.form["kind"]
+        with db() as conn:
+            if kind=="environment": conn.execute("INSERT OR IGNORE INTO project_environments(project_id,name,base_url,owner,status,notes) VALUES(?,?,?,?,?,?)",(project_id,request.form["name"],request.form.get("base_url",""),request.form.get("owner",""),request.form.get("status","Ready"),request.form.get("notes","")))
+            elif kind=="deliverable": conn.execute("INSERT INTO deliverables(project_id,name,owner,due_date,status,acceptance_criteria) VALUES(?,?,?,?,?,?)",(project_id,request.form["name"],request.form.get("owner",""),request.form.get("due_date",""),request.form.get("status","Planned"),request.form.get("acceptance_criteria","")))
+            elif kind=="interface": conn.execute("INSERT INTO interface_register(project_id,name,source_system,target_system,protocol,owner,status,notes) VALUES(?,?,?,?,?,?,?,?)",(project_id,request.form["name"],request.form.get("source_system",""),request.form.get("target_system",""),request.form.get("protocol",""),request.form.get("owner",""),request.form.get("status","Design"),request.form.get("notes","")))
+            elif kind=="test": conn.execute("INSERT INTO test_cycles(project_id,name,test_type,start_date,end_date,status) VALUES(?,?,?,?,?,?)",(project_id,request.form["name"],request.form.get("test_type","SIT"),request.form.get("start_date",""),request.form.get("end_date",""),request.form.get("status","Planned")))
+            elif kind=="requirement": conn.execute("INSERT INTO requirements_traceability(project_id,requirement_id,requirement,status) VALUES(?,?,?,?)",(project_id,request.form["requirement_id"],request.form["requirement"],request.form.get("status","Open")))
+            elif kind=="cutover": conn.execute("INSERT INTO cutover_items(project_id,sequence_no,title,owner,planned_at,status,rollback_step) VALUES(?,?,?,?,?,?,?)",(project_id,int(request.form.get("sequence_no","0") or 0),request.form["title"],request.form.get("owner",""),request.form.get("planned_at",""),request.form.get("status","Planned"),request.form.get("rollback_step","")))
+        audit(project_id,"delivery",None,"created",kind); return redirect(url_for("delivery_center",project_id=project_id))
+    with db() as conn:
+        envs=conn.execute("SELECT * FROM project_environments WHERE project_id=? ORDER BY name",(project_id,)).fetchall(); deliverables=conn.execute("SELECT * FROM deliverables WHERE project_id=? ORDER BY due_date",(project_id,)).fetchall(); interfaces=conn.execute("SELECT * FROM interface_register WHERE project_id=? ORDER BY name",(project_id,)).fetchall(); tests=conn.execute("SELECT * FROM test_cycles WHERE project_id=? ORDER BY start_date",(project_id,)).fetchall(); reqs=conn.execute("SELECT * FROM requirements_traceability WHERE project_id=? ORDER BY requirement_id",(project_id,)).fetchall(); cutover=conn.execute("SELECT * FROM cutover_items WHERE project_id=? ORDER BY sequence_no,id",(project_id,)).fetchall()
+    return render_template("delivery_center.html",project=p,envs=envs,deliverables=deliverables,interfaces=interfaces,tests=tests,reqs=reqs,cutover=cutover)
+
+
+def health_snapshot(project_id):
+    s=project_assistant_summary(project_id); score=max(0,min(100,100-len(s["overdue"])*8-len(s["blocked"])*7-len(s["high"])*10-len(s["changes"])*3))
+    return {"progress":s["progress"],"overdue":len(s["overdue"]),"blocked":len(s["blocked"]),"high":len(s["high"]),"changes":len(s["changes"]),"score":score,"summary":s}
+
+def assistant_answer(project_id,question):
+    q=question.lower(); h=health_snapshot(project_id); s=h["summary"]; p=s["project"]
+    if any(x in q for x in ["sen","försen","late","delay"]):
+        items=s["overdue"]; return (f"{len(items)} aktivitet(er) är försenade: "+", ".join(x["title"] for x in items[:10])) if items else "Inga försenade aktiviteter hittades."
+    if any(x in q for x in ["block","go-live","golive"]):
+        items=s["blocked"]+s["overdue"]; return ("De viktigaste blockerarna är: "+", ".join(dict.fromkeys(x["title"] for x in items[:10]))) if items else "Inga direkta blockerare identifierades."
+    if "risk" in q:
+        items=s["high"]; return (f"{len(items)} höga risker: "+", ".join(x["title"] for x in items[:10])) if items else "Inga höga risker identifierades."
+    if any(x in q for x in ["ändrat","changed","förra veckan","last week"]):
+        with db() as conn: changes=conn.execute("SELECT * FROM audit_log WHERE project_id=? AND created_at>=? ORDER BY id DESC LIMIT 30",(project_id,(datetime.now()-timedelta(days=7)).isoformat(timespec="seconds"))).fetchall()
+        return f"{len(changes)} ändringar senaste 7 dagarna. "+"; ".join(f"{x['entity_type']} {x['action']}" for x in changes[:12])
+    if any(x in q for x in ["hälsa","status","health"]): return f"{p['name']} har health score {h['score']}/100 och progress {h['progress']}%. {s['text']}"
+    return s["text"]+" Fråga gärna om risker, förseningar, blockerare, status eller vad som ändrats senaste veckan."
+
+@app.route("/intelligence",methods=["GET","POST"])
+@login_required
+def intelligence_center():
+    projects=roadmap_accessible_projects(); pid=request.values.get("project_id",type=int) or (projects[0]["id"] if projects else None); answer=None; question=""
+    if pid: project_or_404(pid)
+    if request.method=="POST" and pid:
+        question=request.form.get("question","").strip(); answer=assistant_answer(pid,question)
+        with db() as conn: conn.execute("INSERT INTO assistant_queries(user_id,project_id,question,answer,created_at) VALUES(?,?,?,?,?)",(current_user()["id"],pid,question,answer,datetime.now().isoformat(timespec="seconds")))
+    hist=[]
+    if pid:
+        with db() as conn: hist=conn.execute("SELECT * FROM assistant_queries WHERE user_id=? AND project_id=? ORDER BY id DESC LIMIT 10",(current_user()["id"],pid)).fetchall()
+    return render_template("intelligence.html",projects=projects,project_id=pid,answer=answer,question=question,history=hist)
+
+@app.post("/projects/<int:project_id>/health-snapshot")
+@login_required
+def create_health_snapshot(project_id):
+    project_or_404(project_id,write=True); h=health_snapshot(project_id)
+    with db() as conn: conn.execute("INSERT INTO project_health_snapshots(project_id,snapshot_date,progress,overdue_count,blocked_count,high_risk_count,open_change_count,health_score,details_json) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(project_id,snapshot_date) DO UPDATE SET progress=excluded.progress,overdue_count=excluded.overdue_count,blocked_count=excluded.blocked_count,high_risk_count=excluded.high_risk_count,open_change_count=excluded.open_change_count,health_score=excluded.health_score,details_json=excluded.details_json",(project_id,date.today().isoformat(),h["progress"],h["overdue"],h["blocked"],h["high"],h["changes"],h["score"],json.dumps({"version":APP_VERSION})))
+    return redirect(url_for("intelligence_center",project_id=project_id))
+
+@app.get("/projects/<int:project_id>/health-trend")
+@login_required
+def health_trend(project_id):
+    p=project_or_404(project_id)
+    with db() as conn: rows=conn.execute("SELECT * FROM project_health_snapshots WHERE project_id=? ORDER BY snapshot_date",(project_id,)).fetchall()
+    return render_template("health_trend.html",project=p,rows=rows)
+
+@app.post("/projects/<int:project_id>/meeting-to-actions")
+@login_required
+def meeting_to_actions(project_id):
+    project_or_404(project_id,write=True); notes=request.form.get("notes",""); created=0
+    with db() as conn:
+        for line in notes.splitlines():
+            raw=line.strip()
+            if raw.upper().startswith("ACTION:"):
+                body=raw.split(":",1)[1].strip(); owner=""
+                if "@" in body:
+                    body,owner=body.rsplit("@",1); body=body.strip(); owner=owner.strip()
+                if body: conn.execute("INSERT INTO action_items(project_id,title,owner,status) VALUES(?,?,?,'Open')",(project_id,body,owner)); created+=1
+            elif raw.upper().startswith("DECISION:"):
+                body=raw.split(":",1)[1].strip()
+                if body: conn.execute("INSERT INTO decisions(project_id,title,decision,decided_by,decision_date,owner,decided_at) VALUES(?,?,?,?,?,?,?)",(project_id,body,body,current_user()["display_name"],date.today().isoformat(),current_user()["display_name"],datetime.now().isoformat(timespec="seconds"))); created+=1
+    flash(f"Skapade {created} actions/beslut från mötesanteckningar.","success"); return redirect(url_for("collaboration",project_id=project_id))
 
 if __name__=="__main__":
     init_db()

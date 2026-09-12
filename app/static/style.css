@@ -55,3 +55,8 @@ footer img{width:22px;height:22px;border-radius:5px}
 .progressbar{height:8px;background:#e8eef3;border-radius:99px;overflow:hidden}.progressbar>span{display:block;height:100%;background:currentColor}
 .card-link{text-decoration:none;color:inherit}
 
+
+/* Roadmap platform additions */
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1rem}.panel,.kpi{background:#fff;border:1px solid #dbe4ec;border-radius:14px;padding:1rem}.kpi strong{font-size:1.65rem;display:block;margin-top:.25rem}.toolbar{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center;margin:.75rem 0}.compact-table{width:100%;border-collapse:collapse}.compact-table th,.compact-table td{padding:.58rem;border-bottom:1px solid #edf2f7;text-align:left}.table-scroll{overflow:auto}.badge{border-radius:999px;padding:.18rem .55rem;background:#edf2f7;font-size:.82rem}.badge.red{background:#fde8e8}.badge.amber{background:#fff3cd}.badge.green{background:#e6f7ed}.muted{opacity:.68}.command-box{width:min(720px,100%);padding:.75rem 1rem;border-radius:12px;border:1px solid #cbd5e1}.timeline{border-left:3px solid #dbe4ec;margin-left:.5rem;padding-left:1rem}.timeline-item{margin:0 0 1rem}.heat-high{background:#fde8e8}.heat-med{background:#fff3cd}.heat-ok{background:#e6f7ed}.gantt-track{height:24px;background:#edf2f7;border-radius:7px;position:relative}.gantt-bar{position:absolute;height:100%;border-radius:7px;background:#497aa1}.callout{border-left:4px solid #497aa1;padding:.75rem 1rem;background:#f7fafc;border-radius:8px}
+
