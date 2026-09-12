@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-2.1.1}"
+VERSION="${VERSION:-2.1.2}"
 LXC_HOSTNAME="${LXC_HOSTNAME:-project-planer}"
 CORES="${CORES:-1}"
 MEMORY="${MEMORY:-1024}"
@@ -140,6 +140,7 @@ pct exec "$CTID" -- bash -lc "
     ca-certificates \
     curl \
     unzip \
+    rsync \
     python3 \
     python3-venv \
     python3-pip \
@@ -151,8 +152,8 @@ pct exec "$CTID" -- bash -lc "
   fi
 
   update-locale LANG=en_US.UTF-8
-  export LANG=en_US.UTF-8
-  export LC_ALL=en_US.UTF-8
+  export LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
 
   echo 'Preflight Python:'
   python3 --version
@@ -162,8 +163,8 @@ pct exec "$CTID" -- bash -lc "
 echo "Installerar $TAG..."
 pct exec "$CTID" -- bash -lc "
   set -euo pipefail
-  export LANG=en_US.UTF-8
-  export LC_ALL=en_US.UTF-8
+  export LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
 
   rm -rf /tmp/project-planer
   mkdir -p /tmp/project-planer

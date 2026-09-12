@@ -1,42 +1,32 @@
-# Project Planer LXC v2.1.1
+# Project Planer LXC v2.1.2
 
-Maintenance release for the v2.1 multilingual/branding edition.
+Maintenance release that fixes the v2.1.1 deployment path bug.
 
-## Fixes in v2.1.1
+## Fixed in v2.1.2
 
-- Fixes fresh Debian 12 LXC installation where `python3 -m venv` failed because `python3-venv` was not installed.
-- Installs `python3`, `python3-venv` and `python3-pip` before the application installer starts.
-- Installs and generates `en_US.UTF-8` locale to remove Debian locale warnings.
-- Replaces the problematic `HOSTNAME` environment variable with `LXC_HOSTNAME`.
-- Default container hostname is now `project-planer`.
-- Adds Python/venv preflight checks.
-- Detects and removes an incomplete `.venv`.
-- Verifies both the systemd service and `/health` before reporting success.
-- Failed fresh installations automatically remove the failed LXC unless `KEEP_FAILED_CONTAINER=1` is supplied.
-- Keeps all v2.1.0 language selection, branding, icon, Admin, PMO, planning and integration features.
+- `install-app.sh` now installs from the actual extracted GitHub release directory.
+- Verifies `requirements.txt`, `app/app.py`, templates, static assets, and the systemd service before deployment.
+- Uses a staging directory before activating the new release.
+- Preserves `/opt/project-plan/data` and `/opt/project-plan/backups`.
+- Creates the Python virtual environment inside staging.
+- Installs Python packages from the correct `requirements.txt`.
+- Uses atomic release switching.
+- Automatically rolls back to the previous application release if systemd startup or `/health` fails.
+- Removes the previous release only after a successful health check.
+- Adds `rsync` as an installation dependency.
+- Update script uses the same safe install path as a fresh install.
+- Keeps all features from v2.1.1 including multilingual UI and branding.
 
 ## Fresh install
 
 ```bash
-VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=2.1.2 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
-Custom hostname:
+## Upgrade
 
 ```bash
-LXC_HOSTNAME=project-planer VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
-```
-
-Keep a failed container for troubleshooting:
-
-```bash
-KEEP_FAILED_CONTAINER=1 VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
-```
-
-## Upgrade existing container
-
-```bash
-CTID=201 VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=200 VERSION=2.1.2 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## Publish
