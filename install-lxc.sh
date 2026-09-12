@@ -35,6 +35,12 @@ BRIDGE="${BRIDGE:-vmbr0}"
 IP_CONFIG="${IP_CONFIG:-dhcp}"
 PASSWORD="${PASSWORD:-$(openssl rand -base64 18 | tr -d '/+=' | head -c 20)}"
 
+
+if [[ -n "${CTID:-}" ]] && pct status "$CTID" >/dev/null 2>&1; then
+  echo "FEL: CT $CTID finns redan. Använd deploy-lxc.sh eller update-lxc.sh för uppgradering."
+  exit 1
+fi
+
 if ! command -v pct >/dev/null 2>&1; then
   echo "FEL: Kör detta script på en Proxmox VE host."
   exit 1
