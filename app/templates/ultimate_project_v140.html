@@ -1,0 +1,60 @@
+
+{% extends "base.html" %}
+{% block title %}{{project.name}} · Project Planer{% endblock %}
+{% block content %}
+<div class="ultimate-shell">
+<div class="project-breadcrumb"><a href="/home">Idag</a><span>›</span><a href="/">Projekt</a><span>›</span><strong>{{project.name}}</strong></div>
+<section class="project-hero">
+ <div><div class="project-title-row"><span class="project-rag rag-{{health.rag}}"><i></i>{{'På rätt väg' if health.rag=='green' else 'Behöver uppmärksamhet' if health.rag=='amber' else 'I riskzonen'}}</span><h1>{{project.name}}</h1></div>
+ <p>{{project.customer or 'Ingen kund angiven'}} · {{project.project_manager or 'Ingen projektledare angiven'}}</p></div>
+ <div class="ultimate-header-actions"><a class="btn primary" href="/projects/{{project.id}}/quick-add">＋ Lägg till</a><details class="export-menu"><summary class="btn">Exportera ▾</summary><div><a href="/projects/{{project.id}}/excel">Excel Pro</a><a href="/projects/{{project.id}}/report-studio">Rapport Studio</a><a href="/projects/{{project.id}}/report.pdf">PDF</a><a href="/projects/{{project.id}}/report.pptx">PowerPoint</a></div></details></div>
+</section>
+
+<nav class="project-view-switcher" aria-label="Projektvyer">
+ <a class="active" href="/projects/{{project.id}}/ultimate">Översikt</a>
+ <a href="/projects/{{project.id}}/workspace-pro">Lista</a>
+ <a href="/projects/{{project.id}}/kanban">Tavla</a>
+ <a href="/projects/{{project.id}}/gantt-next">Gantt</a>
+ <a href="/projects/{{project.id}}/calendar">Kalender</a>
+ <a href="/projects/{{project.id}}/risk-center">Risker</a>
+ <a href="/projects/{{project.id}}/collaboration">Samarbete</a>
+</nav>
+
+<section class="project-kpis">
+ <div><strong>{{progress}}%</strong><span>klart</span></div>
+ <div><strong>{{open_tasks|length}}</strong><span>öppna aktiviteter</span></div>
+ <div class="{% if health.overdue %}danger-text{% endif %}"><strong>{{health.overdue|length}}</strong><span>försenade</span></div>
+ <div class="{% if health.high_risks %}danger-text{% endif %}"><strong>{{health.high_risks|length}}</strong><span>höga risker</span></div>
+ <div><strong>{{"%.0f"|format(health.actual)}}</strong><span>utfall / {{"%.0f"|format(health.planned)}} plan</span></div>
+</section>
+
+<div class="ultimate-layout">
+<section>
+ <div class="ultimate-side-card attention-card">
+   <div class="ultimate-section-head"><div><span class="ultimate-eyebrow">NÄSTA BESLUT</span><h2>Behöver din uppmärksamhet</h2></div></div>
+   <ul class="attention-list">
+   {% for a in next_actions %}<li><span class="simple-badge">{{a.type}}</span><div><strong>{{a.title}}</strong><small>{{a.detail}}</small></div><a href="{{a.url}}">Hantera →</a></li>
+   {% else %}<li class="ultimate-empty-small">Inga kritiska avvikelser. Projektet ser stabilt ut.</li>{% endfor %}
+   </ul>
+ </div>
+
+ <div class="ultimate-side-card"><div class="ultimate-section-head"><h2>Nästa milstolpar</h2><a href="/projects/{{project.id}}/gantt-next">Plan →</a></div>
+   <div class="milestone-list">{% for m in milestones %}<div><span class="milestone-dot"></span><div><strong>{{m.title}}</strong><small>{{m.end_date}} · {{m.status or ''}}</small></div></div>{% else %}<p class="ultimate-empty-small">Inga milstolpar definierade.</p>{% endfor %}</div>
+ </div>
+
+ <div class="ultimate-side-card"><div class="ultimate-section-head"><h2>Arbetsstatus</h2><a href="/projects/{{project.id}}/workspace-pro">Visa allt →</a></div>
+   <div class="work-preview">{% for t in open_tasks[:8] %}<a href="/projects/{{project.id}}/workspace-pro"><span>{{t.title}}</span><small>{{t.owner or 'Ej tilldelad'}} · {{t.end_date or 'utan datum'}} · {{t.progress or 0}}%</small></a>{% else %}<p class="ultimate-empty-small">Inga öppna aktiviteter.</p>{% endfor %}</div>
+ </div>
+</section>
+
+<aside>
+ <div class="ultimate-side-card"><h2>Projektverktyg</h2><div class="ultimate-quick-links">
+  <a href="/projects/{{project.id}}/planning-pro-ux">Planering</a><a href="/projects/{{project.id}}/excel">Excel Pro</a><a href="/projects/{{project.id}}/report-studio">Rapporter</a><a href="/projects/{{project.id}}/status-report-2">Statusrapport</a>
+ </div></div>
+ <div class="ultimate-side-card"><h2>Team</h2><ul class="compact-people">{% for m in members[:8] %}<li><span class="avatar">{{m.display_name[:1]|upper}}</span><div><strong>{{m.display_name}}</strong><small>{{m.project_role}}</small></div></li>{% else %}<li>Inga medlemmar.</li>{% endfor %}</ul></div>
+ {% if devops %}<div class="ultimate-side-card"><div class="ultimate-section-head"><h2>Azure DevOps</h2><a href="/integrations/azure-devops/live">Öppna →</a></div>{% for d in devops %}<div class="devops-row"><span>{{d.state or 'Okänd'}}</span><strong>{{d.c}}</strong></div>{% endfor %}</div>{% endif %}
+ {% if comments %}<div class="ultimate-side-card"><div class="ultimate-section-head"><h2>Senaste aktivitet</h2><a href="/projects/{{project.id}}/collaboration">Samarbete →</a></div>{% for c in comments %}<div class="activity-row"><strong>{{c.author}}</strong><span>{{c.body}}</span></div>{% endfor %}</div>{% endif %}
+</aside>
+</div>
+</div>
+{% endblock %}

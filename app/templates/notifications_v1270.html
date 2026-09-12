@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block title %}Action Inbox{% endblock %}{% block content %}<div class="simple-shell">
-<section class="simple-hero"><div class="eyebrow">v12.7</div><h1>Action Inbox</h1><p>En prioriterad inbox som fokuserar på det användaren kan agera på.</p></section>
+{% extends "base.html" %}{% block title %}Åtgärdsinkorg{% endblock %}{% block content %}<div class="simple-shell">
+<section class="simple-hero"><div class="eyebrow">v12.7</div><h1>Åtgärdsinkorg</h1><p>En prioriterad inbox som fokuserar på det användaren kan agera på.</p></section>
 <div class="simple-card"><div class="simple-kpi">{{unread|length}}</div><div>behöver din uppmärksamhet</div></div>
 <ul class="simple-list">{% for n in rows %}<li>{% if not n.is_read %}<strong>{% endif %}{{n.message}}{% if not n.is_read %}</strong>{% endif %} <span class="simple-muted">{{n.created_at}}</span></li>{% else %}<li>Inboxen är tom.</li>{% endfor %}</ul></div>{% endblock %}

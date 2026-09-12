@@ -13,7 +13,7 @@
 <body>
 <a class="ux-skip" href="#main-content">Hoppa till innehåll</a>
 <header class="topbar branded nav-v401">
-  <a class="brand brand-with-icon" href="{{url_for('index')}}">
+  <a class="brand brand-with-icon" href="/home">
     <img src="{{url_for('static',filename='assets/project-planer-icon-64.png')}}" alt="Project Planer">
     <span class="brand-copy"><strong>Project Planer</strong><small>{{t('brand_tagline')}}</small></span>
   </a>
@@ -22,88 +22,17 @@
   <button class="nav-toggle" type="button" aria-label="Öppna meny" aria-expanded="false"
           onclick="document.body.classList.toggle('nav-open');this.setAttribute('aria-expanded',document.body.classList.contains('nav-open')?'true':'false')">☰</button>
 
-  <nav class="primary-nav nav-clean" aria-label="Main navigation">
-    <a class="nav-home" href="{{url_for('intelligent_ppm_v80')}}">Översikt</a>
-
-    <details class="nav-menu">
-      <summary>Mitt arbete ▾</summary>
-      <div class="nav-dropdown">
-        <a href="{{url_for('action_inbox_v78')}}">Inkorg</a>
-        <a href="{{url_for('my_work')}}">Mitt arbete</a>
-        <a href="{{url_for('focus_v56')}}">Fokus</a>
-        <a href="{{url_for('task_experience_v61')}}">Uppgifter</a>
-        <a href="{{url_for('quick_add_v51')}}">＋ Snabbskapa</a>
-        <a href="{{url_for('command_palette')}}">Sök</a>
-      </div>
-    </details>
-
-    <details class="nav-menu">
-      <summary>Projekt ▾</summary>
-      <div class="nav-dropdown">
-        <a href="{{url_for('workspace')}}">Projektarbetsyta</a>
-        <a href="{{url_for('planning_hub')}}">Planering</a>
-        <a href="{{url_for('control_center')}}">Projektkontroll</a>
-        <a href="{{url_for('collaboration_hub')}}">Samarbete</a>
-        <a href="{{url_for('report_center')}}">Rapporter</a>
-        <a href="{{url_for('stakeholder_index_v68')}}">Intressenter</a>
-        {% if current_user['role'] in ['admin','pm'] %}
-        <a class="nav-accent" href="{{url_for('project_wizard_v58')}}">＋ Nytt projekt</a>
-        {% endif %}
-      </div>
-    </details>
-
-    <details class="nav-menu">
-      <summary>Portfölj ▾</summary>
-      <div class="nav-dropdown">
-        <a href="{{url_for('visual_dashboard_v503')}}">Portföljstatus</a>
-        <a href="{{url_for('pmo')}}">Portföljer</a>
-        <a href="{{url_for('executive_pmo')}}">Lednings-PMO</a>
-        <a href="{{url_for('control_engine_v79')}}">Projektkontroll</a>
-        <a href="{{url_for('portfolio_dependencies_v73')}}">Beroenden</a>
-        <a href="{{url_for('scenario_planner_v76')}}">Scenarier</a>
-        <a href="{{url_for('business_cases_v72')}}">Beslutsunderlag</a>
-        <a href="{{url_for('goals_v66')}}">Mål</a>
-        <a href="{{url_for('benefits_v77')}}">Nyttohemtagning</a>
-      </div>
-    </details>
-
-    <details class="nav-menu">
-      <summary>Resurser & ekonomi ▾</summary>
-      <div class="nav-dropdown">
-        <a href="{{url_for('resource_directory_v74')}}">Resursregister</a>
-        <a href="{{url_for('resource_planning_v65')}}">Resource Planering</a>
-        <a href="{{url_for('team_capacity_v55')}}">Teamkapacitet</a>
-        <a href="{{url_for('financial_control_v67')}}">Ekonomistyrning</a>
-        <a href="{{url_for('finance_control')}}">Projektekonomi</a>
-      </div>
-    </details>
-
-    <details class="nav-menu">
-      <summary>Verktyg ▾</summary>
-      <div class="nav-dropdown">
-        <a href="{{url_for('pm_copilot_v60')}}">PM Copilot</a>
-        <a href="{{url_for('intake_v63')}}">Inkommande behov</a>
-        {% if current_user['role'] in ['admin','pm'] %}
-        <a href="{{url_for('form_builder_v71')}}">Formulärbyggare</a>
-        <a href="{{url_for('managed_templates_v75')}}">Hanterade mallar</a>
-        <a href="{{url_for('automation_designer_v64')}}">Automationer</a>
-        {% endif %}
-        <a href="{{url_for('dashboard_designer_v69')}}">Dashboarddesigner</a>
-        <a href="{{url_for('integration_center_v35')}}">Integrationer</a>
-      </div>
-    </details>
-
+  <nav class="primary-nav nav-clean ultimate-primary-nav" aria-label="Huvudnavigation">
+    <a href="/home">Idag</a>
+    <a href="/my-work-2">Mitt arbete</a>
+    <a href="/">Projekt</a>
+    <a href="/portfolio-cockpit">Portfolio</a>
+    <button class="ultimate-search-trigger" type="button" data-command-open aria-label="Sök och kommandon">⌘ Sök</button>
+    {% if current_user['role'] in ['admin','pm'] %}
+      <a class="nav-accent" href="/projects/new-guided">＋ Skapa</a>
+    {% endif %}
     {% if current_user['role']=='admin' %}
-    <details class="nav-menu">
-      <summary>Admin ▾</summary>
-      <div class="nav-dropdown">
-        <a href="{{url_for('admin_center')}}">Admincenter</a>
-        <a href="{{url_for('admin_quality')}}">Kvalitetscenter</a>
-        <a href="{{url_for('security_center')}}">Säkerhet</a>
-        <a href="{{url_for('enterprise_center_v47')}}">Företagsinställningar</a>
-        <a href="{{url_for('automation_ops_v46')}}">Automationsdrift</a>
-      </div>
-    </details>
+      <a href="/admin">Admin</a>
     {% endif %}
   </nav>
   {% endif %}
@@ -179,12 +108,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 {% if current_user %}
-<nav class="mobile-bottom-nav" aria-label="Mobile navigation">
-  <a href="{{url_for('intelligent_ppm_v80')}}"><span>⌂</span><small>Hem</small></a>
-  <a href="{{url_for('action_inbox_v78')}}"><span>◎</span><small>Inkorg</small></a>
-  <a href="{{url_for('my_work')}}"><span>✓</span><small>Arbete</small></a>
-  <a href="{{url_for('quick_add_v51')}}"><span>＋</span><small>Skapa</small></a>
-  <button type="button" onclick="document.body.classList.toggle('nav-open')"><span>☰</span><small>Meny</small></button>
+<nav class="mobile-bottom-nav ultimate-mobile-nav" aria-label="Mobilnavigation">
+  <a href="/home"><span>⌂</span><small>Idag</small></a>
+  <a href="/my-work-2"><span>✓</span><small>Arbete</small></a>
+  <a href="/"><span>▣</span><small>Projekt</small></a>
+  <a href="/portfolio-cockpit"><span>◫</span><small>Portfolio</small></a>
+  <button type="button" data-command-open><span>⌕</span><small>Sök</small></button>
 </nav>
 {% endif %}
 
@@ -215,6 +144,64 @@ document.addEventListener("DOMContentLoaded",function(){
   });
 });
 </script>
+
+
+{% if current_user %}
+<div class="command-backdrop" id="ultimate-command" hidden>
+  <section class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
+    <div class="command-search-row">
+      <span>⌕</span>
+      <input id="command-input" type="search" placeholder="Sök eller skriv ett kommando…" autocomplete="off">
+      <kbd>Esc</kbd>
+    </div>
+    <div class="command-content">
+      <div class="command-group"><strong id="command-title">Gå till</strong>
+        <a data-command-item href="/home"><span>Idag</span><small>Din prioriterade arbetsyta</small></a>
+        <a data-command-item href="/my-work-2"><span>Mitt arbete</span><small>Uppgifter och åtgärder</small></a>
+        <a data-command-item href="/"><span>Projekt</span><small>Alla projekt du har tillgång till</small></a>
+        <a data-command-item href="/portfolio-cockpit"><span>Portfolio</span><small>Portfoliohälsa och prioritering</small></a>
+        <a data-command-item href="/search"><span>Sök allt</span><small>Projekt, aktiviteter, risker och DevOps</small></a>
+      </div>
+      <div class="command-group"><strong>Arbeta</strong>
+        {% if current_user['role'] in ['admin','pm'] %}<a data-command-item href="/projects/new-guided"><span>＋ Skapa projekt</span><small>Guidat projektupplägg</small></a>{% endif %}
+        <a data-command-item href="/reporting-studio-2"><span>Rapporter</span><small>Status, PDF, PowerPoint och Excel</small></a>
+        <a data-command-item href="/resource-planner-2"><span>Resurser</span><small>Kapacitet och överbeläggning</small></a>
+        {% if current_user['role'] in ['admin','pm'] %}<a data-command-item href="/integrations/azure-devops/live"><span>Azure DevOps</span><small>Synk och status</small></a>{% endif %}
+      </div>
+    </div>
+    <form class="command-global-search" action="/search" method="get">
+      <input type="hidden" name="q" id="command-search-q">
+      <button type="submit">Sök efter “<span id="command-query-label"></span>” i allt →</button>
+    </form>
+  </section>
+</div>
+<script data-ultimate-command>
+(()=> {
+  const modal=document.getElementById('ultimate-command');
+  const input=document.getElementById('command-input');
+  const q=document.getElementById('command-search-q');
+  const label=document.getElementById('command-query-label');
+  const open=()=>{modal.hidden=false;document.body.classList.add('command-open');setTimeout(()=>input.focus(),0)};
+  const close=()=>{modal.hidden=true;document.body.classList.remove('command-open');input.value='';filter('')};
+  const filter=(value)=>{
+    const needle=value.trim().toLågerCase();
+    document.querySelectorAll('[data-command-item]').forEach(a=>{
+      a.hidden=needle && !a.textContent.toLågerCase().includes(needle);
+    });
+    q.value=value; label.textContent=value;
+    modal.querySelector('.command-global-search').hidden=!needle;
+  };
+  document.querySelectorAll('[data-command-open]').forEach(x=>x.addEventListener('click',open));
+  document.addEventListener('keydown',e=>{
+    if((e.ctrlKey||e.metaKey)&&e.key.toLågerCase()==='k'){e.preventDefault();modal.hidden?open():close()}
+    if(e.key==='Escape'&&!modal.hidden) close();
+  });
+  modal.addEventListener('click',e=>{if(e.target===modal)close()});
+  input.addEventListener('input',()=>filter(input.value));
+  filter('');
+})();
+</script>
+{% endif %}
 
 </body>
 </html>

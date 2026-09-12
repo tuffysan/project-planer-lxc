@@ -27,7 +27,7 @@
 </div>
 <div class="dashboard-columns">
   <section class="panel">
-    <div class="section-title-row"><h2>Needs attention</h2><span class="status-chip {{health.rag}}">{{health.label}}</span></div>
+    <div class="section-title-row"><h2>Behöver uppmärksamhet</h2><span class="status-chip {{health.rag}}">{{health.label}}</span></div>
     {% for t in health.blocked %}<div class="attention-row"><span class="rag-dot red"></span><div><strong>Blockerad: {{t.title}}</strong><small>{{t.owner}}</small></div></div>{% endfor %}
     {% for t in health.overdue %}<div class="attention-row"><span class="rag-dot amber"></span><div><strong>Försenad: {{t.title}}</strong><small>{{t.end_date}}</small></div></div>{% endfor %}
     {% for r in health.high_risks %}<div class="attention-row"><span class="rag-dot red"></span><div><strong>Risk: {{r.title}}</strong><small>Score {{r.probability*r.impact}}</small></div></div>{% endfor %}

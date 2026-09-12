@@ -1,0 +1,53 @@
+
+{% extends "base.html" %}
+{% block title %}Idag · Project Planer{% endblock %}
+{% block content %}
+<div class="ultimate-shell">
+<section class="ultimate-welcome">
+  <div><span class="ultimate-eyebrow">DIN ARBETSYTA</span><h1>God morgon, {{user.display_name}}</h1>
+  <p>Fokusera på det som behöver beslut eller åtgärd. Resten kan vänta.</p></div>
+  <div class="ultimate-header-actions"><a class="btn primary" href="/search">Sök</a>{% if user.role in ['admin','pm'] %}<a class="btn" href="/projects/new-guided">＋ Nytt projekt</a>{% endif %}</div>
+</section>
+
+<section class="ultimate-kpis" aria-label="Översikt">
+  <a class="ultimate-kpi {% if attention %}warn{% endif %}" href="#projects"><strong>{{attention}}</strong><span>projekt behöver uppmärksamhet</span></a>
+  <a class="ultimate-kpi" href="/my-work-2"><strong>{{my_tasks|length}}</strong><span>öppna saker för dig</span></a>
+  <a class="ultimate-kpi" href="/notifications-2"><strong>{{unread}}</strong><span>nya notifieringar</span></a>
+  {% if user.role in ['admin','pm'] %}<a class="ultimate-kpi {% if failed_sync %}warn{% endif %}" href="/integrations/azure-devops/live"><strong>{{failed_sync}}</strong><span>DevOps-synkproblem</span></a>{% endif %}
+</section>
+
+<div class="ultimate-layout">
+<section>
+  <div class="ultimate-section-head"><div><span class="ultimate-eyebrow">PRIORITERAT</span><h2>Det här behöver din uppmärksamhet</h2></div><a href="/portfolio-cockpit">Portfolio →</a></div>
+  <div class="ultimate-project-grid" id="projects">
+  {% for c in cards %}
+    <a class="ultimate-project-card rag-{{c.health.rag}}" href="/projects/{{c.project.id}}/ultimate">
+      <div class="ultimate-card-head"><div><span class="rag-dot"></span><strong>{{c.project.name}}</strong></div><span>{{c.progress}}%</span></div>
+      <div class="ultimate-progress"><i style="width:{{c.progress}}%"></i></div>
+      <div class="ultimate-card-meta">
+        <span>{{c.health.overdue|length}} försenade</span><span>{{c.health.high_risks|length}} höga risker</span>
+        {% if c.health.budget_over %}<span>Budget över plan</span>{% endif %}
+      </div>
+      {% if c.upcoming %}<div class="ultimate-next">Nästa: {{c.upcoming[0].title}} · {{c.upcoming[0].end_date}}</div>{% endif %}
+    </a>
+  {% else %}
+    <div class="ultimate-empty"><strong>Inga aktiva projekt</strong><p>Skapa ett projekt för att komma igång.</p></div>
+  {% endfor %}
+  </div>
+</section>
+
+<aside>
+  <div class="ultimate-side-card"><div class="ultimate-section-head"><h2>Mitt arbete</h2><a href="/my-work-2">Alla →</a></div>
+    <ul class="ultimate-task-list">
+    {% for t in my_tasks[:8] %}<li><a href="/projects/{{t.project_id}}/ultimate"><span>{{t.title}}</span><small>{{t.project_name}} · {{t.end_date or 'utan datum'}}</small></a></li>
+    {% else %}<li class="ultimate-empty-small">Inget öppet just nu.</li>{% endfor %}
+    </ul>
+  </div>
+  <div class="ultimate-side-card"><h2>Snabbt till</h2><div class="ultimate-quick-links">
+    <a href="/search">⌘ Sök allt</a><a href="/portfolio-cockpit">Portfolio</a><a href="/resource-planner-2">Resurser</a><a href="/reporting-studio-2">Rapporter</a>
+    {% if user.role in ['admin','pm'] %}<a href="/automation-runtime">Automation</a><a href="/integrations/azure-devops/live">DevOps</a>{% endif %}
+  </div></div>
+</aside>
+</div>
+</div>
+{% endblock %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block title %}{{project.name}}{% endblock %}{% block content %}<div class="simple-shell">
-<section class="simple-hero"><div class="eyebrow">v12.2 · Project Workspace 3.0</div><h1>{{project.name}}</h1><p>En sammanhållen projektyta med status, uppmärksamhet och nästa steg.</p></section>
+<section class="simple-hero"><div class="eyebrow">v12.2 · Projektarbetsyta 3.0</div><h1>{{project.name}}</h1><p>En sammanhållen projektyta med status, uppmärksamhet och nästa steg.</p></section>
 <nav class="simple-nav"><a href="#">Översikt</a><a href="/projects/{{project.id}}/planning-pro-ux">Plan</a><a href="#">Arbete</a><a href="#">Risker</a><a href="#">Team</a><a href="#">Ekonomi</a><a href="#">Rapporter</a></nav>
 <div class="simple-grid"><section class="simple-card"><div class="simple-kpi">{{progress}}%</div><div>klart</div></section><section class="simple-card"><div class="simple-kpi">{{overdue|length}}</div><div>försenade aktiviteter</div></section></div>
 <section class="simple-card"><h2>Behöver uppmärksamhet</h2><ul class="simple-list">{% for t in overdue[:8] %}<li>⚠ {{t.title}} · {{t.end_date}}</li>{% else %}<li>Inga försenade aktiviteter.</li>{% endfor %}</ul></section></div>{% endblock %}

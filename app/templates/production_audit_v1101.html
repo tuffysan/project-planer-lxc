@@ -1,6 +1,6 @@
-{% extends "base.html" %}{% block title %}Production & UX Audit{% endblock %}
+{% extends "base.html" %}{% block title %}Produktions- och UX-granskning{% endblock %}
 {% block content %}
-<section class="next-hero"><div class="eyebrow">v11.0.1</div><h1>Production & UX Audit</h1><p>Produktionskontroll, UI/UX-städning, säkerhetsöversikt och driftberedskap.</p></section>
+<section class="next-hero"><div class="eyebrow">v11.0.1</div><h1>Produktions- och UX-granskning</h1><p>Produktionskontroll, UI/UX-städning, säkerhetsöversikt och driftberedskap.</p></section>
 <section class="next-card"><h2>Produktionskontroller</h2>
 <table class="next-table"><thead><tr><th>Kontroll</th><th>Status</th><th>Detalj</th></tr></thead><tbody>
 {% for c in checks %}<tr><td>{{c.name}}</td><td>{{"OK" if c.ok else "Kontrollera"}}</td><td>{{c.detail or ""}}</td></tr>{% endfor %}

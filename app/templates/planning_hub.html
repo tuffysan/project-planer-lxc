@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block title %}Planning{% endblock %}
 {% block content %}
-<h1>Planning UX</h1><p class="muted">Projektcockpit, WBS, Gantt Pro och My Work 2.0.</p>
+<h1>Planning UX</h1><p class="muted">Projektcockpit, WBS, Gantt Pro och Mitt arbete 2.0.</p>
 <div class="roadmap-grid">
 {% for p in projects %}
 <a class="kpi card-link" href="{{url_for('project_cockpit',project_id=p.id)}}"><b>{{p.name}}</b><span class="muted">{{p.customer}}</span><br><small>{{p.project_manager}}</small></a>

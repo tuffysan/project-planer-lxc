@@ -1,6 +1,6 @@
-{% extends "base.html" %}{% block title %}{{project.name}} · Project Home{% endblock %}
+{% extends "base.html" %}{% block title %}{{project.name}} · Projektöversikt{% endblock %}
 {% block content %}
-<section class="next-hero"><div class="eyebrow">v11.1 · Project Home 2.0</div><h1>{{project.name}}</h1><p>Ny projektstart som prioriterar hälsa, avvikelser, milstolpar och nästa åtgärd.</p></section>
+<section class="next-hero"><div class="eyebrow">v11.1 · Projektöversikt 2.0</div><h1>{{project.name}}</h1><p>Ny projektstart som prioriterar hälsa, avvikelser, milstolpar och nästa åtgärd.</p></section>
 <div class="next-grid">
 <section class="next-card"><div class="next-kpi">{{progress}}%</div><div class="next-muted">Projektprogress</div></section>
 <section class="next-card {% if overdue %}next-attention{% else %}next-ok{% endif %}"><div class="next-kpi">{{overdue|length}}</div><div class="next-muted">Försenade aktiviteter</div></section>

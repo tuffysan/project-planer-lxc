@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "13.0.0"
+APP_VERSION = "14.0.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1214,7 +1214,7 @@ def login():
                     conn.execute("UPDATE users SET failed_logins=0,locked_until='',last_login=? WHERE id=?",
                                  (datetime.now().isoformat(timespec="seconds"),u["id"]))
                     session.clear(); session["user_id"]=u["id"]; session["_csrf"]=secrets.token_urlsafe(32); session.permanent=True
-                    return redirect(request.args.get("next") or url_for("index"))
+                    return redirect(request.args.get("next") or url_for("ultimate_home_v140"))
                 attempts=int(u["failed_logins"] or 0)+1
                 limit=int(setting("lockout_attempts","5"))
                 lock_until=""
@@ -1247,7 +1247,7 @@ def change_password():
                     conn.execute("UPDATE users SET password_hash=?,force_password_change=0 WHERE id=?",
                                  (generate_password_hash(new),u["id"]))
                     flash("Lösenordet är ändrat.","success")
-                    return redirect(url_for("index"))
+                    return redirect(url_for("ultimate_home_v140"))
     return render_template("change_password.html")
 
 @app.get("/health")
@@ -3539,6 +3539,127 @@ def project_planer_simple_v1300():
         unread=conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0",(uid,)).fetchone()[0]
     attention=sum(1 for p in projects if p["overdue"])
     return render_template("project_planer_simple_v1300.html",projects=projects,mine=mine,unread=unread,attention=attention)
+
+def _ultimate_health_v140(project, tasks, risks, costs):
+    open_tasks=[t for t in tasks if (t["status"] or "").lower() not in ("done","completed","closed","klar")]
+    overdue=[t for t in open_tasks if t["end_date"] and t["end_date"] < date.today().isoformat()]
+    blocked=[t for t in open_tasks if (t["status"] or "").lower() in ("blocked","blockerad")]
+    high_risks=[r for r in risks if (r["probability"] or 0)*(r["impact"] or 0) >= 12 and (r["status"] or "").lower() not in ("closed","stängd")]
+    planned=float(costs["planned"] or 0) if costs else 0
+    actual=float(costs["actual"] or 0) if costs else 0
+    budget_over=planned>0 and actual>planned
+    score=0
+    score += min(40,len(overdue)*8)
+    score += min(25,len(high_risks)*8)
+    score += min(20,len(blocked)*10)
+    if budget_over: score += 20
+    rag="green" if score<20 else "amber" if score<50 else "red"
+    return {"rag":rag,"score":min(100,score),"overdue":overdue,"blocked":blocked,
+            "high_risks":high_risks,"budget_over":budget_over,"planned":planned,"actual":actual}
+
+@app.get("/home")
+@login_required
+def ultimate_home_v140():
+    u=current_user()
+    projects=visible_projects_for_user()
+    project_ids=[p["id"] for p in projects]
+    cards=[]
+    with db() as conn:
+        for p in projects[:60]:
+            tasks=conn.execute("""SELECT id,title,status,progress,end_date,milestone,owner_user_id
+                                  FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''""",(p["id"],)).fetchall()
+            risks=conn.execute("""SELECT id,title,probability,impact,status FROM risks WHERE project_id=?""",(p["id"],)).fetchall()
+            costs=conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual
+                                  FROM project_costs WHERE project_id=?""",(p["id"],)).fetchone()
+            health=_ultimate_health_v140(p,tasks,risks,costs)
+            progress=round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
+            upcoming=[t for t in tasks if t["milestone"] and t["end_date"] and t["end_date"]>=date.today().isoformat()]
+            upcoming=sorted(upcoming,key=lambda x:x["end_date"])[:3]
+            cards.append({"project":p,"progress":progress,"health":health,"upcoming":upcoming})
+        my_tasks=conn.execute("""SELECT t.id,t.project_id,t.title,t.status,t.priority,t.end_date,t.progress,p.name project_name
+          FROM tasks t JOIN projects p ON p.id=t.project_id
+          LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
+          WHERE COALESCE(t.deleted_at,'')='' AND COALESCE(p.deleted_at,'')=''
+            AND (t.owner_user_id=? OR t.owner IN (?,?))
+            AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
+            AND (?='admin' OR pm.user_id IS NOT NULL)
+          ORDER BY CASE WHEN t.end_date IS NULL THEN 1 ELSE 0 END,t.end_date LIMIT 20""",
+          (u["id"],u["id"],u["display_name"],u["username"],u["role"])).fetchall()
+        unread=conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0",(u["id"],)).fetchone()[0]
+        try:
+            favs={r["project_id"] for r in conn.execute("SELECT project_id FROM user_favorites WHERE user_id=?",(u["id"],)).fetchall()}
+        except Exception:
+            favs=set()
+        try:
+            failed_sync=conn.execute("SELECT COUNT(*) FROM azure_devops_sync_log WHERE status='Failed'").fetchone()[0]
+        except Exception:
+            failed_sync=0
+    cards.sort(key=lambda c:(c["project"]["id"] not in favs,
+                             {"red":0,"amber":1,"green":2}.get(c["health"]["rag"],3),
+                             c["project"]["name"].lower()))
+    attention=sum(1 for c in cards if c["health"]["rag"]!="green")
+    return render_template("ultimate_home_v140.html",cards=cards,my_tasks=my_tasks,unread=unread,
+                           attention=attention,failed_sync=failed_sync,user=u)
+
+@app.get("/projects/<int:project_id>/ultimate")
+@login_required
+def ultimate_project_v140(project_id):
+    project=project_or_404(project_id)
+    with db() as conn:
+        tasks=conn.execute("""SELECT * FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''
+                              ORDER BY CASE WHEN end_date IS NULL THEN 1 ELSE 0 END,end_date,sort_order,id""",(project_id,)).fetchall()
+        risks=conn.execute("""SELECT * FROM risks WHERE project_id=? ORDER BY COALESCE(probability,0)*COALESCE(impact,0) DESC,id DESC""",(project_id,)).fetchall()
+        costs=conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?""",(project_id,)).fetchone()
+        members=conn.execute("""SELECT pm.*,COALESCE(u.display_name,u.username) display_name
+             FROM project_members pm JOIN users u ON u.id=pm.user_id WHERE pm.project_id=? ORDER BY display_name""",(project_id,)).fetchall()
+        try:
+            devops=conn.execute("""SELECT state,COUNT(*) c FROM azure_devops_work_item_links
+               WHERE project_id=? GROUP BY state ORDER BY c DESC""",(project_id,)).fetchall()
+        except Exception:
+            devops=[]
+        try:
+            comments=conn.execute("""SELECT c.*,COALESCE(u.display_name,u.username,'Användare') author
+               FROM project_comments c LEFT JOIN users u ON u.id=c.user_id
+               WHERE c.project_id=? ORDER BY c.id DESC LIMIT 6""",(project_id,)).fetchall()
+        except Exception:
+            comments=[]
+    health=_ultimate_health_v140(project,tasks,risks,costs)
+    progress=round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
+    milestones=[t for t in tasks if t["milestone"] and t["end_date"]]
+    milestones=sorted(milestones,key=lambda x:x["end_date"])[:8]
+    open_tasks=[t for t in tasks if (t["status"] or "").lower() not in ("done","completed","closed","klar")]
+    next_actions=[]
+    for t in health["overdue"][:4]:
+        next_actions.append({"type":"Försenad","title":t["title"],"detail":t["end_date"],"url":f"/projects/{project_id}/workspace-pro"})
+    for r in health["high_risks"][:3]:
+        next_actions.append({"type":"Hög risk","title":r["title"],"detail":f"P{r['probability']} × I{r['impact']}","url":f"/projects/{project_id}/risk-center"})
+    if health["budget_over"]:
+        next_actions.append({"type":"Budget","title":"Utfall över planerad kostnad","detail":f"{health['actual']-health['planned']:.0f} över plan","url":"/finance-control"})
+    return render_template("ultimate_project_v140.html",project=project,tasks=tasks,open_tasks=open_tasks,
+                           risks=risks,costs=costs,members=members,devops=devops,comments=comments,
+                           health=health,progress=progress,milestones=milestones,next_actions=next_actions)
+
+@app.get("/ultimate/compare")
+@login_required
+def ultimate_capabilities_v140():
+    return render_template("ultimate_capabilities_v140.html")
+
+_UI_SV_V1401 = {
+    "Not started": "Ej påbörjad", "Not Started": "Ej påbörjad",
+    "In progress": "Pågår", "In Progress": "Pågår",
+    "Done": "Klar", "Completed": "Klar", "Closed": "Stängd",
+    "Blocked": "Blockerad", "Open": "Öppen",
+    "High": "Hög", "Normal": "Normal", "Low": "Låg",
+    "Success": "Lyckades", "Failed": "Misslyckades",
+    "Risk": "Risk", "Issue": "Problem",
+    "Green": "Grön", "Amber": "Gul", "Red": "Röd"
+}
+
+@app.template_filter("sv")
+def ui_sv_v1401(value):
+    if value is None:
+        return ""
+    return _UI_SV_V1401.get(str(value), str(value))
 
 @app.route("/admin")
 @login_required

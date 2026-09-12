@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block title %}Ny aktivitet{% endblock %}{% block content %}<div class="simple-shell">
 <section class="simple-hero"><div class="eyebrow">v12.5</div><h1>Ny aktivitet</h1><p>Enkla standardformulär med avancerade fält först när de behövs.</p></section><section class="simple-card">
 <form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><label>Vad ska göras?<input name="title" required autofocus></label><label>Ansvarig<input name="owner"></label><label>När?<input name="end_date" type="date"></label>
-<details class="simple-more"><summary>Visa fler alternativ</summary><label>Prioritet<select name="priority"><option>Normal</option><option>High</option><option>Low</option></select></label><label>Anteckningar<textarea name="notes"></textarea></label></details>
+<details class="simple-more"><summary>Visa fler alternativ</summary><label>Prioritet<select name="priority"><option>Normal</option><option>Hög</option><option>Låg</option></select></label><label>Anteckningar<textarea name="notes"></textarea></label></details>
 <button type="submit">Skapa</button></form></section></div>{% endblock %}
