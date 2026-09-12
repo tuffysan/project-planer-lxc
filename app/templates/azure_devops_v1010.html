@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Azure DevOps · Project Planer{% endblock %}
+{% block content %}
+<section class="feature-hero"><div><div class="eyebrow">v10.1</div><h1>Azure DevOps Integration</h1>
+<p class="lead">Koppla Project Planer till Azure DevOps. Project Planer behåller PM-/projektnivån och DevOps utvecklingsarbetet.</p></div></section>
+<div class="roadmap-grid">
+  <section class="roadmap-card"><h3>Ny anslutning</h3>
+  <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Namn<input name="name" required placeholder="Utveckling DevOps"></label>
+  <label>Organisation<input name="organization_url" required placeholder="https://dev.azure.com/organisation"></label>
+  <label>DevOps-projekt<input name="project_name" required></label>
+  <label>PAT<input name="pat_secret" type="password" autocomplete="new-password"></label>
+  <button type="submit">Spara anslutning</button></form></section>
+  <section class="roadmap-card"><h3>Integrationsmodell</h3><p>Projects/Teams → Epics/Features/User Stories/Tasks/Bugs. Mappningstabellerna stödjer projekt, Area Path, Iteration Path och kontrollerad synkriktning.</p>
+  <p><strong>Säkerhet:</strong> hemligheten visas aldrig tillbaka i UI:t. För produktion bör PAT senare flyttas till separat secret store.</p></section>
+</div>
+<section class="card"><h2>Anslutningar</h2>
+{% if connections %}<div class="table-wrap"><table><thead><tr><th>Namn</th><th>Organisation</th><th>Projekt</th><th>Status</th></tr></thead><tbody>
+{% for c in connections %}<tr><td>{{c.name}}</td><td>{{c.organization_url}}</td><td>{{c.project_name}}</td><td>{{'Aktiv' if c.enabled else 'Av'}}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="muted">Ingen Azure DevOps-anslutning ännu.</p>{% endif %}</section>
+{% endblock %}

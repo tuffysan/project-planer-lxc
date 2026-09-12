@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Resource Intelligence · Project Planer{% endblock %}
+{% block content %}
+<section class="feature-hero roadmap-hero">
+  <div><div class="eyebrow">v10.4.0</div><h1>Resource Intelligence</h1><p class="lead">Kapacitet, resursregister, kompetenser och allokering samlas i ett resurscenter.</p></div>
+</section>
+<section class="roadmap-grid">
+  <a class="roadmap-card" href="{{ url_for('resource_planning_v65') }}"><h3>Resursplanering</h3><p>Allokering och veckokapacitet.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('team_capacity_v55') }}"><h3>Team Capacity</h3><p>Kapacitetsöversikt.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('resource_directory_v74') }}"><h3>Resursregister</h3><p>Kompetenser och tillgänglighet.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('financial_control_v67') }}"><h3>Ekonomikontroll</h3><p>Kostnad och resurs.</p><strong>Öppna →</strong></a>
+</section>
+{% endblock %}

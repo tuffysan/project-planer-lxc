@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Portfolio Control · Project Planer{% endblock %}
+{% block content %}
+<section class="feature-hero roadmap-hero">
+  <div><div class="eyebrow">v10.5.0</div><h1>Portfolio Control</h1><p class="lead">Portfoliohälsa, scenarier, cross-project dependencies, ekonomi och Excel i en kontrollvy.</p></div>
+</section>
+<section class="roadmap-grid">
+  <a class="roadmap-card" href="{{ url_for('pmo') }}"><h3>Portfolio</h3><p>Portfolio och PMO.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('visual_dashboard_v503') }}"><h3>Portfolio Health</h3><p>RAG och hälsa.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('scenario_planner_v76') }}"><h3>Scenarier</h3><p>Prioritering och scenarier.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('excel_portfolio_v902') }}"><h3>Portfolio Excel</h3><p>Exportera portfolion.</p><strong>Öppna →</strong></a>
+</section>
+{% endblock %}

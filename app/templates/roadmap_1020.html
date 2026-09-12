@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Excel & Reporting Pro 3.0 · Project Planer{% endblock %}
+{% block content %}
+<section class="feature-hero roadmap-hero">
+  <div><div class="eyebrow">v10.2.0</div><h1>Excel & Reporting Pro 3.0</h1><p class="lead">Excel Pro och Report Studio samlas till ett tydligt export- och rapportcenter.</p></div>
+</section>
+<section class="roadmap-grid">
+  <a class="roadmap-card" href="{{ url_for('excel_portfolio_v902') }}"><h3>Excel Portfolio</h3><p>Lednings- och portfolioexport.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('report_center') }}"><h3>Rapportcenter</h3><p>Rapporter och historik.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('scheduled_reports') }}"><h3>Schemalagda rapporter</h3><p>Återkommande rapportering.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('visual_dashboard_v503') }}"><h3>Dashboard</h3><p>Visuell projekt- och portfoliohälsa.</p><strong>Öppna →</strong></a>
+</section>
+{% endblock %}

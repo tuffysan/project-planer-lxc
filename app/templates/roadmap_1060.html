@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Automation & Integration Expansion · Project Planer{% endblock %}
+{% block content %}
+<section class="feature-hero roadmap-hero">
+  <div><div class="eyebrow">v10.6.0</div><h1>Automation & Integration Expansion</h1><p class="lead">Automation, API, webhooks och integrationsinställningar samlas i ett integrationscenter.</p></div>
+</section>
+<section class="roadmap-grid">
+  <a class="roadmap-card" href="{{ url_for('automation_designer_v64') }}"><h3>Automation Designer</h3><p>Regler och automation.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('api_docs') }}"><h3>API</h3><p>API-dokumentation.</p><strong>Öppna →</strong></a>
+</section>
+{% endblock %}

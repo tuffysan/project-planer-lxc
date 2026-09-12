@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Production UX & Quality Audit · Project Planer{% endblock %}
+{% block content %}
+<section class="feature-hero roadmap-hero">
+  <div><div class="eyebrow">v10.0.1</div><h1>Production UX & Quality Audit</h1><p class="lead">Produktionskvalitet, tydligare UX, Excel/rapportkontroll och driftberedskap.</p></div>
+</section>
+<section class="roadmap-grid">
+  <a class="roadmap-card" href="{{ url_for('my_work') }}"><h3>Mitt arbete</h3><p>Din vardagsvy.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('excel_portfolio_v902') }}"><h3>Excel Pro</h3><p>Kontrollera Excel-export och portfolioarbetsbok.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('report_center') }}"><h3>Rapporter</h3><p>Kontrollera rapport- och exportflöden.</p><strong>Öppna →</strong></a><a class="roadmap-card" href="{{ url_for('admin_center') }}"><h3>Systemstatus</h3><p>Drift, administration och systemstatus.</p><strong>Öppna →</strong></a>
+</section>
+{% endblock %}

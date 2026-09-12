@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "10.0.0"
+APP_VERSION = "10.7.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -2962,6 +2962,123 @@ def pm_intelligence_v990():
 @login_required
 def enterprise_ux_v1000():
     return render_template("roadmap_1000.html")
+
+@app.get("/production-quality")
+@login_required
+def production_quality_v1001():
+    return render_template("roadmap_1001.html")
+
+def ensure_azure_devops_schema_v1010(conn):
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS azure_devops_connections(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      organization_url TEXT NOT NULL,
+      project_name TEXT NOT NULL,
+      auth_mode TEXT NOT NULL DEFAULT 'PAT',
+      pat_secret TEXT,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_by INTEGER,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS azure_devops_mappings(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      connection_id INTEGER NOT NULL,
+      project_id INTEGER NOT NULL,
+      devops_project TEXT NOT NULL,
+      area_path TEXT,
+      iteration_path TEXT,
+      sync_direction TEXT NOT NULL DEFAULT 'DevOpsToProjectPlaner',
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(connection_id,project_id)
+    );
+    CREATE TABLE IF NOT EXISTS azure_devops_work_item_links(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      connection_id INTEGER NOT NULL,
+      project_id INTEGER NOT NULL,
+      task_id INTEGER,
+      work_item_id INTEGER NOT NULL,
+      work_item_type TEXT,
+      title TEXT,
+      state TEXT,
+      assigned_to TEXT,
+      iteration_path TEXT,
+      url TEXT,
+      last_synced_at TEXT,
+      UNIQUE(connection_id,work_item_id)
+    );
+    CREATE TABLE IF NOT EXISTS azure_devops_sync_log(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      connection_id INTEGER,
+      project_id INTEGER,
+      direction TEXT,
+      status TEXT NOT NULL,
+      message TEXT,
+      items_read INTEGER NOT NULL DEFAULT 0,
+      items_written INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+    """)
+
+@app.route("/integrations/azure-devops",methods=["GET","POST"])
+@login_required
+def azure_devops_v1010():
+    if session.get("role") not in ("admin","pm"):
+        abort(403)
+    with db() as conn:
+        ensure_azure_devops_schema_v1010(conn)
+        if request.method=="POST":
+            name=(request.form.get("name") or "").strip()
+            org=(request.form.get("organization_url") or "").strip().rstrip("/")
+            project=(request.form.get("project_name") or "").strip()
+            pat=(request.form.get("pat_secret") or "").strip()
+            if not name or not org or not project:
+                flash("Namn, organisation och DevOps-projekt krävs.","error")
+            elif not (org.startswith("https://dev.azure.com/") or org.startswith("https://") and "visualstudio.com" in org):
+                flash("Ange en giltig Azure DevOps organisationsadress.","error")
+            else:
+                conn.execute("""INSERT INTO azure_devops_connections
+                  (name,organization_url,project_name,auth_mode,pat_secret,created_by)
+                  VALUES(?,?,?,?,?,?)""",(name,org,project,"PAT",pat or None,session.get("user_id")))
+                conn.commit()
+                flash("Azure DevOps-anslutningen har sparats. PAT visas inte i gränssnittet.","success")
+        connections=conn.execute("""SELECT id,name,organization_url,project_name,auth_mode,enabled,created_at,updated_at
+          FROM azure_devops_connections ORDER BY id DESC""").fetchall()
+        syncs=conn.execute("""SELECT s.*,c.name connection_name FROM azure_devops_sync_log s
+          LEFT JOIN azure_devops_connections c ON c.id=s.connection_id ORDER BY s.id DESC LIMIT 20""").fetchall()
+    return render_template("azure_devops_v1010.html",connections=connections,syncs=syncs)
+
+@app.get("/excel-reporting-pro-3")
+@login_required
+def excel_reporting_v1020():
+    return render_template("roadmap_1020.html")
+
+@app.get("/planning-engine-2")
+@login_required
+def planning_engine_v1030():
+    return render_template("roadmap_1030.html")
+
+@app.get("/resource-intelligence")
+@login_required
+def resource_intelligence_v1040():
+    return render_template("roadmap_1040.html")
+
+@app.get("/portfolio-control")
+@login_required
+def portfolio_control_v1050():
+    return render_template("roadmap_1050.html")
+
+@app.get("/automation-integrations")
+@login_required
+def automation_integrations_v1060():
+    return render_template("roadmap_1060.html")
+
+@app.get("/pm-intelligence-2")
+@login_required
+def pm_intelligence_v1070():
+    return render_template("roadmap_1070.html")
 
 @app.route("/admin")
 @login_required
