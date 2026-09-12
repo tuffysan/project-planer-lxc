@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-8.1.0}"
+VERSION="${VERSION:-9.0.0}"
 LXC_HOSTNAME="${LXC_HOSTNAME:-project-planer}"
 CORES="${CORES:-1}"
 MEMORY="${MEMORY:-1024}"

@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Vyer · {{project.name}}{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">VIEWS & PERSONALIZATION</div><h1>{{project.name}}</h1><p class="lead">Samma projektdata i den vy som passar arbetet.</p></div></div>
+<nav class="view-switcher">{% for key,label in [('list','Lista'),('board','Tavla'),('timeline','Tidslinje'),('calendar','Kalender'),('milestones','Milstolpar')] %}<a class="{% if view==key %}active{% endif %}" href="{{url_for('project_views_v830',project_id=project.id,view=key)}}">{{label}}</a>{% endfor %}</nav>
+<section class="panel">
+{% if view=='board' %}<div class="mini-board">{% for st in ['Ej startad','Pågår','Blockerad','Klar'] %}<div><h3>{{st}}</h3>{% for t in tasks if t.status==st %}<article class="pm-card"><b>{{t.title}}</b><small>{{t.owner}} · {{t.end_date}}</small></article>{% endfor %}</div>{% endfor %}</div>
+{% elif view=='milestones' %}{% for t in tasks if t.milestone %}<div class="timeline-item"><b>{{t.end_date}}</b><span>{{t.title}}</span></div>{% else %}<div class="empty">Inga milstolpar.</div>{% endfor %}
+{% elif view=='calendar' %}<div class="calendar-list">{% for t in tasks %}<div><b>{{t.end_date or 'Utan datum'}}</b><span>{{t.title}}</span></div>{% endfor %}</div>
+{% elif view=='timeline' %}<div class="simple-timeline">{% for t in tasks %}<div><span>{{t.start_date}}</span><b>{{t.title}}</b><span>{{t.end_date}}</span></div>{% endfor %}</div>
+{% else %}<table class="data-table"><thead><tr><th>WBS</th><th>Uppgift</th><th>Ansvarig</th><th>Status</th><th>Slut</th></tr></thead><tbody>{% for t in tasks %}<tr><td>{{t.wbs}}</td><td>{{t.title}}</td><td>{{t.owner}}</td><td>{{t.status}}</td><td>{{t.end_date}}</td></tr>{% endfor %}</tbody></table>{% endif %}
+</section>{% endblock %}

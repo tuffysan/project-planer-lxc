@@ -13,7 +13,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.styles import Border, Side
 
-APP_VERSION = "8.1.0"
+APP_VERSION = "9.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -2273,6 +2273,216 @@ def excel_import_commit_v810(project_id,token):
         pass
     flash(f"Excel-import klar: {applied} ändringar genomförda ({created} nya, {updated} uppdaterade). Backup: {backup_name}.","success")
     return redirect(url_for("project_workspace",project_id=project_id,tab="overview"))
+
+@app.get("/projects/<int:project_id>/workspace-pro")
+@login_required
+def workspace_ux_pro_v820(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY wbs,id",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? ORDER BY probability*impact DESC,id",(project_id,)).fetchall()
+    return render_template("workspace_ux_pro_v820.html",project=p,tasks=tasks,risks=risks)
+
+@app.post("/projects/<int:project_id>/workspace-pro/tasks/<int:task_id>")
+@login_required
+def workspace_task_inline_v820(project_id,task_id):
+    project_or_404(project_id,write=True)
+    field=request.form.get("field","")
+    allowed={"status","owner","start_date","end_date","priority","progress","notes"}
+    if field not in allowed: abort(400)
+    value=request.form.get("value","")
+    if field=="progress": value=max(0,min(100,excel_int(value)))
+    with db() as conn:
+        row=conn.execute("SELECT id FROM tasks WHERE id=? AND project_id=?",(task_id,project_id)).fetchone()
+        if not row: abort(404)
+        conn.execute(f"UPDATE tasks SET {field}=? WHERE id=? AND project_id=?",(value,task_id,project_id))
+        conn.commit()
+    audit(project_id,"task",task_id,"workspace_inline_edit",field)
+    return redirect(url_for("workspace_ux_pro_v820",project_id=project_id))
+
+@app.get("/projects/<int:project_id>/views")
+@login_required
+def project_views_v830(project_id):
+    p=project_or_404(project_id)
+    view=request.args.get("view","list")
+    if view not in ("list","board","timeline","calendar","milestones"): view="list"
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,wbs,id",(project_id,)).fetchall()
+    return render_template("project_views_v830.html",project=p,tasks=tasks,view=view)
+
+def gantt_impact_v840(project_id,task_id,new_end):
+    with db() as conn:
+        task=conn.execute("SELECT * FROM tasks WHERE id=? AND project_id=?",(task_id,project_id)).fetchone()
+        if not task: abort(404)
+        links=conn.execute("SELECT * FROM task_links WHERE project_id=? AND predecessor_id=?",(project_id,task_id)).fetchall()
+        impacted=[]
+        for l in links:
+            succ=conn.execute("SELECT id,title,start_date,end_date FROM tasks WHERE id=?",(l["successor_id"],)).fetchone()
+            if succ: impacted.append(dict(succ))
+    delta=0
+    try:
+        if task["end_date"] and new_end: delta=(datetime.strptime(new_end,"%Y-%m-%d")-datetime.strptime(task["end_date"],"%Y-%m-%d")).days
+    except ValueError: pass
+    return {"delta":delta,"impacted":impacted}
+
+@app.route("/projects/<int:project_id>/gantt-next",methods=["GET","POST"])
+@login_required
+def gantt_pro_v840(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    impact=None
+    if request.method=="POST":
+        task_id=excel_int(request.form.get("task_id")); new_end=excel_date(request.form.get("end_date"))
+        impact=gantt_impact_v840(project_id,task_id,new_end)
+        if request.form.get("apply")=="1":
+            with db() as conn:
+                conn.execute("UPDATE tasks SET end_date=? WHERE id=? AND project_id=?",(new_end,task_id,project_id)); conn.commit()
+            flash("Planändringen är tillämpad.","success")
+            return redirect(url_for("gantt_pro_v840",project_id=project_id))
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY start_date,wbs,id",(project_id,)).fetchall()
+        links=conn.execute("SELECT * FROM task_links WHERE project_id=?",(project_id,)).fetchall()
+    return render_template("gantt_pro_v840.html",project=p,tasks=tasks,links=links,impact=impact)
+
+def forecast_project_v850(project_id):
+    with db() as conn:
+        p=conn.execute("SELECT * FROM projects WHERE id=?",(project_id,)).fetchone()
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd')",(project_id,)).fetchall()
+        costs=conn.execute("SELECT COALESCE(SUM(planned),0) p,COALESCE(SUM(actual),0) a FROM project_costs WHERE project_id=?",(project_id,)).fetchone()
+        alloc=conn.execute("SELECT COALESCE(MAX(allocation_pct),0) m FROM resource_allocations WHERE project_id=?",(project_id,)).fetchone()
+    today=date.today(); overdue=[t for t in tasks if t["end_date"] and t["progress"]<100 and t["end_date"]<today.isoformat()]
+    high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]
+    slip=min(60,len(overdue)*3+len(high)*2+(5 if alloc["m"]>120 else 0))
+    planned_end=p["end_date"] or ""
+    forecast_end=planned_end
+    try:
+        forecast_end=(datetime.strptime(planned_end,"%Y-%m-%d")+timedelta(days=slip)).strftime("%Y-%m-%d")
+    except: pass
+    budget=float(costs["p"] or 0); actual=float(costs["a"] or 0)
+    forecast_cost=max(actual,budget*(1+min(.30,(len(overdue)+len(high))*.025)))
+    reasons=[]
+    if overdue: reasons.append(f"{len(overdue)} försenade aktiviteter")
+    if high: reasons.append(f"{len(high)} höga risker")
+    if alloc["m"]>120: reasons.append(f"resursallokering {alloc['m']}%")
+    return {"planned_end":planned_end,"forecast_end":forecast_end,"slip":slip,"budget":budget,"actual":actual,"forecast_cost":forecast_cost,"reasons":reasons,"overdue":overdue[:5],"high":high[:5]}
+
+@app.get("/projects/<int:project_id>/forecast")
+@login_required
+def project_forecast_v850(project_id):
+    p=project_or_404(project_id)
+    return render_template("project_forecast_v850.html",project=p,f=forecast_project_v850(project_id))
+
+@app.route("/projects/<int:project_id>/team-collaboration",methods=["GET","POST"])
+@login_required
+def collaboration_v860(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    with db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS project_conversations(id INTEGER PRIMARY KEY AUTOINCREMENT,project_id INTEGER NOT NULL,user_id INTEGER,body TEXT NOT NULL,created_at TEXT NOT NULL)""")
+        if request.method=="POST":
+            body=request.form.get("body","").strip()
+            if body:
+                conn.execute("INSERT INTO project_conversations(project_id,user_id,body,created_at) VALUES(?,?,?,?)",(project_id,current_user["id"],body,datetime.now().isoformat(timespec="seconds"))); conn.commit()
+                audit(project_id,"project",project_id,"comment","collaboration")
+                return redirect(url_for("collaboration_v860",project_id=project_id))
+        rows=conn.execute("""SELECT c.*,COALESCE(NULLIF(u.display_name,''),u.username) user_name FROM project_conversations c LEFT JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.id DESC LIMIT 100""",(project_id,)).fetchall()
+        activity=conn.execute("SELECT * FROM audit_log WHERE project_id=? ORDER BY id DESC LIMIT 30",(project_id,)).fetchall()
+    return render_template("collaboration_v860.html",project=p,rows=rows,activity=activity)
+
+@app.route("/projects/<int:project_id>/stakeholder-share",methods=["GET","POST"])
+@login_required
+def stakeholder_share_v870(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    with db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS stakeholder_tokens(id INTEGER PRIMARY KEY AUTOINCREMENT,project_id INTEGER NOT NULL,token TEXT NOT NULL UNIQUE,active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL)""")
+        if request.method=="POST":
+            token=secrets.token_urlsafe(24)
+            conn.execute("INSERT INTO stakeholder_tokens(project_id,token,active,created_at) VALUES(?,?,1,?)",(project_id,token,datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        tokens=conn.execute("SELECT * FROM stakeholder_tokens WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall()
+    return render_template("stakeholder_share_v870.html",project=p,tokens=tokens)
+
+@app.get("/share/project/<token>")
+def stakeholder_public_v870(token):
+    with db() as conn:
+        row=conn.execute("SELECT * FROM stakeholder_tokens WHERE token=? AND active=1",(token,)).fetchone()
+        if not row: abort(404)
+        p=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(row["project_id"],)).fetchone()
+        if not p: abort(404)
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date",(p["id"],)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND probability*impact>=15 ORDER BY probability*impact DESC",(p["id"],)).fetchall()
+        decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decision_date DESC LIMIT 10",(p["id"],)).fetchall()
+    return render_template("stakeholder_public_v870.html",project=p,tasks=tasks,risks=risks,decisions=decisions)
+
+TEMPLATE_PRO_PRESETS={
+ "LIMS Implementation":[
+  ("1","Kickoff",1),("2","Krav & processkartläggning",0),("3","Konfiguration",0),("4","Integrationer",0),("5","Validering",0),("6","Utbildning",0),("7","Go-live",1)],
+ "System Integration":[("1","Kickoff",1),("2","Interface design",0),("3","Utveckling",0),("4","SIT",0),("5","UAT",0),("6","Driftsättning",1)],
+ "Upgrade":[("1","Planering",0),("2","Teknisk analys",0),("3","Uppgradering test",0),("4","Regressionstest",0),("5","Produktionssättning",1)]
+}
+@app.route("/projects/<int:project_id>/template-pro",methods=["GET","POST"])
+@login_required
+def template_pro_v880(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    if request.method=="POST":
+        name=request.form.get("template","")
+        preset=TEMPLATE_PRO_PRESETS.get(name)
+        if not preset: abort(400)
+        with db() as conn:
+            existing=conn.execute("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchone()["c"]
+            if existing and request.form.get("confirm")!="1":
+                return render_template("template_pro_v880.html",project=p,presets=TEMPLATE_PRO_PRESETS,preview=preset,selected=name,needs_confirm=True)
+            for i,(wbs,title,milestone) in enumerate(preset):
+                conn.execute("""INSERT INTO tasks(project_id,wbs,title,status,priority,progress,milestone,sort_order) VALUES(?,?,?,?,?,?,?,?)""",(project_id,wbs,title,"Ej startad","Normal",0,milestone,i))
+            conn.commit()
+        audit(project_id,"project",project_id,"apply_template",name)
+        flash(f"Mallen {name} har lagts till i projektet.","success")
+        return redirect(url_for("project_workspace",project_id=project_id,tab="plan"))
+    return render_template("template_pro_v880.html",project=p,presets=TEMPLATE_PRO_PRESETS,preview=None)
+
+def pm_assistant_answer_v890(project_id,question):
+    f=forecast_project_v850(project_id)
+    q=(question or "").lower()
+    with db() as conn:
+        p=conn.execute("SELECT * FROM projects WHERE id=?",(project_id,)).fetchone()
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd')",(project_id,)).fetchall()
+    overdue=[t for t in tasks if t["end_date"] and t["progress"]<100 and t["end_date"]<date.today().isoformat()]
+    milestones=[t for t in tasks if t["milestone"] and t["progress"]<100]
+    if "status" in q or "styrgrupp" in q:
+        return f"{p['name']}: prognostiserat slut {f['forecast_end'] or 'saknas'}. {len(overdue)} försenade aktiviteter, {len([r for r in risks if excel_int(r['probability'])*excel_int(r['impact'])>=15])} höga risker. Kostnadsprognos {f['forecast_cost']:.0f}."
+    if "milstolp" in q:
+        return "Kommande öppna milstolpar: "+("; ".join(f"{t['title']} ({t['end_date']})" for t in milestones[:8]) or "inga öppna milstolpar")
+    if "idag" in q or "fokus" in q:
+        return "Fokusera på: "+("; ".join(t["title"] for t in overdue[:5]) or "inga försenade aktiviteter")+". "+("Orsaker: "+", ".join(f["reasons"]) if f["reasons"] else "Projektet saknar tydliga varningssignaler.")
+    return f"Projektet har {len(tasks)} aktiviteter. Prognos: {f['forecast_end'] or 'okänd'}. Fråga gärna om fokus idag, milstolpar eller status inför styrgruppen."
+
+@app.route("/projects/<int:project_id>/pm-assistant-2",methods=["GET","POST"])
+@login_required
+def pm_assistant_2_v890(project_id):
+    p=project_or_404(project_id)
+    answer=None; question=""
+    if request.method=="POST":
+        question=request.form.get("question","").strip()
+        answer=pm_assistant_answer_v890(project_id,question)
+        with db() as conn:
+            conn.execute("INSERT INTO assistant_queries(user_id,project_id,question,answer,created_at) VALUES(?,?,?,?,?)",(current_user["id"],project_id,question,answer,datetime.now().isoformat(timespec="seconds"))); conn.commit()
+    return render_template("pm_assistant_2_v890.html",project=p,question=question,answer=answer)
+
+@app.get("/projects/<int:project_id>/next")
+@login_required
+def project_next_v900(project_id):
+    p=project_or_404(project_id)
+    f=forecast_project_v850(project_id)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,wbs,id",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd') ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? AND status IN ('Proposed','Submitted','Pending') ORDER BY id DESC",(project_id,)).fetchall()
+    attention=[]
+    for t in tasks:
+        if t["end_date"] and t["progress"]<100 and t["end_date"]<date.today().isoformat(): attention.append(("Försenad aktivitet",t["title"],t["end_date"]))
+    for r in risks:
+        if excel_int(r["probability"])*excel_int(r["impact"])>=15: attention.append(("Hög risk",r["title"],f"Riskpoäng {excel_int(r['probability'])*excel_int(r['impact'])}"))
+    for c in changes[:5]: attention.append(("Ändringsärende",c["title"],c["status"]))
+    return render_template("project_next_v900.html",project=p,f=f,tasks=tasks,attention=attention[:8])
 
 @app.route("/admin")
 @login_required

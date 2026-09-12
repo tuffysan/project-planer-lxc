@@ -16,13 +16,13 @@ This is a cumulative release. It contains all functionality from the preceding r
 ## Upgrade an existing LXC
 
 ```bash
-CTID=<your-ctid> VERSION=8.1.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=<your-ctid> VERSION=9.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## New install
 
 ```bash
-VERSION=8.1.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=9.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Run `./VERIFY.sh` before publishing. Keep a database backup before production upgrades.

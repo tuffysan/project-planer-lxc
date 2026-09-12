@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}Prognos · {{project.name}}{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">PROJECT CONTROL & FORECASTING</div><h1>Projektprognos</h1><p class="lead">Deterministisk prognos baserad på plan, risker, resursbelastning och ekonomi.</p></div></div>
+<div class="visual-kpi-grid"><div class="visual-kpi"><div><small>Planerat slut</small><strong>{{f.planned_end or '–'}}</strong></div></div><div class="visual-kpi warning"><div><small>Prognostiserat slut</small><strong>{{f.forecast_end or '–'}}</strong></div></div><div class="visual-kpi"><div><small>Planerad budget</small><strong>{{'%.0f'|format(f.budget)}}</strong></div></div><div class="visual-kpi"><div><small>Kostnadsprognos</small><strong>{{'%.0f'|format(f.forecast_cost)}}</strong></div></div></div>
+<section class="panel"><h2>Varför?</h2>{% for r in f.reasons %}<div class="attention-row">⚠ {{r}}</div>{% else %}<div class="notice info">Inga tydliga avvikelser hittades.</div>{% endfor %}</section>
+<section class="panel"><h2>Föreslagna PM-åtgärder</h2>{% if f.slip>0 %}<p>Granska kritiska aktiviteter, säkra ansvarig och kontrollera om beroenden kan parallelliseras. Prognosen indikerar cirka <b>{{f.slip}} dagars</b> planpåverkan.</p>{% else %}<p>Fortsätt följa milstolpar och risktrend.</p>{% endif %}</section>
+{% endblock %}
