@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Planeringsmotor · {{project.name}}{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<div class="project-breadcrumb"><a href="/projects/{{project.id}}/ultimate">{{project.name}}</a><span>›</span><strong>Planeringsmotor</strong></div>
+<section class="v15-hero compact"><div><span class="v15-kicker">PLANERINGSMOTOR</span><h1>Schema & kritisk linje</h1><p>Beräknad plan från aktivitetsberoenden, lag och arbetsdagar. Förhandsvisningen ändrar inte sparad plan.</p></div><div class="v15-actions"><a class="btn" href="/projects/{{project.id}}/gantt-next">Gantt</a><a class="btn" href="/projects/{{project.id}}/impact">What-if</a></div></section>
+<section class="v15-kpis"><div><strong>{{rows|length}}</strong><span>aktiviteter</span></div><div class="{% if critical %}warn{% endif %}"><strong>{{critical}}</strong><span>kritiska</span></div><div class="{% if delayed %}bad{% endif %}"><strong>{{delayed}}</strong><span>prognostiserat sena</span></div><div><strong>{{plan.project_finish or '—'}}</strong><span>beräknat projektslut</span></div><div class="{% if plan.cyclic %}bad{% endif %}"><strong>{{'Ja' if plan.cyclic else 'Nej'}}</strong><span>beroendecykel</span></div></section>
+{% if plan.cyclic %}<div class="v151-alert danger"><strong>Beroendecykel hittad.</strong> Kritisk linje kan inte beräknas tillförlitligt förrän cykeln är löst.</div>{% endif %}
+<section class="v15-panel"><div class="v15-panel-head"><div><span class="v15-kicker">PROGNOS</span><h2>Aktivitetsplan</h2></div></div>
+<div class="v151-schedule-table"><div class="v151-schedule-row header"><span>Aktivitet</span><span>Start</span><span>Slut</span><span>Prognos start</span><span>Prognos slut</span><span>Slack</span><span>Påverkan</span></div>
+{% for r in rows %}<div class="v151-schedule-row {% if r.critical %}critical{% endif %}"><span><strong>{{r.title}}</strong><small>{{r.owner or 'Ej tilldelad'}}</small></span><span>{{r.original_start or '—'}}</span><span>{{r.original_end or '—'}}</span><span>{{r.forecast_start or '—'}}</span><span>{{r.forecast_end or '—'}}</span><span>{{r.slack_days}} d</span><span>{% if r.delay_days %}<b class="v15-danger">+{{r.delay_days}} d</b>{% elif r.critical %}<b>Kritisk</b>{% else %}—{% endif %}</span></div>{% else %}<div class="v15-empty">Projektet saknar aktiviteter.</div>{% endfor %}
+</div></section></div>
+{% endblock %}

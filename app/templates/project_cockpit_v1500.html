@@ -8,7 +8,7 @@
     <div class="v15-title-line"><span class="v15-health-pill {{health.rag}}"><i></i>{{'På rätt väg' if health.rag=='green' else 'Behöver uppmärksamhet' if health.rag=='amber' else 'I riskzonen'}}</span><h1>{{project.name}}</h1></div>
     <p>{{project.customer or 'Ingen kund angiven'}} · {{project.project_manager or 'Ingen projektledare angiven'}}</p>
   </div>
-  <div class="v15-actions"><a class="btn primary" href="/projects/{{project.id}}/quick-add">＋ Lägg till</a><a class="btn" href="/projects/{{project.id}}/impact">Analysera påverkan</a></div>
+  <div class="v15-actions"><a class="btn primary" href="/projects/{{project.id}}/quick-add">＋ Lägg till</a><a class="btn" href="/projects/{{project.id}}/schedule">Planeringsmotor</a><a class="btn" href="/projects/{{project.id}}/reschedule">Omplanera</a><a class="btn" href="/projects/{{project.id}}/impact">Analysera påverkan</a></div>
 </section>
 
 <nav class="project-view-switcher">
@@ -20,7 +20,7 @@
   <div><strong>{{open_tasks|length}}</strong><span>öppna aktiviteter</span></div>
   <div class="{% if health.overdue %}bad{% endif %}"><strong>{{health.overdue|length}}</strong><span>försenade</span></div>
   <div class="{% if health.high_risks %}bad{% endif %}"><strong>{{health.high_risks|length}}</strong><span>höga risker</span></div>
-  <div class="{% if forecast.days %}warn{% endif %}"><strong>{{forecast.label}}</strong><span>prognos</span></div>
+  <div class="{% if schedule_delayed %}warn{% endif %}"><strong>{{schedule_critical}}</strong><span>kritiska aktiviteter</span></div>
   <div><strong>{{"%.0f"|format(health.actual)}}</strong><span>utfall / {{"%.0f"|format(health.planned)}} plan</span></div>
 </section>
 

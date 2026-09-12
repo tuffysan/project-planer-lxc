@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.0.0"
+APP_VERSION = "15.2.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1081,9 +1081,64 @@ def set_language(lang):
     session["lang"] = lang
     return redirect(request.referrer or url_for("index"))
 
+
+V152_UI = {
+    "sv": {
+        "language":"SprÃ¥k","today":"Idag","my_work":"Mitt arbete","projects":"Projekt","portfolio":"Portfolio",
+        "search":"SÃ¶k","create":"Skapa","admin":"Admin","notifications":"Notiser","password":"LÃ¶senord",
+        "logout":"Logga ut","quality":"Kvalitetscenter","integrations":"Integrationer","enterprise":"FÃ¶retagsinstÃ¤llningar",
+        "app_version":"Appversion","system_status":"Systemstatus","go_to":"GÃ¥ till","work":"Arbeta",
+        "reports":"Rapporter","resources":"Resurser","capacity":"Kapacitet","project_health":"ProjekthÃ¤lsa",
+        "azure_devops":"Azure DevOps","all_search":"SÃ¶k allt","choose_language":"VÃ¤lj sprÃ¥k"
+    },
+    "en": {
+        "language":"Language","today":"Today","my_work":"My work","projects":"Projects","portfolio":"Portfolio",
+        "search":"Search","create":"Create","admin":"Admin","notifications":"Notifications","password":"Password",
+        "logout":"Sign out","quality":"Quality center","integrations":"Integrations","enterprise":"Enterprise settings",
+        "app_version":"App version","system_status":"System status","go_to":"Go to","work":"Work",
+        "reports":"Reports","resources":"Resources","capacity":"Capacity","project_health":"Project health",
+        "azure_devops":"Azure DevOps","all_search":"Search everything","choose_language":"Choose language"
+    },
+    "de": {
+        "language":"Sprache","today":"Heute","my_work":"Meine Arbeit","projects":"Projekte","portfolio":"Portfolio",
+        "search":"Suchen","create":"Erstellen","admin":"Admin","notifications":"Benachrichtigungen","password":"Passwort",
+        "logout":"Abmelden","quality":"QualitÃ¤tscenter","integrations":"Integrationen","enterprise":"Unternehmenseinstellungen",
+        "app_version":"App-Version","system_status":"Systemstatus","go_to":"Gehe zu","work":"Arbeiten",
+        "reports":"Berichte","resources":"Ressourcen","capacity":"KapazitÃ¤t","project_health":"Projektstatus",
+        "azure_devops":"Azure DevOps","all_search":"Alles durchsuchen","choose_language":"Sprache wÃ¤hlen"
+    },
+    "no": {
+        "language":"SprÃ¥k","today":"I dag","my_work":"Mitt arbeid","projects":"Prosjekter","portfolio":"PortefÃ¸lje",
+        "search":"SÃ¸k","create":"Opprett","admin":"Admin","notifications":"Varsler","password":"Passord",
+        "logout":"Logg ut","quality":"Kvalitetssenter","integrations":"Integrasjoner","enterprise":"Virksomhetsinnstillinger",
+        "app_version":"Appversjon","system_status":"Systemstatus","go_to":"GÃ¥ til","work":"Arbeid",
+        "reports":"Rapporter","resources":"Ressurser","capacity":"Kapasitet","project_health":"Prosjekthelse",
+        "azure_devops":"Azure DevOps","all_search":"SÃ¸k i alt","choose_language":"Velg sprÃ¥k"
+    },
+    "da": {
+        "language":"Sprog","today":"I dag","my_work":"Mit arbejde","projects":"Projekter","portfolio":"PortefÃ¸lje",
+        "search":"SÃ¸g","create":"Opret","admin":"Admin","notifications":"Notifikationer","password":"Adgangskode",
+        "logout":"Log ud","quality":"Kvalitetscenter","integrations":"Integrationer","enterprise":"Virksomhedsindstillinger",
+        "app_version":"Appversion","system_status":"Systemstatus","go_to":"GÃ¥ til","work":"Arbejde",
+        "reports":"Rapporter","resources":"Ressourcer","capacity":"Kapacitet","project_health":"Projektsundhed",
+        "azure_devops":"Azure DevOps","all_search":"SÃ¸g i alt","choose_language":"VÃ¦lg sprog"
+    },
+    "fi": {
+        "language":"Kieli","today":"TÃ¤nÃ¤Ã¤n","my_work":"Oma tyÃ¶","projects":"Projektit","portfolio":"Portfolio",
+        "search":"Haku","create":"Luo","admin":"Admin","notifications":"Ilmoitukset","password":"Salasana",
+        "logout":"Kirjaudu ulos","quality":"Laatukeskus","integrations":"Integraatiot","enterprise":"Yritysasetukset",
+        "app_version":"Sovellusversio","system_status":"JÃ¤rjestelmÃ¤n tila","go_to":"Siirry","work":"TyÃ¶",
+        "reports":"Raportit","resources":"Resurssit","capacity":"Kapasiteetti","project_health":"Projektin tila",
+        "azure_devops":"Azure DevOps","all_search":"Hae kaikesta","choose_language":"Valitse kieli"
+    }
+}
+def ui152(key):
+    lang=active_language()
+    return V152_UI.get(lang,V152_UI["sv"]).get(key,V152_UI["sv"].get(key,key))
+
 @app.context_processor
 def inject_i18n():
-    return dict(t=tr, active_lang=active_language(), languages=LANGUAGES)
+    return dict(t=tr, ui=ui152, active_lang=active_language(), languages=LANGUAGES)
 
 @app.context_processor
 def inject_globals():
@@ -3220,6 +3275,24 @@ def planning_ux_v1130(project_id):
         links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days FROM task_links WHERE project_id=?""",(project_id,)).fetchall()
     return render_template("planning_ux_v1130.html",project=project,tasks=tasks,links=links)
 
+
+def _ado_patch_v1520(url,pat,operations):
+    import urllib.request, base64, json as _json
+    raw=(":"+pat).encode("utf-8")
+    req=urllib.request.Request(url,method="PATCH")
+    req.add_header("Authorization","Basic "+base64.b64encode(raw).decode("ascii"))
+    req.add_header("Accept","application/json")
+    req.add_header("Content-Type","application/json-patch+json")
+    data=_json.dumps(operations).encode("utf-8")
+    with urllib.request.urlopen(req,data=data,timeout=20) as resp:
+        return _json.loads(resp.read().decode("utf-8"))
+
+def _v152_devops_state(task_status):
+    v=(task_status or "").strip().lower()
+    if v in ("done","completed","closed","klar"): return "Closed"
+    if v in ("blocked","blockerad"): return "Active"
+    return "Active"
+
 def _ado_json_v1140(method,url,pat,payload=None):
     import urllib.request, urllib.error, base64, json as _json
     raw=(":"+pat).encode("utf-8")
@@ -3616,6 +3689,165 @@ def project_planer_simple_v1300():
     return render_template("project_planer_simple_v1300.html",projects=projects,mine=mine,unread=unread,attention=attention)
 
 
+
+
+def ensure_v152_schema(conn):
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS schedule_change_batches(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      reason TEXT,
+      created_by INTEGER,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      reverted_at TEXT,
+      reverted_by INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS schedule_change_items(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      batch_id INTEGER NOT NULL,
+      task_id INTEGER NOT NULL,
+      old_start TEXT, old_end TEXT,
+      new_start TEXT, new_end TEXT,
+      FOREIGN KEY(batch_id) REFERENCES schedule_change_batches(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_sched_batch_project ON schedule_change_batches(project_id,created_at);
+    CREATE INDEX IF NOT EXISTS idx_sched_item_batch ON schedule_change_items(batch_id);
+    """)
+
+def _v151_workday_add(d, days):
+    """Add working days (Mon-Fri). Positive and negative values supported."""
+    if not d:
+        return None
+    cur=d
+    step=1 if days >= 0 else -1
+    remaining=abs(int(days))
+    while remaining:
+        cur += timedelta(days=step)
+        if cur.weekday() < 5:
+            remaining -= 1
+    return cur
+
+def _v151_workdays_between(start, end):
+    if not start or not end or end <= start:
+        return 0
+    cur=start
+    count=0
+    while cur < end:
+        cur += timedelta(days=1)
+        if cur.weekday() < 5:
+            count += 1
+    return count
+
+def _v151_schedule(tasks, links):
+    """Deterministic dependency forecast. Does not mutate stored project data."""
+    items={int(t["id"]):dict(t) for t in tasks}
+    incoming={tid:[] for tid in items}
+    outgoing={tid:[] for tid in items}
+    for raw in links:
+        l=dict(raw)
+        p=int(l["predecessor_id"]); q=int(l["successor_id"])
+        if p in items and q in items:
+            incoming[q].append(l)
+            outgoing[p].append(l)
+
+    indegree={tid:len(incoming[tid]) for tid in items}
+    queue=[tid for tid,d in indegree.items() if d==0]
+    order=[]
+    while queue:
+        tid=queue.pop(0); order.append(tid)
+        for l in outgoing.get(tid,[]):
+            q=int(l["successor_id"]); indegree[q]-=1
+            if indegree[q]==0: queue.append(q)
+    cyclic=len(order)!=len(items)
+    if cyclic:
+        order=list(items)
+
+    result={}
+    today=date.today()
+    for tid in order:
+        t=items[tid]
+        orig_start=_v15_date(t.get("start_date"))
+        orig_end=_v15_date(t.get("end_date"))
+        duration=int(t.get("duration_days") or 0)
+        if duration <= 0 and orig_start and orig_end:
+            duration=max(1,_v151_workdays_between(orig_start,orig_end))
+        if duration <= 0: duration=1
+
+        start=orig_start or today
+        end=orig_end or _v151_workday_add(start,duration-1)
+        reasons=[]
+
+        for l in incoming.get(tid,[]):
+            pred=result.get(int(l["predecessor_id"]))
+            if not pred: continue
+            typ=(l.get("link_type") or "FS").upper()
+            lag=int(l.get("lag_days") or 0)
+            ps=pred["forecast_start"]; pe=pred["forecast_end"]
+            if typ=="SS":
+                candidate=_v151_workday_add(ps,lag)
+                if candidate and candidate>start:
+                    start=candidate; end=_v151_workday_add(start,duration-1); reasons.append(f"SS +{lag}")
+            elif typ=="FF":
+                candidate_end=_v151_workday_add(pe,lag)
+                if candidate_end and candidate_end>end:
+                    end=candidate_end; start=_v151_workday_add(end,-(duration-1)); reasons.append(f"FF +{lag}")
+            elif typ=="SF":
+                candidate_end=_v151_workday_add(ps,lag)
+                if candidate_end and candidate_end>end:
+                    end=candidate_end; start=_v151_workday_add(end,-(duration-1)); reasons.append(f"SF +{lag}")
+            else: # FS
+                candidate=_v151_workday_add(pe,lag+1)
+                if candidate and candidate>start:
+                    start=candidate; end=_v151_workday_add(start,duration-1); reasons.append(f"FS +{lag}")
+        result[tid]={
+            "id":tid,"title":t.get("title"),"owner":t.get("owner"),"status":t.get("status"),
+            "duration":duration,"original_start":orig_start,"original_end":orig_end,
+            "forecast_start":start,"forecast_end":end,"reasons":reasons
+        }
+
+    project_finish=max((r["forecast_end"] for r in result.values() if r["forecast_end"]), default=None)
+    # Backward pass, approximate CPM using workdays.
+    latest_finish={tid:project_finish for tid in result}
+    for tid in reversed(order):
+        successors=outgoing.get(tid,[])
+        if successors:
+            candidates=[]
+            for l in successors:
+                succ=result.get(int(l["successor_id"]))
+                if not succ: continue
+                typ=(l.get("link_type") or "FS").upper()
+                lag=int(l.get("lag_days") or 0)
+                if typ=="FS":
+                    candidates.append(_v151_workday_add(succ["forecast_start"],-(lag+1)))
+                else:
+                    candidates.append(succ["forecast_end"])
+            vals=[x for x in candidates if x]
+            if vals: latest_finish[tid]=min(vals)
+        r=result[tid]
+        lf=latest_finish.get(tid) or r["forecast_end"]
+        slack=_v151_workdays_between(r["forecast_end"],lf) if lf and r["forecast_end"] and lf>=r["forecast_end"] else 0
+        r["slack_days"]=slack
+        r["critical"]=slack<=0 and bool(outgoing.get(tid) or incoming.get(tid))
+        r["delay_days"]=_v151_workdays_between(r["original_end"],r["forecast_end"]) if r["original_end"] and r["forecast_end"] and r["forecast_end"]>r["original_end"] else 0
+
+    return {"tasks":result,"order":order,"cyclic":cyclic,"project_finish":project_finish}
+
+def _v151_capacity(rows):
+    grouped={}
+    for raw in rows:
+        r=dict(raw)
+        key=(r.get("user_id") or 0, r.get("resource_name") or "Resurs", r.get("week_start") or "")
+        g=grouped.setdefault(key,{"user_id":key[0],"resource":key[1],"week_start":key[2],"allocation_pct":0.0,"planned_hours":0.0})
+        g["allocation_pct"] += float(r.get("allocation_pct") or 0)
+        g["planned_hours"] += float(r.get("planned_hours") or 0)
+    vals=list(grouped.values())
+    for g in vals:
+        g["status"]="over" if g["allocation_pct"]>100 else "high" if g["allocation_pct"]>=85 else "ok"
+        g["available_pct"]=max(0,100-g["allocation_pct"])
+    vals.sort(key=lambda x:(x["week_start"],-x["allocation_pct"],x["resource"].lower()))
+    return vals
+
 def _v15_is_closed(value):
     return (value or "").strip().lower() in ("done","completed","closed","klar","stÃ¤ngd")
 
@@ -3887,6 +4119,11 @@ def ultimate_project_v140(project_id):
     milestones=sorted([t for t in tasks if t["milestone"] and t["end_date"]],key=lambda x:x["end_date"])[:10]
     open_tasks=[t for t in tasks if not _v15_is_closed(t["status"])]
     forecast=_v15_forecast(project,tasks)
+    with db() as conn:
+        schedule_links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days FROM task_links WHERE project_id=?""",(project_id,)).fetchall()
+    schedule_plan=_v151_schedule(tasks,schedule_links)
+    schedule_critical=sum(1 for x in schedule_plan["tasks"].values() if x["critical"])
+    schedule_delayed=sum(1 for x in schedule_plan["tasks"].values() if x["delay_days"]>0)
 
     next_actions=[]
     for t in health["overdue"][:4]:
@@ -3909,7 +4146,7 @@ def ultimate_project_v140(project_id):
                            risks=risks,costs=costs,members=members,devops=devops,comments=comments,
                            health=health,progress=progress,milestones=milestones,next_actions=next_actions,
                            actions=actions,changes=changes,decisions=decisions,status_report=status_report,
-                           forecast=forecast)
+                           forecast=forecast,schedule_plan=schedule_plan,schedule_critical=schedule_critical,schedule_delayed=schedule_delayed)
 
 @app.get("/projects/<int:project_id>/impact")
 @login_required
@@ -3950,6 +4187,331 @@ def project_impact_v1500(project_id):
     projected=(old_end+timedelta(days=shift)).isoformat() if old_end and affected else (project["end_date"] or "")
     return render_template("impact_v1500.html",project=project,tasks=tasks,affected=affected,
                            shift=shift,start_task=start_task,projected_end=projected)
+
+@app.get("/projects/<int:project_id>/schedule")
+@login_required
+def schedule_engine_v1510(project_id):
+    project=project_or_404(project_id)
+    with db() as conn:
+        tasks=conn.execute("""SELECT id,title,owner,status,start_date,end_date,duration_days,progress
+                              FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''
+                              ORDER BY sort_order,id""",(project_id,)).fetchall()
+        links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days
+                              FROM task_links WHERE project_id=?""",(project_id,)).fetchall()
+    plan=_v151_schedule(tasks,links)
+    rows=[plan["tasks"][tid] for tid in plan["order"] if tid in plan["tasks"]]
+    critical=sum(1 for r in rows if r["critical"])
+    delayed=sum(1 for r in rows if r["delay_days"]>0)
+    return render_template("schedule_v1510.html",project=project,rows=rows,plan=plan,
+                           critical=critical,delayed=delayed)
+
+@app.get("/capacity")
+@login_required
+def capacity_v1510():
+    with db() as conn:
+        try:
+            rows=conn.execute("""SELECT ra.user_id,
+                       COALESCE(NULLIF(ra.resource_name,''),u.display_name,u.username,'Resurs') resource_name,
+                       ra.week_start,ra.allocation_pct,ra.planned_hours,ra.project_id,p.name project_name
+                FROM resource_allocations ra
+                LEFT JOIN users u ON u.id=ra.user_id
+                LEFT JOIN projects p ON p.id=ra.project_id
+                WHERE ra.week_start>=date('now','-7 day')
+                ORDER BY ra.week_start,resource_name""").fetchall()
+        except Exception:
+            rows=[]
+    capacity=_v151_capacity(rows)
+    weeks=sorted({r["week_start"] for r in capacity if r["week_start"]})[:12]
+    people=sorted({r["resource"] for r in capacity})
+    lookup={(r["resource"],r["week_start"]):r for r in capacity}
+    over=sum(1 for r in capacity if r["status"]=="over")
+    high=sum(1 for r in capacity if r["status"]=="high")
+    return render_template("capacity_v1510.html",capacity=capacity,weeks=weeks,people=people,
+                           lookup=lookup,over=over,high=high)
+
+@app.get("/project-health")
+@login_required
+def project_health_v1510():
+    projects=visible_projects_for_user()
+    cards=[]
+    with db() as conn:
+        for p0 in projects:
+            p=dict(p0)
+            tasks=conn.execute("""SELECT * FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''""",(p["id"],)).fetchall()
+            risks=conn.execute("""SELECT * FROM risks WHERE project_id=?""",(p["id"],)).fetchall()
+            costs=conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual
+                                  FROM project_costs WHERE project_id=?""",(p["id"],)).fetchone()
+            links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days FROM task_links WHERE project_id=?""",(p["id"],)).fetchall()
+            health=_ultimate_health_v140(p,tasks,risks,costs)
+            sched=_v151_schedule(tasks,links)
+            cards.append({"project":p,"health":health,"finish":sched["project_finish"],
+                          "critical":sum(1 for x in sched["tasks"].values() if x["critical"]),
+                          "delayed":sum(1 for x in sched["tasks"].values() if x["delay_days"]>0)})
+    cards.sort(key=lambda x:({"red":0,"amber":1,"green":2}.get(x["health"]["rag"],3),x["project"]["name"].lower()))
+    return render_template("project_health_v1510.html",cards=cards)
+
+@app.route("/projects/<int:project_id>/reschedule",methods=["GET"])
+@login_required
+def reschedule_preview_v1520(project_id):
+    project=project_or_404(project_id)
+    with db() as conn:
+        ensure_v152_schema(conn)
+        tasks=conn.execute("""SELECT id,title,owner,status,start_date,end_date,duration_days,progress
+                              FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''
+                              ORDER BY sort_order,id""",(project_id,)).fetchall()
+        links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days
+                              FROM task_links WHERE project_id=?""",(project_id,)).fetchall()
+        history=conn.execute("""SELECT b.*,COALESCE(u.display_name,u.username,'System') created_name,
+                               (SELECT COUNT(*) FROM schedule_change_items i WHERE i.batch_id=b.id) item_count
+                               FROM schedule_change_batches b LEFT JOIN users u ON u.id=b.created_by
+                               WHERE b.project_id=? ORDER BY b.id DESC LIMIT 20""",(project_id,)).fetchall()
+    plan=_v151_schedule(tasks,links)
+    changed=[]
+    for tid in plan["order"]:
+        r=plan["tasks"].get(tid)
+        if not r: continue
+        os=r["original_start"].isoformat() if r["original_start"] else ""
+        oe=r["original_end"].isoformat() if r["original_end"] else ""
+        ns=r["forecast_start"].isoformat() if r["forecast_start"] else ""
+        ne=r["forecast_end"].isoformat() if r["forecast_end"] else ""
+        if os!=ns or oe!=ne:
+            changed.append({**r,"old_start":os,"old_end":oe,"new_start":ns,"new_end":ne})
+    return render_template("reschedule_v1520.html",project=project,changed=changed,plan=plan,history=history)
+
+@app.post("/projects/<int:project_id>/reschedule/apply")
+@login_required
+def reschedule_apply_v1520(project_id):
+    project=project_or_404(project_id,write=True)
+    selected={int(x) for x in request.form.getlist("task_id") if str(x).isdigit()}
+    reason=(request.form.get("reason") or "GodkÃ¤nd omplanering").strip()[:500]
+    if not selected:
+        flash("VÃ¤lj minst en aktivitet att omplanera.","warning")
+        return redirect(url_for("reschedule_preview_v1520",project_id=project_id))
+    with db() as conn:
+        ensure_v152_schema(conn)
+        tasks=conn.execute("""SELECT id,title,owner,status,start_date,end_date,duration_days,progress
+                              FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''""",(project_id,)).fetchall()
+        links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days FROM task_links WHERE project_id=?""",(project_id,)).fetchall()
+        plan=_v151_schedule(tasks,links)
+        cur=conn.execute("""INSERT INTO schedule_change_batches(project_id,title,reason,created_by)
+                            VALUES(?,?,?,?)""",(project_id,"Kontrollerad omplanering",reason,session.get("user_id")))
+        batch_id=cur.lastrowid
+        written=0
+        for t in tasks:
+            tid=int(t["id"])
+            if tid not in selected or tid not in plan["tasks"]: continue
+            p=plan["tasks"][tid]
+            ns=p["forecast_start"].isoformat() if p["forecast_start"] else (t["start_date"] or "")
+            ne=p["forecast_end"].isoformat() if p["forecast_end"] else (t["end_date"] or "")
+            if ns==(t["start_date"] or "") and ne==(t["end_date"] or ""): continue
+            conn.execute("""INSERT INTO schedule_change_items(batch_id,task_id,old_start,old_end,new_start,new_end)
+                            VALUES(?,?,?,?,?,?)""",(batch_id,tid,t["start_date"] or "",t["end_date"] or "",ns,ne))
+            conn.execute("UPDATE tasks SET start_date=?,end_date=? WHERE id=? AND project_id=?",(ns,ne,tid,project_id))
+            written+=1
+        if written==0:
+            conn.execute("DELETE FROM schedule_change_batches WHERE id=?",(batch_id,))
+        conn.commit()
+    if written:
+        audit(project_id,"schedule_batch",batch_id,"apply",f"{written} aktiviteter Â· {reason}")
+        flash(f"Omplaneringen godkÃ¤ndes och {written} aktiviteter uppdaterades.","success")
+    else:
+        flash("Inga valda aktiviteter behÃ¶vde Ã¤ndras.","info")
+    return redirect(url_for("reschedule_preview_v1520",project_id=project_id))
+
+@app.post("/projects/<int:project_id>/reschedule/<int:batch_id>/undo")
+@login_required
+def reschedule_undo_v1520(project_id,batch_id):
+    project=project_or_404(project_id,write=True)
+    with db() as conn:
+        ensure_v152_schema(conn)
+        batch=conn.execute("SELECT * FROM schedule_change_batches WHERE id=? AND project_id=?",(batch_id,project_id)).fetchone()
+        if not batch: abort(404)
+        if batch["reverted_at"]:
+            flash("Den hÃ¤r omplaneringen Ã¤r redan Ã¥terstÃ¤lld.","warning")
+            return redirect(url_for("reschedule_preview_v1520",project_id=project_id))
+        items=conn.execute("SELECT * FROM schedule_change_items WHERE batch_id=? ORDER BY id DESC",(batch_id,)).fetchall()
+        for i in items:
+            conn.execute("UPDATE tasks SET start_date=?,end_date=? WHERE id=? AND project_id=?",
+                         (i["old_start"] or "",i["old_end"] or "",i["task_id"],project_id))
+        conn.execute("""UPDATE schedule_change_batches SET reverted_at=CURRENT_TIMESTAMP,reverted_by=? WHERE id=?""",
+                     (session.get("user_id"),batch_id))
+        conn.commit()
+    audit(project_id,"schedule_batch",batch_id,"undo",f"{len(items)} aktiviteter Ã¥terstÃ¤llda")
+    flash(f"Omplaneringen Ã¥terstÃ¤lldes ({len(items)} aktiviteter).","success")
+    return redirect(url_for("reschedule_preview_v1520",project_id=project_id))
+
+@app.get("/capacity/level")
+@login_required
+def capacity_level_v1520():
+    with db() as conn:
+        rows=conn.execute("""SELECT ra.id,ra.user_id,
+                    COALESCE(NULLIF(ra.resource_name,''),u.display_name,u.username,'Resurs') resource,
+                    ra.week_start,ra.allocation_pct,ra.planned_hours,ra.project_id,p.name project_name
+             FROM resource_allocations ra
+             LEFT JOIN users u ON u.id=ra.user_id
+             LEFT JOIN projects p ON p.id=ra.project_id
+             WHERE ra.week_start>=date('now','-7 day')
+             ORDER BY resource,week_start,ra.allocation_pct DESC""").fetchall()
+    by={}
+    for raw in rows:
+        r=dict(raw); by.setdefault(r["resource"],[]).append(r)
+    suggestions=[]
+    for resource,items in by.items():
+        totals={}
+        for r in items: totals[r["week_start"]]=totals.get(r["week_start"],0)+float(r["allocation_pct"] or 0)
+        under=[(w,v) for w,v in totals.items() if v<85]
+        for r in items:
+            total=totals.get(r["week_start"],0)
+            if total<=100: continue
+            needed=min(float(r["allocation_pct"] or 0),total-100)
+            targets=sorted([(w,85-v) for w,v in under if w>r["week_start"] and 85-v>0],key=lambda x:x[0])
+            if targets:
+                w,room=targets[0]; move=min(needed,room)
+                if move>0:
+                    suggestions.append({"allocation_id":r["id"],"resource":resource,"project":r["project_name"],
+                                        "from_week":r["week_start"],"to_week":w,"move_pct":round(move,1),
+                                        "current_pct":float(r["allocation_pct"] or 0)})
+    return render_template("resource_level_v1520.html",suggestions=suggestions)
+
+@app.post("/capacity/level/apply")
+@login_required
+def capacity_level_apply_v1520():
+    if current_user()["role"] not in ("admin","pm"): abort(403)
+    allocation_id=request.form.get("allocation_id",type=int)
+    to_week=(request.form.get("to_week") or "").strip()
+    move_pct=request.form.get("move_pct",type=float)
+    if not allocation_id or not to_week or not move_pct or move_pct<=0:
+        flash("Ogiltigt utjÃ¤mningsfÃ¶rslag.","error"); return redirect(url_for("capacity_level_v1520"))
+    with db() as conn:
+        row=conn.execute("SELECT * FROM resource_allocations WHERE id=?",(allocation_id,)).fetchone()
+        if not row: abort(404)
+        move=min(float(row["allocation_pct"] or 0),float(move_pct))
+        old_hours=float(row["planned_hours"] or 0)
+        old_pct=float(row["allocation_pct"] or 0)
+        moved_hours=(old_hours*(move/old_pct)) if old_pct>0 else 0
+        remain_pct=max(0,old_pct-move)
+        remain_hours=max(0,old_hours-moved_hours)
+        conn.execute("UPDATE resource_allocations SET allocation_pct=?,planned_hours=? WHERE id=?",
+                     (remain_pct,remain_hours,allocation_id))
+        existing=conn.execute("""SELECT id,allocation_pct,planned_hours FROM resource_allocations
+                                 WHERE project_id=? AND COALESCE(user_id,0)=COALESCE(?,0)
+                                   AND COALESCE(resource_name,'')=COALESCE(?, '') AND week_start=? LIMIT 1""",
+                              (row["project_id"],row["user_id"],row["resource_name"],to_week)).fetchone()
+        if existing:
+            conn.execute("UPDATE resource_allocations SET allocation_pct=?,planned_hours=? WHERE id=?",
+                         (float(existing["allocation_pct"] or 0)+move,float(existing["planned_hours"] or 0)+moved_hours,existing["id"]))
+        else:
+            conn.execute("""INSERT INTO resource_allocations(project_id,user_id,resource_name,week_start,allocation_pct,planned_hours)
+                            VALUES(?,?,?,?,?,?)""",(row["project_id"],row["user_id"],row["resource_name"],to_week,move,moved_hours))
+        conn.commit()
+    audit(row["project_id"],"resource_allocation",allocation_id,"level",
+          f"{move:.1f}% flyttat frÃ¥n {row['week_start']} till {to_week}")
+    flash(f"{move:.0f}% flyttades till veckan {to_week}.","success")
+    return redirect(url_for("capacity_level_v1520"))
+
+@app.route("/integrations/azure-devops/bidirectional",methods=["GET","POST"])
+@login_required
+def devops_bidirectional_v1520():
+    if current_user()["role"] not in ("admin","pm"): abort(403)
+    with db() as conn:
+        ensure_azure_devops_schema_v1010(conn)
+        if request.method=="POST" and request.form.get("action")=="link":
+            link_id=request.form.get("link_id",type=int)
+            task_id=request.form.get("task_id",type=int)
+            link=conn.execute("SELECT * FROM azure_devops_work_item_links WHERE id=?",(link_id,)).fetchone()
+            task=conn.execute("SELECT * FROM tasks WHERE id=?",(task_id,)).fetchone()
+            if not link or not task: abort(404)
+            project_access(task["project_id"],write=True)
+            conn.execute("UPDATE azure_devops_work_item_links SET task_id=?,project_id=? WHERE id=?",
+                         (task_id,task["project_id"],link_id))
+            conn.commit()
+            flash(f"Work Item #{link['work_item_id']} lÃ¤nkades till {task['title']}.","success")
+        connections=conn.execute("""SELECT id,name,organization_url,project_name,enabled FROM azure_devops_connections
+                                    WHERE enabled=1 ORDER BY name""").fetchall()
+        links=conn.execute("""SELECT l.*,c.name connection_name,t.title task_title,t.status task_status,p.name project_name
+                              FROM azure_devops_work_item_links l
+                              JOIN azure_devops_connections c ON c.id=l.connection_id
+                              LEFT JOIN tasks t ON t.id=l.task_id
+                              LEFT JOIN projects p ON p.id=l.project_id
+                              ORDER BY l.last_synced_at DESC,l.id DESC LIMIT 300""").fetchall()
+        tasks=conn.execute("""SELECT t.id,t.title,t.project_id,p.name project_name
+                              FROM tasks t JOIN projects p ON p.id=t.project_id
+                              WHERE COALESCE(t.deleted_at,'')='' AND COALESCE(p.deleted_at,'')=''
+                              ORDER BY p.name,t.title LIMIT 1000""").fetchall()
+    return render_template("devops_bidir_v1520.html",connections=connections,links=links,tasks=tasks)
+
+@app.post("/integrations/azure-devops/bidirectional/<int:link_id>/push")
+@login_required
+def devops_push_v1520(link_id):
+    if current_user()["role"] not in ("admin","pm"): abort(403)
+    with db() as conn:
+        ensure_azure_devops_schema_v1010(conn)
+        link=conn.execute("""SELECT l.*,c.organization_url,c.project_name,c.pat_secret,t.title task_title,t.status task_status,t.project_id task_project
+                             FROM azure_devops_work_item_links l
+                             JOIN azure_devops_connections c ON c.id=l.connection_id
+                             JOIN tasks t ON t.id=l.task_id WHERE l.id=?""",(link_id,)).fetchone()
+        if not link: abort(404)
+        project_access(link["task_project"],write=True)
+        if not link["pat_secret"]:
+            flash("Azure DevOps-anslutningen saknar PAT.","error"); return redirect(url_for("devops_bidirectional_v1520"))
+        try:
+            from urllib.parse import quote
+            base=link["organization_url"].rstrip("/")+"/"+quote(link["project_name"])
+            url=f"{base}/_apis/wit/workitems/{link['work_item_id']}?api-version=7.1"
+            operations=[
+                {"op":"add","path":"/fields/System.Title","value":link["task_title"]},
+                {"op":"add","path":"/fields/System.State","value":_v152_devops_state(link["task_status"])}
+            ]
+            result=_ado_patch_v1520(url,link["pat_secret"],operations)
+            fields=result.get("fields",{})
+            conn.execute("""UPDATE azure_devops_work_item_links SET title=?,state=?,last_synced_at=CURRENT_TIMESTAMP WHERE id=?""",
+                         (fields.get("System.Title",link["task_title"]),fields.get("System.State"),link_id))
+            conn.execute("""INSERT INTO azure_devops_sync_log(connection_id,project_id,direction,status,message,items_read,items_written)
+                            VALUES(?,?,?,?,?,?,?)""",
+                         (link["connection_id"],link["task_project"],"ProjectPlanerToDevOps","Success",
+                          f"Pushed Work Item #{link['work_item_id']}",0,1))
+            conn.commit()
+            flash(f"Work Item #{link['work_item_id']} uppdaterades i Azure DevOps.","success")
+        except Exception as ex:
+            conn.execute("""INSERT INTO azure_devops_sync_log(connection_id,project_id,direction,status,message)
+                            VALUES(?,?,?,?,?)""",(link["connection_id"],link["task_project"],"ProjectPlanerToDevOps","Failed",str(ex)[:500]))
+            conn.commit()
+            flash("Push till Azure DevOps misslyckades: "+str(ex),"error")
+    return redirect(url_for("devops_bidirectional_v1520"))
+
+@app.post("/integrations/azure-devops/bidirectional/<int:link_id>/pull")
+@login_required
+def devops_pull_link_v1520(link_id):
+    if current_user()["role"] not in ("admin","pm"): abort(403)
+    with db() as conn:
+        ensure_azure_devops_schema_v1010(conn)
+        link=conn.execute("""SELECT l.*,c.organization_url,c.project_name,c.pat_secret,t.project_id task_project
+                             FROM azure_devops_work_item_links l
+                             JOIN azure_devops_connections c ON c.id=l.connection_id
+                             JOIN tasks t ON t.id=l.task_id WHERE l.id=?""",(link_id,)).fetchone()
+        if not link: abort(404)
+        project_access(link["task_project"],write=True)
+        try:
+            from urllib.parse import quote
+            base=link["organization_url"].rstrip("/")+"/"+quote(link["project_name"])
+            wi=_ado_json_v1140("GET",f"{base}/_apis/wit/workitems/{link['work_item_id']}?api-version=7.1",link["pat_secret"])
+            f=wi.get("fields",{})
+            title=f.get("System.Title") or link["title"]
+            state=f.get("System.State") or link["state"]
+            mapped_status="Done" if str(state).lower() in ("done","closed","resolved","completed") else "In progress"
+            conn.execute("UPDATE tasks SET title=?,status=? WHERE id=?",(title,mapped_status,link["task_id"]))
+            conn.execute("""UPDATE azure_devops_work_item_links SET title=?,state=?,last_synced_at=CURRENT_TIMESTAMP WHERE id=?""",
+                         (title,state,link_id))
+            conn.execute("""INSERT INTO azure_devops_sync_log(connection_id,project_id,direction,status,message,items_read,items_written)
+                            VALUES(?,?,?,?,?,?,?)""",
+                         (link["connection_id"],link["task_project"],"DevOpsToProjectPlaner","Success",
+                          f"Pulled Work Item #{link['work_item_id']}",1,1))
+            conn.commit()
+            audit(link["task_project"],"task",link["task_id"],"devops_pull",f"Work Item #{link['work_item_id']}")
+            flash(f"Work Item #{link['work_item_id']} hÃ¤mtades till Project Planer.","success")
+        except Exception as ex:
+            flash("Pull frÃ¥n Azure DevOps misslyckades: "+str(ex),"error")
+    return redirect(url_for("devops_bidirectional_v1520"))
 
 @app.get("/ultimate/compare")
 @login_required

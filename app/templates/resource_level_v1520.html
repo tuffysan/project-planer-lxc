@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Resursutjämning · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell"><section class="v15-hero compact"><div><span class="v15-kicker">RESURSUTJÄMNING v15.2</span><h1>Föreslagna kapacitetsflyttar</h1><p>Motorn hittar överbeläggning och föreslår när samma allokering kan flyttas till en senare vecka med ledig kapacitet.</p></div><div class="v15-actions"><a class="btn" href="/capacity">Kapacitets-heatmap</a></div></section>
+<section class="v15-panel"><div class="v15-panel-head"><div><span class="v15-kicker">REKOMMENDATIONER</span><h2>{{suggestions|length}} möjliga utjämningar</h2></div></div>
+<div class="v152-level-list">{% for s in suggestions %}<div class="v152-level-item"><div><small>{{s.project}}</small><strong>{{s.resource}}</strong><span>{{s.from_week}} → {{s.to_week}}</span></div><div class="v152-move"><strong>{{s.move_pct}}%</strong><span>föreslagen flytt</span></div><form method="post" action="/capacity/level/apply"><input type="hidden" name="allocation_id" value="{{s.allocation_id}}"><input type="hidden" name="to_week" value="{{s.to_week}}"><input type="hidden" name="move_pct" value="{{s.move_pct}}"><button class="btn primary small">Godkänn</button></form></div>{% else %}<div class="v15-empty"><strong>Ingen automatisk flytt behövs.</strong><span>Ingen säker senare vecka med ledig kapacitet hittades.</span></div>{% endfor %}</div>
+</section></div>{% endblock %}

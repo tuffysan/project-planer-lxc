@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Projekthälsa · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell"><section class="v15-hero compact"><div><span class="v15-kicker">LEVERANSSÄKERHET</span><h1>Projekthälsa</h1><p>Samlad bild av projekt som behöver styrning, med planeringsmotorns prognos.</p></div></section>
+<section class="v15-panel"><div class="v15-project-table"><div class="v15-project-row header"><span>Projekt</span><span>Hälsa</span><span>Försenat</span><span>Blockerat</span><span>Höga risker</span><span>Kritiska</span><span>Prognos slut</span></div>
+{% for c in cards %}<a class="v15-project-row" href="/projects/{{c.project.id}}/ultimate"><span><strong>{{c.project.name}}</strong><small>{{c.project.project_manager or 'Ingen projektledare'}}</small></span><span><b class="v15-rag {{c.health.rag}}"></b>{{c.health.score}}/100</span><span>{{c.health.overdue|length}}</span><span>{{c.health.blocked|length}}</span><span>{{c.health.high_risks|length}}</span><span>{{c.critical}}</span><span>{{c.finish or c.project.end_date or '—'}}</span></a>{% else %}<div class="v15-empty">Inga projekt.</div>{% endfor %}
+</div></section></div>{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Kontrollerad omplanering · {{project.name}}{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<div class="project-breadcrumb"><a href="/projects/{{project.id}}/ultimate">{{project.name}}</a><span>›</span><strong>Kontrollerad omplanering</strong></div>
+<section class="v15-hero compact"><div><span class="v15-kicker">PLANERING v15.2</span><h1>Förhandsgranska → godkänn → återställ</h1><p>Planeringsmotorn föreslår datum. Ingenting ändras förrän du godkänner exakt vilka aktiviteter som ska uppdateras.</p></div><div class="v15-actions"><a class="btn" href="/projects/{{project.id}}/schedule">Planeringsmotor</a><a class="btn" href="/projects/{{project.id}}/ultimate">Projektöversikt</a></div></section>
+{% if plan.cyclic %}<div class="v151-alert danger"><strong>Omplanering blockerad:</strong> projektet innehåller en beroendecykel. Rätta beroendena först.</div>{% endif %}
+<div class="v15-grid-main">
+<section class="v15-panel">
+<div class="v15-panel-head"><div><span class="v15-kicker">FÖRSLAG</span><h2>{{changed|length}} aktiviteter kan uppdateras</h2></div></div>
+<form method="post" action="/projects/{{project.id}}/reschedule/apply">
+<label class="v152-reason">Orsak / kommentar<input name="reason" value="Godkänd omplanering från planeringsmotorn" maxlength="500"></label>
+<div class="v152-change-table"><div class="v152-change-row header"><span>Välj</span><span>Aktivitet</span><span>Nu</span><span>Föreslaget</span><span>Påverkan</span></div>
+{% for r in changed %}<label class="v152-change-row"><span><input type="checkbox" name="task_id" value="{{r.id}}" checked></span><span><strong>{{r.title}}</strong><small>{{r.owner or 'Ej tilldelad'}}</small></span><span>{{r.old_start or '—'}} → {{r.old_end or '—'}}</span><span>{{r.new_start or '—'}} → {{r.new_end or '—'}}</span><span>{% if r.delay_days %}<b class="v15-danger">+{{r.delay_days}} arbetsdagar</b>{% elif r.critical %}<b>Kritisk</b>{% else %}Schemajustering{% endif %}</span></label>{% else %}<div class="v15-empty">Planen är redan i linje med beroendena.</div>{% endfor %}
+</div>
+{% if changed and not plan.cyclic %}<button class="btn primary" type="submit">Godkänn valda ändringar</button>{% endif %}
+</form></section>
+<aside class="v15-panel"><span class="v15-kicker">HISTORIK</span><h2>Omplaneringar</h2><div class="v15-mini-list">
+{% for h in history %}<div class="v152-history"><div><strong>#{{h.id}} · {{h.item_count}} aktiviteter</strong><span>{{h.created_at}} · {{h.created_name}}</span><small>{{h.reason or ''}}</small></div>{% if not h.reverted_at %}<form method="post" action="/projects/{{project.id}}/reschedule/{{h.id}}/undo"><button class="btn small">Återställ</button></form>{% else %}<b>Återställd</b>{% endif %}</div>{% else %}<div class="v15-empty">Ingen historik ännu.</div>{% endfor %}
+</div></aside></div></div>
+{% endblock %}

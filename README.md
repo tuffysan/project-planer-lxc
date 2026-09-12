@@ -120,3 +120,13 @@ v15 samlar kärnarbetet kring fyra huvudytor: **Idag**, **Mitt arbete**, **Proje
 
 Nytt i v15 är bland annat Action Inbox, nytt Project Cockpit, leveransprognos,
 prioriterad Portfolio Cockpit och What-if-påverkansanalys för aktivitetsberoenden.
+
+
+## v15.1.0 – Planning & Resource Engine
+
+Planeringsmotor för beroenden/kritisk linje samt kapacitets-heatmap och samlad projekthälsa.
+
+
+## v15.2.0 – Controlled Planning Edition
+
+Rättad språkväxlare, kontrollerad automatisk omplanering med undo/audit, resursutjämning och explicit Azure DevOps tvåvägssynk.

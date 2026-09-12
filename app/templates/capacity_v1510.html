@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Kapacitet · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<section class="v15-hero compact"><div><span class="v15-kicker">RESURSMOTOR</span><h1>Kapacitet</h1><p>Se överbeläggning och tillgänglig kapacitet över projekt och veckor.</p></div><div class="v15-actions"><a class="btn" href="/resource-planner-2">Resursplanering</a><a class="btn primary" href="/capacity/level">Utjämna resurser</a></div></section>
+<section class="v15-kpis"><div><strong>{{people|length}}</strong><span>resurser</span></div><div class="bad"><strong>{{over}}</strong><span>över 100%</span></div><div class="warn"><strong>{{high}}</strong><span>85–100%</span></div><div><strong>{{weeks|length}}</strong><span>veckor</span></div></section>
+<section class="v15-panel"><div class="v15-panel-head"><div><span class="v15-kicker">HEATMAP</span><h2>Beläggning per vecka</h2></div></div>
+<div class="v151-capacity-wrap"><table class="v151-capacity"><thead><tr><th>Resurs</th>{% for w in weeks %}<th>{{w}}</th>{% endfor %}</tr></thead><tbody>
+{% for person in people %}<tr><th>{{person}}</th>{% for w in weeks %}{% set c=lookup.get((person,w)) %}<td class="{{c.status if c else 'empty'}}">{% if c %}<strong>{{c.allocation_pct|round|int}}%</strong><small>{{c.planned_hours|round(1)}} h</small>{% else %}—{% endif %}</td>{% endfor %}</tr>{% else %}<tr><td>Ingen resursdata.</td></tr>{% endfor %}
+</tbody></table></div></section></div>
+{% endblock %}

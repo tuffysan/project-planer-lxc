@@ -23,51 +23,52 @@
           onclick="document.body.classList.toggle('nav-open');this.setAttribute('aria-expanded',document.body.classList.contains('nav-open')?'true':'false')">☰</button>
 
   <nav class="primary-nav nav-clean ultimate-primary-nav" aria-label="Huvudnavigation">
-    <a href="/home">Idag</a>
-    <a href="/my-work-2">Mitt arbete</a>
-    <a href="/">Projekt</a>
-    <a href="/portfolio-cockpit">Portfolio</a>
-    <button class="ultimate-search-trigger" type="button" data-command-open aria-label="Sök och kommandon">⌘ Sök</button>
+    <a href="/home">{{ui("today")}}</a>
+    <a href="/my-work-2">{{ui("my_work")}}</a>
+    <a href="/">{{ui("projects")}}</a>
+    <a href="/portfolio-cockpit">{{ui("portfolio")}}</a>
+    <button class="ultimate-search-trigger" type="button" data-command-open aria-label="{{ui('search')}}">⌘ {{ui("search")}}</button>
     {% if current_user['role'] in ['admin','pm'] %}
-      <a class="nav-accent" href="/projects/new-guided">＋ Skapa</a>
+      <a class="nav-accent" href="/projects/new-guided">＋ {{ui("create")}}</a>
     {% endif %}
     {% if current_user['role']=='admin' %}
-      <a href="/admin">Admin</a>
+      <a href="/admin">{{ui("admin")}}</a>
     {% endif %}
   </nav>
   {% endif %}
 
   <div class="top-actions">
     <span class="app-version-badge" title="Installerad appversion">v{{app_version}}</span>
-    <div class="language-menu">
-      <button type="button" class="language-button" onclick="this.parentElement.classList.toggle('open')">
-        <span>{{languages[active_lang]['flag']}}</span> {{languages[active_lang]['name']}} ▾
-      </button>
+    <details class="language-menu language-menu-v152">
+      <summary class="language-button" aria-label="{{ui('choose_language')}}" title="{{ui('choose_language')}}">
+        <span class="language-flag">{{languages[active_lang]['flag']}}</span>
+        <span class="language-active-name">{{languages[active_lang]['name']}}</span>
+        <span class="language-chevron">▾</span>
+      </summary>
       <div class="language-dropdown">
-        <div class="language-title">🌐 {{t('language')}}</div>
+        <div class="language-title">🌐 {{ui('language')}}</div>
         {% for code,item in languages.items() %}
-          <a class="{% if code==active_lang %}active{% endif %}" href="{{url_for('set_language',lang=code)}}">
+          <a class="{% if code==active_lang %}active{% endif %}" href="{{url_for('set_language',lang=code)}}" hreflang="{{code}}">
             <span>{{item.flag}}</span><span>{{item.name}}</span>{% if code==active_lang %}<b>✓</b>{% endif %}
           </a>
         {% endfor %}
       </div>
-    </div>
-
+    </details>
     {% if current_user %}
     <details class="account-menu">
       <summary>{{current_user['display_name']}} ▾</summary>
       <div class="nav-dropdown account-dropdown">
         <div class="account-meta">{{current_user['role']}}</div>
-        <div class="account-version">Appversion <strong>v{{app_version}}</strong></div>
-        <a href="{{url_for('notifications_page')}}">{{t('notifications')}}</a>
-        <a href="{{url_for('change_password')}}">{{t('password')}}</a>
+        <div class="account-version">{{ui('app_version')}} <strong>v{{app_version}}</strong></div>
+        <a href="{{url_for('notifications_page')}}">{{ui('notifications')}}</a>
+        <a href="{{url_for('change_password')}}">{{ui('password')}}</a>
         {% if current_user['role']=='admin' %}
         <a href="{{url_for('admin_center')}}">{{t('admin')}}</a>
-                <a href="{{url_for('admin_quality')}}">Kvalitetscenter</a>
-        <a href="{{url_for('admin_integrations')}}">Integrationer</a>
-        <a href="{{url_for('enterprise_center_v47')}}">Företagsinställningar</a>
+                <a href="{{url_for('admin_quality')}}">{{ui('quality')}}</a>
+        <a href="{{url_for('admin_integrations')}}">{{ui('integrations')}}</a>
+        <a href="{{url_for('enterprise_center_v47')}}">{{ui('enterprise')}}</a>
         {% endif %}
-        <a href="{{url_for('logout')}}">{{t('logout')}}</a>
+        <a href="{{url_for('logout')}}">{{ui('logout')}}</a>
       </div>
     </details>
     {% endif %}
@@ -83,7 +84,7 @@
 
 <footer>
   <img src="{{url_for('static',filename='assets/project-planer-icon-32.png')}}" alt="">
-  Project Planer · Appversion <strong>v{{app_version}}</strong> · <a href="/health">Systemstatus</a>
+  Project Planer · {{ui('app_version')}} <strong>v{{app_version}}</strong> · <a href="/health">Systemstatus</a>
 </footer>
 
 <script>
@@ -161,13 +162,16 @@ document.addEventListener("DOMContentLoaded",function(){
         <a data-command-item href="/"><span>Projekt</span><small>Alla projekt du har tillgång till</small></a>
         <a data-command-item href="/portfolio-cockpit"><span>Portfolio</span><small>Portfoliohälsa och prioritering</small></a>
         <a data-command-item href="/resource-planner-2"><span>Resurser</span><small>Kapacitet och överbeläggning</small></a>
+        <a data-command-item href="/capacity"><span>Kapacitet</span><small>Heatmap över resursbeläggning</small></a>
+        <a data-command-item href="/project-health"><span>Projekthälsa</span><small>Leveransrisk och kritisk linje</small></a>
         <a data-command-item href="/search"><span>Sök allt</span><small>Projekt, aktiviteter, risker och DevOps</small></a>
       </div>
       <div class="command-group"><strong>Arbeta</strong>
         {% if current_user['role'] in ['admin','pm'] %}<a data-command-item href="/projects/new-guided"><span>＋ Skapa projekt</span><small>Guidat projektupplägg</small></a>{% endif %}
         <a data-command-item href="/reporting-studio-2"><span>Rapporter</span><small>Status, PDF, PowerPoint och Excel</small></a>
         <a data-command-item href="/resource-planner-2"><span>Resurser</span><small>Kapacitet och överbeläggning</small></a>
-        {% if current_user['role'] in ['admin','pm'] %}<a data-command-item href="/integrations/azure-devops/live"><span>Azure DevOps</span><small>Synk och status</small></a>{% endif %}
+        {% if current_user['role'] in ['admin','pm'] %}<a data-command-item href="/integrations/azure-devops/live"><span>Azure DevOps</span><small>Synk och status</small></a>
+        <a data-command-item href="/integrations/azure-devops/bidirectional"><span>Azure DevOps ↔</span><small>Kontrollerad tvåvägssynk</small></a>{% endif %}
       </div>
     </div>
     <form class="command-global-search" action="/search" method="get">

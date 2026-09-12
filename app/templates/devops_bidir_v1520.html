@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Azure DevOps tvåvägssynk · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell"><section class="v15-hero compact"><div><span class="v15-kicker">AZURE DEVOPS v15.2</span><h1>Kontrollerad tvåvägssynk</h1><p>Länka en Project Planer-aktivitet till ett synkat Work Item. Push och pull görs explicit så att inga projektdata skrivs över utan användarens val.</p></div><div class="v15-actions"><a class="btn" href="/integrations/azure-devops/live">Live sync</a><a class="btn" href="/integrations/azure-devops">Anslutningar</a></div></section>
+<div class="v152-devops-list">{% for l in links %}<section class="v15-panel v152-devops-card"><div><span class="v15-kicker">{{l.connection_name}}</span><h2>#{{l.work_item_id}} · {{l.title}}</h2><p>{{l.state or 'Okänd status'}} · {{l.assigned_to or 'Ej tilldelad'}}</p></div>
+{% if l.task_id %}<div class="v152-linked"><strong>{{l.project_name}} / {{l.task_title}}</strong><span>Project Planer: {{l.task_status|sv}}</span><div><form method="post" action="/integrations/azure-devops/bidirectional/{{l.id}}/push"><button class="btn small">Project Planer → DevOps</button></form><form method="post" action="/integrations/azure-devops/bidirectional/{{l.id}}/pull"><button class="btn small">DevOps → Project Planer</button></form></div></div>
+{% else %}<form class="v152-link-form" method="post"><input type="hidden" name="action" value="link"><input type="hidden" name="link_id" value="{{l.id}}"><select name="task_id" required><option value="">Länka till aktivitet…</option>{% for t in tasks %}<option value="{{t.id}}">{{t.project_name}} · {{t.title}}</option>{% endfor %}</select><button class="btn primary small">Länka</button></form>{% endif %}
+</section>{% else %}<div class="v15-panel v15-empty">Inga synkade Work Items. Kör Live sync först.</div>{% endfor %}</div></div>
+{% endblock %}
