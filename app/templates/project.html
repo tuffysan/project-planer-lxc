@@ -1,72 +1,32 @@
-{% extends "base.html" %}
-{% block title %}{{ project.name }}{% endblock %}
-{% block content %}
-<div class="page-head">
-  <div>
-    <a class="back" href="{{ url_for('index') }}">← Alla projekt</a>
-    <h1>{{ project.name }}</h1>
-    <p class="muted">{{ project.customer }}{% if project.project_manager %} · Projektledare: {{ project.project_manager }}{% endif %}</p>
-  </div>
-  <div class="actions">
-    <a class="btn ghost" href="{{ url_for('edit_project', project_id=project.id) }}">Redigera projekt</a>
-    <a class="btn excel" href="{{ url_for('export_project', project_id=project.id) }}">Exportera Excel</a>
-    <a class="btn" href="{{ url_for('new_task', project_id=project.id) }}">+ Aktivitet</a>
-  </div>
-</div>
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><h1>{{project.name}}</h1><p>{{project.customer}}{% if project.project_manager %} · PM: {{project.project_manager}}{% endif %} · Din projektroll: {{project_role}}</p></div>
+<div class="actions"><a class="button" href="{{url_for('gantt',project_id=project.id)}}">Gantt</a><a class="button" href="{{url_for('collaboration',project_id=project.id)}}">Samarbete</a><a class="button" href="{{url_for('status_report',project_id=project.id)}}">Statusrapport</a><a class="button" href="{{url_for('governance',project_id=project.id)}}">RAID/Changes</a><a class="button" href="{{url_for('project_time',project_id=project.id)}}">Tid</a><a class="button" href="{{url_for('financials',project_id=project.id)}}">Ekonomi</a><a class="button" href="{{url_for('earned_value',project_id=project.id)}}">EVM</a><a class="button" href="{{url_for('kanban',project_id=project.id)}}">Kanban</a><a class="button" href="{{url_for('project_calendar',project_id=project.id)}}">Kalender</a><a class="button" href="{{url_for('critical_path',project_id=project.id)}}">Critical Path</a><a class="button" href="{{url_for('export_project',project_id=project.id)}}">Excel</a>{% if project_role in ['admin','pm'] %}<a class="button" href="{{url_for('edit_project',project_id=project.id)}}">Redigera</a>{% endif %}</div></div>
+<div class="kpis"><div class="kpi"><strong>{{avg}}%</strong><span>Total progress</span></div><div class="kpi success"><strong>{{done}}</strong><span>Klara</span></div><div class="kpi warning"><strong>{{blocked}}</strong><span>Blockerade</span></div><div class="kpi danger"><strong>{{overdue}}</strong><span>Försenade</span></div><div class="kpi"><strong>{{upcoming}}</strong><span>Förfaller inom 7 dagar</span></div></div>
+<div class="tabs"><a href="#tasks">Plan</a><a href="#members">Åtkomst</a><a href="#risks">Risker & Issues</a><a href="#baseline">Baseline</a><a href="#comments">Kommentarer</a><a href="#history">Historik</a></div>
 
-<div class="summary-grid">
-  <div class="card metric"><span>Progress</span><strong>{{ avg }}%</strong><div class="progress"><span style="width:{{ avg }}%"></span></div></div>
-  <div class="card metric"><span>Aktiviteter</span><strong>{{ tasks|length }}</strong></div>
-  <div class="card metric"><span>Klara</span><strong>{{ done }}</strong></div>
-  <div class="card metric"><span>Blockerade</span><strong class="{% if blocked %}danger{% endif %}">{{ blocked }}</strong></div>
-</div>
+<section id="tasks" class="card"><div class="section-head"><h2>Projektplan</h2>{% if project_role in ['admin','pm','member'] %}<a class="button primary" href="{{url_for('new_task',project_id=project.id)}}">+ Aktivitet</a>{% endif %}</div>
+<div class="table-wrap"><table><thead><tr><th>WBS</th><th>Aktivitet</th><th>Ansvarig</th><th>Plan</th><th>Status</th><th>Progress</th><th>Prioritet</th><th></th></tr></thead><tbody>
+{% for t in tasks %}<tr class="{{t.health}}"><td>{{t.wbs}}</td><td><strong>{{t.title}}</strong>{% if t.milestone %}<span class="badge milestone">Milstolpe</span>{% endif %}</td><td>{{t.owner}}</td><td>{{t.start_date}} → {{t.end_date}}</td><td><span class="badge {{t.health}}">{{t.derived_status}}</span></td><td><div class="progress compact"><i style="width:{{t.progress}}%"></i></div><small>{{t.progress}}%</small></td><td>{{t.priority}}</td><td>{% if project_role in ['admin','pm','member'] %}<a class="button small" href="{{url_for('edit_task',project_id=project.id,task_id=t.id)}}">Öppna</a>{% endif %}</td></tr>
+{% else %}<tr><td colspan="8" class="empty">Inga aktiviteter.</td></tr>{% endfor %}</tbody></table></div></section>
 
-{% if project.description %}<div class="card description">{{ project.description }}</div>{% endif %}
+<section id="members" class="card"><div class="section-head"><h2>Projektåtkomst</h2></div>
+<div class="table-wrap"><table><thead><tr><th>Namn</th><th>Användare</th><th>Projektroll</th><th>Global roll</th><th></th></tr></thead><tbody>
+{% for m in members %}<tr><td>{{m.display_name}}</td><td>{{m.username}}</td><td>
+{% if project_role in ['admin','pm'] %}<form class="inline-form compact-form" method="post" action="{{url_for('change_project_member_role',project_id=project.id,user_id=m.user_id)}}"><input type="hidden" name="_csrf" value="{{csrf_token}}"><select name="project_role">{% for r in ['pm','member','viewer'] %}<option {% if m.project_role==r %}selected{% endif %}>{{r}}</option>{% endfor %}</select><button>Spara</button></form>{% else %}{{m.project_role}}{% endif %}</td><td>{{m.global_role}}</td><td>
+{% if project_role in ['admin','pm'] %}<form method="post" action="{{url_for('remove_project_member',project_id=project.id,user_id=m.user_id)}}"><input type="hidden" name="_csrf" value="{{csrf_token}}"><button class="danger-button">Ta bort</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% if project_role in ['admin','pm'] and candidates %}<form method="post" action="{{url_for('add_project_member',project_id=project.id)}}" class="inline-form"><input type="hidden" name="_csrf" value="{{csrf_token}}">
+<select name="user_id">{% for u in candidates %}<option value="{{u.id}}">{{u.display_name}} ({{u.username}})</option>{% endfor %}</select><select name="project_role"><option>member</option><option>viewer</option><option>pm</option></select><button class="primary">Lägg till användare</button></form>{% endif %}
+</section>
 
-<div class="card table-card">
-  {% if not tasks %}
-  <div class="empty">
-    <h2>Projektplanen är tom</h2>
-    <p>Lägg till första aktiviteten eller milstolpen.</p>
-    <a class="btn" href="{{ url_for('new_task', project_id=project.id) }}">Lägg till aktivitet</a>
-  </div>
-  {% else %}
-  <div class="table-wrap">
-  <table>
-    <thead><tr>
-      <th>WBS</th><th>Aktivitet</th><th>Ansvarig</th><th>Start</th><th>Slut</th>
-      <th>Status</th><th>Progress</th><th>Prioritet</th><th></th>
-    </tr></thead>
-    <tbody>
-    {% for t in tasks %}
-    <tr class="{% if t.milestone %}milestone{% endif %}">
-      <td>{{ t.wbs }}</td>
-      <td><a href="{{ url_for('edit_task', project_id=project.id, task_id=t.id) }}"><b>{% if t.milestone %}◆ {% endif %}{{ t.title }}</b></a>{% if t.dependencies %}<small>Beroende: {{ t.dependencies }}</small>{% endif %}</td>
-      <td>{{ t.owner }}</td><td>{{ t.start_date }}</td><td>{{ t.end_date }}</td>
-      <td>
-        <form class="quick" method="post" action="{{ url_for('quick_task', project_id=project.id, task_id=t.id) }}">
-          <select name="status" onchange="this.form.submit()">{% for s in statuses %}<option {% if t.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
-          <input type="hidden" name="progress" value="{{ t.progress }}">
-        </form>
-      </td>
-      <td><div class="mini-progress"><span style="width:{{ t.progress }}%"></span></div><small>{{ t.progress }}%</small></td>
-      <td><span class="tag">{{ t.priority }}</span></td>
-      <td class="right">
-        <form method="post" action="{{ url_for('delete_task', project_id=project.id, task_id=t.id) }}" onsubmit="return confirm('Ta bort aktiviteten?')">
-          <button class="icon danger-text" title="Ta bort">×</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% endif %}
-</div>
+<section id="risks" class="card"><h2>Risker & Issues</h2><div class="table-wrap"><table><thead><tr><th>Typ</th><th>Titel</th><th>Score</th><th>Ansvarig</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in risks %}<tr><td>{{r.kind}}</td><td>{{r.title}}<small>{{r.description}}</small></td><td><span class="score">{{r.probability*r.impact}}</span></td><td>{{r.owner}}</td><td>{{r.status}}</td><td>{% if project_role in ['admin','pm'] %}<form method="post" action="{{url_for('delete_risk',project_id=project.id,risk_id=r.id)}}"><input type="hidden" name="_csrf" value="{{csrf_token}}"><button class="danger-button">Ta bort</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="6" class="empty">Inga risker/issues.</td></tr>{% endfor %}</tbody></table></div>
+{% if project_role in ['admin','pm','member'] %}<form method="post" action="{{url_for('new_risk',project_id=project.id)}}" class="form-grid risk-form"><input type="hidden" name="_csrf" value="{{csrf_token}}">
+<label>Typ<select name="kind"><option>Risk</option><option>Issue</option></select></label><label>Titel<input name="title" required></label><label>Sannolikhet<input type="number" name="probability" min="1" max="5" value="3"></label><label>Konsekvens<input type="number" name="impact" min="1" max="5" value="3"></label><label>Ansvarig<input name="owner"></label><label>Status<select name="status">{% for s in risk_statuses %}<option>{{s}}</option>{% endfor %}</select></label><label class="full">Åtgärd<input name="action"></label><label class="full">Beskrivning<textarea name="description"></textarea></label><button class="primary">Lägg till</button></form>{% endif %}</section>
 
-<div class="danger-zone">
-<form method="post" action="{{ url_for('delete_project', project_id=project.id) }}" onsubmit="return confirm('Ta bort hela projektet och alla aktiviteter?')">
-  <button class="link-danger">Ta bort projektet</button>
-</form>
-</div>
-{% endblock %}
+<section id="baseline" class="card"><h2>Baselines</h2>{% for b in baselines %}<div class="list-row"><div><strong>{{b.name}}</strong><small>{{b.created_at}}</small></div></div>{% else %}<div class="empty">Ingen baseline ännu.</div>{% endfor %}
+{% if project_role in ['admin','pm'] %}<form method="post" action="{{url_for('create_baseline',project_id=project.id)}}" class="inline-form"><input type="hidden" name="_csrf" value="{{csrf_token}}"><input name="name" placeholder="Baseline-namn"><button class="primary">Skapa snapshot</button></form>{% endif %}</section>
+
+<section id="comments" class="card"><h2>Kommentarer</h2>{% for c in comments %}<div class="comment"><strong>{{c.display_name or 'Okänd'}}</strong><span>{{c.created_at}}</span><p>{{c.body}}</p></div>{% else %}<div class="empty">Inga kommentarer.</div>{% endfor %}
+<form method="post" action="{{url_for('new_comment',project_id=project.id)}}" class="inline-form"><input type="hidden" name="_csrf" value="{{csrf_token}}"><input name="body" placeholder="Skriv projektkommentar..." required><button>Skicka</button></form></section>
+
+<section id="history" class="card"><h2>Ändringshistorik</h2>{% for h in history %}<div class="list-row"><div><strong>{{h.action}}</strong><small>{{h.entity_type}} · {{h.details}}</small></div><span>{{h.display_name or 'system'}}<small>{{h.created_at}} · {{h.ip_address}}</small></span></div>{% else %}<div class="empty">Ingen historik.</div>{% endfor %}</section>{% endblock %}

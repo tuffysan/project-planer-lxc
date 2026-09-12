@@ -1,30 +1,11 @@
-{% extends "base.html" %}
-{% block title %}{{ "Redigera aktivitet" if task else "Ny aktivitet" }}{% endblock %}
-{% block content %}
-<div class="page-head">
-  <div>
-    <a class="back" href="{{ url_for('project', project_id=project.id) }}">← {{ project.name }}</a>
-    <h1>{{ "Redigera aktivitet" if task else "Ny aktivitet" }}</h1>
-  </div>
-</div>
-<form method="post" class="card form-card">
-  <div class="form-grid">
-    <label>WBS<input name="wbs" placeholder="1.1" value="{{ task.wbs if task else '' }}"></label>
-    <label class="wide">Aktivitet<input required name="title" value="{{ task.title if task else '' }}"></label>
-    <label>Ansvarig<input name="owner" value="{{ task.owner if task else '' }}"></label>
-    <label>Startdatum<input type="date" name="start_date" value="{{ task.start_date if task else '' }}"></label>
-    <label>Slutdatum<input type="date" name="end_date" value="{{ task.end_date if task else '' }}"></label>
-    <label>Status<select name="status">{% for s in statuses %}<option {% if task and task.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-    <label>Prioritet<select name="priority">{% for p in priorities %}<option {% if task and task.priority==p %}selected{% endif %}>{{ p }}</option>{% endfor %}</select></label>
-    <label>Progress %<input type="number" min="0" max="100" name="progress" value="{{ task.progress if task else 0 }}"></label>
-    <label>Sorteringsordning<input type="number" name="sort_order" value="{{ task.sort_order if task else 0 }}"></label>
-    <label class="check"><input type="checkbox" name="milestone" {% if task and task.milestone %}checked{% endif %}> Detta är en milstolpe</label>
-    <label class="wide">Beroenden<input name="dependencies" placeholder="Exempel: 1.1, 1.2" value="{{ task.dependencies if task else '' }}"></label>
-    <label class="wide">Kommentar<textarea name="notes" rows="4">{{ task.notes if task else '' }}</textarea></label>
-  </div>
-  <div class="actions">
-    <button class="btn" type="submit">Spara</button>
-    <a class="btn ghost" href="{{ url_for('project', project_id=project.id) }}">Avbryt</a>
-  </div>
-</form>
-{% endblock %}
+{% extends "base.html" %}{% block content %}<div class="page-head"><div><h1>{{"Redigera aktivitet" if task else "Ny aktivitet"}}</h1><p>{{project.name}}</p></div></div>
+<form method="post" class="card form-grid two"><input type="hidden" name="_csrf" value="{{csrf_token}}">
+<label>WBS<input name="wbs" value="{{task.wbs if task else ''}}"></label><label>Aktivitet<input name="title" required value="{{task.title if task else ''}}"></label>
+<label>Ansvarig<input name="owner" value="{{task.owner if task else ''}}"></label><label>Prioritet<select name="priority">{% for p in priorities %}<option {% if task and task.priority==p %}selected{% endif %}>{{p}}</option>{% endfor %}</select></label>
+<label>Plan start<input type="date" name="start_date" value="{{task.start_date if task else ''}}"></label><label>Plan slut<input type="date" name="end_date" value="{{task.end_date if task else ''}}"></label>
+<label>Faktisk start<input type="date" name="actual_start" value="{{task.actual_start if task else ''}}"></label><label>Faktiskt slut<input type="date" name="actual_end" value="{{task.actual_end if task else ''}}"></label>
+<label>Status<select name="status">{% for s in statuses %}<option {% if task and task.status==s %}selected{% endif %}>{{s}}</option>{% endfor %}</select></label>
+<label>Progress %<input type="number" min="0" max="100" name="progress" value="{{task.progress if task else 0}}"></label><label>Sorteringsordning<input type="number" name="sort_order" value="{{task.sort_order if task else 0}}"></label>
+<label class="check"><input type="checkbox" name="milestone" {% if task and task.milestone %}checked{% endif %}> Milstolpe</label>
+<label class="full">Beroenden<select name="dependency_ids" multiple size="6">{% for c in candidates %}<option value="{{c.id}}" {% if c.id in selected_deps %}selected{% endif %}>{{c.wbs}} {{c.title}}</option>{% endfor %}</select></label>
+<label class="full">Kommentar<textarea name="notes" rows="5">{{task.notes if task else ''}}</textarea></label><div class="full actions"><button class="primary">Spara</button><a class="button" href="{{url_for('project',project_id=project.id)}}">Avbryt</a></div></form>{% endblock %}

@@ -1,33 +1,9 @@
-{% extends "base.html" %}
-{% block title %}Projektplan{% endblock %}
-{% block content %}
-<section class="hero">
-  <div>
-    <h1>Mina projekt</h1>
-    <p>Planera aktiviteter, följ progress och exportera projektplanen direkt till Excel.</p>
-  </div>
-</section>
-
-{% if not projects %}
-<div class="empty card">
-  <h2>Inga projekt ännu</h2>
-  <p>Skapa ditt första projekt och börja lägga in aktiviteter och milstolpar.</p>
-  <a class="btn" href="{{ url_for('new_project') }}">Skapa projekt</a>
-</div>
-{% else %}
-<div class="project-grid">
-{% for p in projects %}
-<a class="card project-card" href="{{ url_for('project', project_id=p.id) }}">
-  <div class="row between"><h2>{{ p.name }}</h2><span class="pill">{{ p.avg_progress|int }}%</span></div>
-  <p class="muted">{{ p.customer or "Ingen kund angiven" }}</p>
-  <div class="progress"><span style="width: {{ p.avg_progress|int }}%"></span></div>
-  <div class="stats">
-    <span><b>{{ p.task_count }}</b> aktiviteter</span>
-    <span><b>{{ p.done_count or 0 }}</b> klara</span>
-    <span class="{% if p.blocked_count %}danger{% endif %}"><b>{{ p.blocked_count or 0 }}</b> blockerade</span>
-  </div>
-</a>
-{% endfor %}
-</div>
-{% endif %}
-{% endblock %}
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><h1>Mina projekt</h1><p>{% if current_user['role']=='admin' %}Administratörsvy: alla projekt.{% else %}Du ser bara projekt där du är medlem.{% endif %}</p></div>
+{% if current_user['role'] in ['admin','pm'] %}<a class="button primary" href="{{url_for('new_project')}}">+ Nytt projekt</a>{% endif %}</div>
+<div class="kpis"><div class="kpi"><strong>{{projects|length}}</strong><span>Projekt</span></div><div class="kpi danger"><strong>{{overdue}}</strong><span>Försenade</span></div><div class="kpi warning"><strong>{{open_risks|length}}</strong><span>Öppna risker/issues</span></div></div>
+<div class="dashboard-grid"><section class="card span2"><h2>Projekt</h2><div class="project-cards">{% for p in projects %}
+<a class="project-card" href="{{url_for('project',project_id=p.id)}}"><div class="project-card-head"><strong>{{p.name}}</strong><span>{{p.customer}}</span></div><div class="progress"><i style="width:{{p.avg_progress}}%"></i></div><div class="mini-stats"><span>{{p.avg_progress}}%</span><span>{{p.done_count or 0}}/{{p.task_count}} klara</span><span>{{p.blocked_count or 0}} blockerade</span></div></a>
+{% else %}<div class="empty">Du har inga tilldelade projekt.</div>{% endfor %}</div></section>
+<section class="card"><h2>Kommande deadlines</h2>{% for t in upcoming %}<div class="list-row"><div><strong>{{t.title}}</strong><small>{{t.project_name}}</small></div><span>{{t.end_date}}</span></div>{% else %}<div class="empty">Inga kommande deadlines.</div>{% endfor %}</section>
+<section class="card"><h2>Största riskerna</h2>{% for r in open_risks %}<div class="list-row"><div><strong>{{r.title}}</strong><small>{{r.project_name}} · {{r.kind}}</small></div><span class="score">{{r.probability*r.impact}}</span></div>{% else %}<div class="empty">Inga öppna risker.</div>{% endfor %}</section></div>{% endblock %}

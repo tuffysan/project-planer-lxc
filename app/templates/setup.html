@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block content %}<div class="auth-card"><h1>Första konfiguration</h1>
+<form method="post" class="form-grid"><input type="hidden" name="_csrf" value="{{csrf_token}}">
+<label>Användarnamn<input name="username" required></label><label>Visningsnamn<input name="display_name"></label>
+<label>Lösenord<input type="password" name="password" minlength="10" required></label><button class="primary">Skapa administratör</button></form></div>{% endblock %}

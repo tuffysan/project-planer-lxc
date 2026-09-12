@@ -1,26 +1,7 @@
-<!doctype html>
-<html lang="sv">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Projektplan{% endblock %}</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-</head>
-<body>
-<header>
-  <div class="wrap nav">
-    <a class="brand" href="{{ url_for('index') }}">Projektplan</a>
-    <div class="nav-actions">
-      <a class="btn ghost" href="{{ url_for('export_all') }}">Exportera alla till Excel</a>
-      <a class="btn" href="{{ url_for('new_project') }}">+ Nytt projekt</a>
-    </div>
-  </div>
-</header>
-<main class="wrap">
-{% with messages = get_flashed_messages() %}
-  {% if messages %}<div class="flash">{{ messages[0] }}</div>{% endif %}
-{% endwith %}
-{% block content %}{% endblock %}
-</main>
-</body>
-</html>
+<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}Project Planer{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}"></head>
+<body><header class="topbar"><a class="brand" href="{{ url_for('index') }}">Project Planer <span>v{{app_version}}</span></a>
+{% if current_user %}<nav><a href="{{url_for('index')}}">Dashboard</a><a href="{{url_for('api_docs')}}">API</a><a href="{{url_for('notifications_page')}}">Notiser</a><a href="{{url_for('pmo')}}">PMO</a><a href="{{url_for('resources')}}">Resurser</a><a href="{{url_for('my_work')}}">My Work</a>{% if current_user['role']=='admin' %}<a href="{{url_for('admin_center')}}">Admin</a>{% endif %}
+<a href="{{url_for('change_password')}}">Lösenord</a><span class="user">{{current_user['display_name']}} · {{current_user['role']}}</span><a href="{{url_for('logout')}}">Logga ut</a></nav>{% endif %}</header>
+<main class="shell">{% with messages=get_flashed_messages(with_categories=true) %}{% for category,message in messages %}<div class="flash {{category}}">{{message}}</div>{% endfor %}{% endwith %}{% block content %}{% endblock %}</main>
+<footer>Project Planer · v{{app_version}} · <a href="/health">health</a></footer></body></html>

@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block content %}<div class="page-head"><div><h1>Systeminställningar</h1><p>Säkerhetsinställningar för login.</p></div><a class="button" href="{{url_for('admin_center')}}">Admin Center</a></div>
+<form method="post" class="card form-grid two"><input type="hidden" name="_csrf" value="{{csrf_token}}">
+<label>Misslyckade login före låsning<input type="number" min="1" max="20" name="lockout_attempts" value="{{lockout_attempts}}"></label>
+<label>Låsning i minuter<input type="number" min="1" max="1440" name="lockout_minutes" value="{{lockout_minutes}}"></label>
+<button class="primary">Spara</button></form>{% endblock %}

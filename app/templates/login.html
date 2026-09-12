@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block content %}<div class="auth-card"><h1>Logga in</h1>
+<form method="post" class="form-grid"><input type="hidden" name="_csrf" value="{{csrf_token}}">
+<label>Användarnamn<input name="username" required autofocus></label><label>Lösenord<input type="password" name="password" required></label>
+<button class="primary">Logga in</button></form></div>{% endblock %}

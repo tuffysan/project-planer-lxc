@@ -201,7 +201,7 @@ function Get-NextPatchVersion {
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
-# v1.0.9 no longer uses GitHub Actions. A workflow file from v1.0.6 would
+# v2.0.0 no longer uses GitHub Actions. A workflow file from v2.0.0 would
 # require a PAT with workflow scope, so remove any stale copy before staging.
 $LegacyWorkflow = Join-Path $Root ".github\workflows\validate.yml"
 if (Test-Path $LegacyWorkflow) {
@@ -230,7 +230,7 @@ $Version = $Version.TrimStart("v")
 $Tag = "v$Version"
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    Fail "Version must use semantic format, for example 1.0.9"
+    Fail "Version must use semantic format, for example 2.0.0"
 }
 
 Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
@@ -346,7 +346,7 @@ Compress-Archive -Path $Items.FullName -DestinationPath $ZipPath -CompressionLev
 
 Write-Host "[7/10] Committing source to $Branch..." -ForegroundColor Yellow
 
-# If v1.0.6 previously staged/committed dist locally, untrack it now.
+# If v2.0.0 previously staged/committed dist locally, untrack it now.
 # The release ZIP remains on disk and will still be uploaded by gh release.
 $untrackDist = Invoke-NativeCapture -FilePath $Git -ArgumentList @("rm","-r","--cached","--ignore-unmatch","dist")
 if ($untrackDist.ExitCode -ne 0) {
@@ -433,9 +433,12 @@ if (($versionStatus.Output -join "").Trim()) {
     Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Branch)
 }
 
-if (-not $TagAlreadyExistsWithoutRelease) {
-    Invoke-Native -FilePath $Git -ArgumentList @("tag","-a",$Tag,"-m","Release $Tag")
-    Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Tag)
+if (-not $TagAlreadyExistsWithoutRelease) {
+
+    Invoke-Native -FilePath $Git -ArgumentList @("tag","-a",$Tag,"-m","Release $Tag")
+
+    Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Tag)
+
 }
 
 # Rebuild release ZIP in case the patch version was auto-incremented.
@@ -448,27 +451,48 @@ $Items = Get-ChildItem $Root -Force | Where-Object { $ExcludeTop -notcontains $_
 Compress-Archive -Path $Items.FullName -DestinationPath $FinalZipPath -CompressionLevel Optimal -Force
 $ZipPath = $FinalZipPath
 
-$Notes = @"
-Project Planer LXC $Tag
-
-Install on Proxmox:
-
-VERSION=$Version bash -c "`$(curl -fsSL https://raw.githubusercontent.com/$Repo/$Branch/install-lxc.sh)"
-"@
-
-$NotesFile = Join-Path $env:TEMP "project-planer-release-notes-$Version.md"
-Set-Content -Path $NotesFile -Value $Notes -Encoding utf8
-try {
-    Invoke-Native -FilePath $Gh -ArgumentList @(
-        "release","create",$Tag,$ZipPath,
-        "--repo",$Repo,
-        "--title",$Tag,
-        "--notes-file",$NotesFile,
-        "--verify-tag"
-    )
-}
-finally {
-    Remove-Item $NotesFile -Force -ErrorAction SilentlyContinue
+$Notes = @"
+
+Project Planer LXC $Tag
+
+
+
+Install on Proxmox:
+
+
+
+VERSION=$Version bash -c "`$(curl -fsSL https://raw.githubusercontent.com/$Repo/$Branch/install-lxc.sh)"
+
+"@
+
+
+
+$NotesFile = Join-Path $env:TEMP "project-planer-release-notes-$Version.md"
+
+Set-Content -Path $NotesFile -Value $Notes -Encoding utf8
+
+try {
+
+    Invoke-Native -FilePath $Gh -ArgumentList @(
+
+        "release","create",$Tag,$ZipPath,
+
+        "--repo",$Repo,
+
+        "--title",$Tag,
+
+        "--notes-file",$NotesFile,
+
+        "--verify-tag"
+
+    )
+
+}
+
+finally {
+
+    Remove-Item $NotesFile -Force -ErrorAction SilentlyContinue
+
 }
 
 Write-Host ""

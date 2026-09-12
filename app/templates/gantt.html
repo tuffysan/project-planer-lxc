@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Gantt · {{ project.name }}</h1><p>{{ range_start or '' }} → {{ range_end or '' }}</p></div><a class="button" href="{{ url_for('project',project_id=project.id) }}">Till projekt</a></div>
+<section class="card gantt-card">
+{% if rows %}
+<div class="gantt-head"><div class="gantt-name">Aktivitet</div><div class="timeline">{% for m in months %}<span style="left:{{m.left}}%;width:{{m.width}}%">{{m.label}}</span>{% endfor %}</div></div>
+{% for r in rows %}
+<div class="gantt-row"><div class="gantt-name"><strong>{{ r.wbs }} {{ r.title }}</strong><small>{{ r.owner }} · {{ r.derived_status }}{% if deps.get(r.id) %} · efter: {{ deps.get(r.id)|join(', ') }}{% endif %}</small></div><div class="timeline lane"><i class="{% if r.milestone %}milestone-bar{% endif %}" style="left:{{r.left}}%;width:{{r.width}}%"></i></div></div>
+{% endfor %}
+{% else %}<div class="empty">Lägg till planerade start- och slutdatum för att visa Gantt.</div>{% endif %}
+</section>
+{% endblock %}

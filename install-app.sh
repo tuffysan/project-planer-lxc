@@ -1,34 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
+APP_DIR="${APP_DIR:-/opt/project-plan}"
+PORT="${PORT:-8080}"
 
-APP_DIR=/opt/project-plan
-SOURCE_DIR="$(cd "$(dirname "$0")" && pwd)"
+mkdir -p "$APP_DIR/data" "$APP_DIR/backups"
+cd "$APP_DIR"
 
-echo "[1/6] Installerar beroenden..."
-apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip ca-certificates curl
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
 
-echo "[2/6] Skapar användare och mappar..."
-id projectplan >/dev/null 2>&1 || useradd --system --home "$APP_DIR" --shell /usr/sbin/nologin projectplan
-mkdir -p "$APP_DIR"/{data,backups}
-
-echo "[3/6] Installerar appfiler..."
-cp -a "$SOURCE_DIR/app" "$APP_DIR/"
-cp "$SOURCE_DIR/requirements.txt" "$APP_DIR/"
-python3 -m venv "$APP_DIR/venv"
-"$APP_DIR/venv/bin/pip" install --upgrade pip
-"$APP_DIR/venv/bin/pip" install -r "$APP_DIR/requirements.txt"
-
-echo "[4/6] Installerar systemd service..."
-cp "$SOURCE_DIR/scripts/project-plan.service" /etc/systemd/system/project-plan.service
-chown -R projectplan:projectplan "$APP_DIR"
-
-echo "[5/6] Startar tjänsten..."
+cp scripts/project-plan.service /etc/systemd/system/project-plan.service
+sed -i "s|Environment=PORT=.*|Environment=PORT=${PORT}|" /etc/systemd/system/project-plan.service || true
 systemctl daemon-reload
 systemctl enable --now project-plan
 
-echo "[6/6] Kontrollerar..."
-sleep 2
-systemctl --no-pager --full status project-plan || true
-echo
-echo "Project Plan kör på http://$(hostname -I | awk '{print $1}'):8080"
+for i in $(seq 1 30); do
+  if curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null; then
+    echo "Health check OK"
+    exit 0
+  fi
+  sleep 1
+done
+
+echo "ERROR: health check failed"
+journalctl -u project-plan --no-pager -n 80 || true
+exit 1
