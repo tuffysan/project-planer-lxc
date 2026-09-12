@@ -28,11 +28,11 @@
     <details class="nav-menu">
       <summary>Mitt arbete ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('action_inbox_v78')}}">Inbox</a>
-        <a href="{{url_for('my_work')}}">My Work</a>
-        <a href="{{url_for('focus_v56')}}">Focus</a>
-        <a href="{{url_for('task_experience_v61')}}">Tasks</a>
-        <a href="{{url_for('quick_add_v51')}}">＋ Quick Add</a>
+        <a href="{{url_for('action_inbox_v78')}}">Inkorg</a>
+        <a href="{{url_for('my_work')}}">Mitt arbete</a>
+        <a href="{{url_for('focus_v56')}}">Fokus</a>
+        <a href="{{url_for('task_experience_v61')}}">Uppgifter</a>
+        <a href="{{url_for('quick_add_v51')}}">＋ Snabbskapa</a>
         <a href="{{url_for('command_palette')}}">Sök</a>
       </div>
     </details>
@@ -40,14 +40,14 @@
     <details class="nav-menu">
       <summary>Projekt ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('workspace')}}">Project Workspace</a>
-        <a href="{{url_for('planning_hub')}}">Planning</a>
-        <a href="{{url_for('control_center')}}">Project Control</a>
-        <a href="{{url_for('collaboration_hub')}}">Collaboration</a>
-        <a href="{{url_for('report_center')}}">Reports</a>
-        <a href="{{url_for('stakeholder_index_v68')}}">Stakeholder</a>
+        <a href="{{url_for('workspace')}}">Projektarbetsyta</a>
+        <a href="{{url_for('planning_hub')}}">Planering</a>
+        <a href="{{url_for('control_center')}}">Projektkontroll</a>
+        <a href="{{url_for('collaboration_hub')}}">Samarbete</a>
+        <a href="{{url_for('report_center')}}">Rapporter</a>
+        <a href="{{url_for('stakeholder_index_v68')}}">Intressenter</a>
         {% if current_user['role'] in ['admin','pm'] %}
-        <a class="nav-accent" href="{{url_for('project_wizard_v58')}}">＋ New Project</a>
+        <a class="nav-accent" href="{{url_for('project_wizard_v58')}}">＋ Nytt projekt</a>
         {% endif %}
       </div>
     </details>
@@ -55,26 +55,26 @@
     <details class="nav-menu">
       <summary>Portfölj ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('visual_dashboard_v503')}}">Portfolio Health</a>
-        <a href="{{url_for('pmo')}}">Portfolios</a>
-        <a href="{{url_for('executive_pmo')}}">Executive PMO</a>
-        <a href="{{url_for('control_engine_v79')}}">Control Engine</a>
-        <a href="{{url_for('portfolio_dependencies_v73')}}">Dependencies</a>
-        <a href="{{url_for('scenario_planner_v76')}}">Scenarios</a>
-        <a href="{{url_for('business_cases_v72')}}">Business Cases</a>
-        <a href="{{url_for('goals_v66')}}">Goals</a>
-        <a href="{{url_for('benefits_v77')}}">Benefits</a>
+        <a href="{{url_for('visual_dashboard_v503')}}">Portföljstatus</a>
+        <a href="{{url_for('pmo')}}">Portföljer</a>
+        <a href="{{url_for('executive_pmo')}}">Lednings-PMO</a>
+        <a href="{{url_for('control_engine_v79')}}">Projektkontroll</a>
+        <a href="{{url_for('portfolio_dependencies_v73')}}">Beroenden</a>
+        <a href="{{url_for('scenario_planner_v76')}}">Scenarier</a>
+        <a href="{{url_for('business_cases_v72')}}">Beslutsunderlag</a>
+        <a href="{{url_for('goals_v66')}}">Mål</a>
+        <a href="{{url_for('benefits_v77')}}">Nyttohemtagning</a>
       </div>
     </details>
 
     <details class="nav-menu">
       <summary>Resurser & ekonomi ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('resource_directory_v74')}}">Resource Directory</a>
-        <a href="{{url_for('resource_planning_v65')}}">Resource Planning</a>
-        <a href="{{url_for('team_capacity_v55')}}">Team Capacity</a>
-        <a href="{{url_for('financial_control_v67')}}">Financial Control</a>
-        <a href="{{url_for('finance_control')}}">Project Finance</a>
+        <a href="{{url_for('resource_directory_v74')}}">Resursregister</a>
+        <a href="{{url_for('resource_planning_v65')}}">Resource Planering</a>
+        <a href="{{url_for('team_capacity_v55')}}">Teamkapacitet</a>
+        <a href="{{url_for('financial_control_v67')}}">Ekonomistyrning</a>
+        <a href="{{url_for('finance_control')}}">Projektekonomi</a>
       </div>
     </details>
 
@@ -82,14 +82,14 @@
       <summary>Verktyg ▾</summary>
       <div class="nav-dropdown">
         <a href="{{url_for('pm_copilot_v60')}}">PM Copilot</a>
-        <a href="{{url_for('intake_v63')}}">Intake</a>
+        <a href="{{url_for('intake_v63')}}">Inkommande behov</a>
         {% if current_user['role'] in ['admin','pm'] %}
-        <a href="{{url_for('form_builder_v71')}}">Form Builder</a>
-        <a href="{{url_for('managed_templates_v75')}}">Managed Templates</a>
-        <a href="{{url_for('automation_designer_v64')}}">Automations</a>
+        <a href="{{url_for('form_builder_v71')}}">Formulärbyggare</a>
+        <a href="{{url_for('managed_templates_v75')}}">Hanterade mallar</a>
+        <a href="{{url_for('automation_designer_v64')}}">Automationer</a>
         {% endif %}
-        <a href="{{url_for('dashboard_designer_v69')}}">Dashboard Designer</a>
-        <a href="{{url_for('integration_center_v35')}}">Integrations</a>
+        <a href="{{url_for('dashboard_designer_v69')}}">Dashboarddesigner</a>
+        <a href="{{url_for('integration_center_v35')}}">Integrationer</a>
       </div>
     </details>
 
@@ -97,11 +97,11 @@
     <details class="nav-menu">
       <summary>Admin ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('admin_center')}}">Admin Center</a>
-        <a href="{{url_for('admin_quality')}}">Quality Center</a>
-        <a href="{{url_for('security_center')}}">Security</a>
-        <a href="{{url_for('enterprise_center_v47')}}">Enterprise</a>
-        <a href="{{url_for('automation_ops_v46')}}">Automation Ops</a>
+        <a href="{{url_for('admin_center')}}">Admincenter</a>
+        <a href="{{url_for('admin_quality')}}">Kvalitetscenter</a>
+        <a href="{{url_for('security_center')}}">Säkerhet</a>
+        <a href="{{url_for('enterprise_center_v47')}}">Företagsinställningar</a>
+        <a href="{{url_for('automation_ops_v46')}}">Automationsdrift</a>
       </div>
     </details>
     {% endif %}
@@ -109,6 +109,7 @@
   {% endif %}
 
   <div class="top-actions">
+    <span class="app-version-badge" title="Installerad appversion">v{{app_version}}</span>
     <div class="language-menu">
       <button type="button" class="language-button" onclick="this.parentElement.classList.toggle('open')">
         <span>{{languages[active_lang]['flag']}}</span> {{languages[active_lang]['name']}} ▾
@@ -128,13 +129,14 @@
       <summary>{{current_user['display_name']}} ▾</summary>
       <div class="nav-dropdown account-dropdown">
         <div class="account-meta">{{current_user['role']}}</div>
+        <div class="account-version">Appversion <strong>v{{app_version}}</strong></div>
         <a href="{{url_for('notifications_page')}}">{{t('notifications')}}</a>
         <a href="{{url_for('change_password')}}">{{t('password')}}</a>
         {% if current_user['role']=='admin' %}
         <a href="{{url_for('admin_center')}}">{{t('admin')}}</a>
-                <a href="{{url_for('admin_quality')}}">Quality Center</a>
-        <a href="{{url_for('admin_integrations')}}">Integrations</a>
-        <a href="{{url_for('enterprise_center_v47')}}">Enterprise</a>
+                <a href="{{url_for('admin_quality')}}">Kvalitetscenter</a>
+        <a href="{{url_for('admin_integrations')}}">Integrationer</a>
+        <a href="{{url_for('enterprise_center_v47')}}">Företagsinställningar</a>
         {% endif %}
         <a href="{{url_for('logout')}}">{{t('logout')}}</a>
       </div>
@@ -152,7 +154,7 @@
 
 <footer>
   <img src="{{url_for('static',filename='assets/project-planer-icon-32.png')}}" alt="">
-  Project Planer · v{{app_version}} · <a href="/health">health</a>
+  Project Planer · Appversion <strong>v{{app_version}}</strong> · <a href="/health">Systemstatus</a>
 </footer>
 
 <script>
@@ -179,7 +181,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 {% if current_user %}
 <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
   <a href="{{url_for('intelligent_ppm_v80')}}"><span>⌂</span><small>Hem</small></a>
-  <a href="{{url_for('action_inbox_v78')}}"><span>◎</span><small>Inbox</small></a>
+  <a href="{{url_for('action_inbox_v78')}}"><span>◎</span><small>Inkorg</small></a>
   <a href="{{url_for('my_work')}}"><span>✓</span><small>Arbete</small></a>
   <a href="{{url_for('quick_add_v51')}}"><span>＋</span><small>Skapa</small></a>
   <button type="button" onclick="document.body.classList.toggle('nav-open')"><span>☰</span><small>Meny</small></button>

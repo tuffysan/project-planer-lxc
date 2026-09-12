@@ -16,13 +16,13 @@ This is a cumulative release. It contains all functionality from the preceding r
 ## Upgrade an existing LXC
 
 ```bash
-CTID=<your-ctid> VERSION=8.0.2 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=<your-ctid> VERSION=8.1.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## New install
 
 ```bash
-VERSION=8.0.2 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=8.1.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Run `./VERIFY.sh` before publishing. Keep a database backup before production upgrades.
@@ -75,3 +75,10 @@ Second visual UX pass: fixes dashboard data binding, makes RAG status visible di
 ## v7.0.1 Full Quality Audit
 
 See `AUDIT-v7.0.1.md`. This release focuses on permissions, database reliability, startup migrations, health checks, static validation and responsive hardening rather than new features.
+
+
+## Excel Round-trip (v8.1.0)
+
+From Project Workspace, choose **Exportera Excel** or **Importera Excel**.
+
+The full workbook supports offline editing for project information, tasks, risks, change requests, resources, costs, task dependencies, decisions, meetings, actions and benefits. Import always runs through a preview. Stable hidden IDs identify existing records; snapshot hashes detect concurrent changes. Missing spreadsheet rows do not delete data. A database backup is created before commit.

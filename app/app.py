@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, abort, jsonify
-import sqlite3, os, json, secrets, hmac, hashlib, shutil, platform
+import sqlite3, os, json, secrets, hmac, hashlib, shutil, platform, re
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from io import BytesIO
@@ -10,8 +10,10 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
+from openpyxl.styles import Border, Side
 
-APP_VERSION = "8.0.2"
+APP_VERSION = "8.1.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1545,53 +1547,732 @@ def gantt(project_id):
     for d in deps:depmap.setdefault(d["task_id"],[]).append(d["dep_title"])
     return render_template("gantt.html",project=p,rows=rows,months=months,range_start=rs,range_end=re,deps=depmap)
 
+
 def autosize(ws):
     for col_cells in ws.columns:
-        max_len=0; col=get_column_letter(col_cells[0].column)
-        for cell in col_cells:max_len=max(max_len,len("" if cell.value is None else str(cell.value)))
-        ws.column_dimensions[col].width=min(max(max_len+2,10),45)
+        max_len=0
+        col=get_column_letter(col_cells[0].column)
+        for cell in col_cells:
+            max_len=max(max_len,len("" if cell.value is None else str(cell.value)))
+        ws.column_dimensions[col].width=min(max(max_len+2,10),42)
 
 def style_header(ws,row=1):
-    fill=PatternFill("solid",fgColor="1F4E78"); font=Font(color="FFFFFF",bold=True)
-    for c in ws[row]:c.fill=fill;c.font=font;c.alignment=Alignment(vertical="center")
+    fill=PatternFill("solid",fgColor="0F4C81")
+    font=Font(color="FFFFFF",bold=True)
+    thin=Side(style="thin",color="D8DEE8")
+    for c in ws[row]:
+        c.fill=fill
+        c.font=font
+        c.alignment=Alignment(vertical="center")
+        c.border=Border(bottom=thin)
+    ws.row_dimensions[row].height=24
 
-def build_workbook(project,tasks,risks,baselines,members):
-    wb=Workbook(); ws=wb.active; ws.title="Projektplan"
-    headers=["WBS","Aktivitet","Ansvarig","Plan start","Plan slut","Faktisk start","Faktiskt slut","Status","Automatisk status","Prioritet","Progress %","Milstolpe","Kommentar"]
-    ws.append(headers); style_header(ws)
-    for t in tasks:ws.append([t["wbs"],t["title"],t["owner"],t["start_date"],t["end_date"],t["actual_start"],t["actual_end"],t["status"],derived_status(t),t["priority"],t["progress"],"Ja" if t["milestone"] else "Nej",t["notes"]])
-    ws.freeze_panes="A2"; ws.auto_filter.ref=ws.dimensions
-    if ws.max_row>1:ws.conditional_formatting.add(f"K2:K{ws.max_row}",DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100))
-    autosize(ws)
-    sm=wb.create_sheet("Sammanfattning"); 
-    for row in [["Projekt",project["name"]],["Kund",project["customer"]],["Projektledare",project["project_manager"]],["Plan start",project["start_date"]],["Plan slut",project["end_date"]],["Version",APP_VERSION]]:
-        sm.append(row)
-    avg=round(sum(int(t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
-    sm.append(["Total progress",avg]); sm.append(["Aktiviteter",len(tasks)]); autosize(sm)
-    ms=wb.create_sheet("Milstolpar"); ms.append(["WBS","Milstolpe","Planerat datum","Status","Progress"]); style_header(ms)
-    for t in tasks:
-        if t["milestone"]:ms.append([t["wbs"],t["title"],t["end_date"],derived_status(t),t["progress"]])
-    autosize(ms)
-    rw=wb.create_sheet("Risker & Issues"); rw.append(["Typ","Titel","Sannolikhet","Konsekvens","Riskvärde","Ansvarig","Åtgärd","Status","Förfallodatum"]); style_header(rw)
-    for r in risks:rw.append([r["kind"],r["title"],r["probability"],r["impact"],r["probability"]*r["impact"],r["owner"],r["action"],r["status"],r["due_date"]])
-    autosize(rw)
-    mw=wb.create_sheet("Projektmedlemmar"); mw.append(["Namn","Användare","Projektroll","Global roll"]); style_header(mw)
-    for m in members:mw.append([m["display_name"],m["username"],m["project_role"],m["global_role"]])
-    autosize(mw)
+EXCEL_SCHEMA_VERSION="1"
+EXCEL_IMPORT_DIR=DATA_DIR/"excel-imports"
+
+def excel_canon_value(value):
+    if value is None:
+        return ""
+    if isinstance(value,(datetime,date)):
+        return value.strftime("%Y-%m-%d")
+    if isinstance(value,bool):
+        return 1 if value else 0
+    if isinstance(value,float) and value.is_integer():
+        return int(value)
+    return value
+
+def excel_row_hash(values):
+    clean={str(k):excel_canon_value(v) for k,v in values.items()}
+    payload=json.dumps(clean,ensure_ascii=False,sort_keys=True,separators=(",",":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:20]
+
+def excel_date(value):
+    if value is None or value=="":
+        return ""
+    if isinstance(value,(datetime,date)):
+        return value.strftime("%Y-%m-%d")
+    text=str(value).strip()
+    for fmt in ("%Y-%m-%d","%Y/%m/%d","%d/%m/%Y","%d-%m-%Y"):
+        try:
+            return datetime.strptime(text,fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    return text
+
+def excel_int(value,default=0):
+    if value in (None,""):
+        return default
+    try:
+        return int(float(value))
+    except (TypeError,ValueError):
+        return default
+
+def excel_float(value,default=0.0):
+    if value in (None,""):
+        return default
+    try:
+        return float(value)
+    except (TypeError,ValueError):
+        return default
+
+def excel_bool(value):
+    text=str(value or "").strip().lower()
+    return 1 if text in ("1","true","ja","yes","x") else 0
+
+def excel_text(value):
+    return "" if value is None else str(value).strip()
+
+def excel_add_validation(ws,column,values,start=2,end=2000):
+    dv=DataValidation(type="list",formula1='"'+",".join(values)+'"',allow_blank=True)
+    dv.error="Välj ett värde från listan."
+    dv.errorTitle="Ogiltigt värde"
+    ws.add_data_validation(dv)
+    dv.add(f"{column}{start}:{column}{end}")
+
+def excel_prepare_sheet(ws,headers,table_filter=True):
+    ws.append(headers)
+    style_header(ws)
+    ws.freeze_panes="A2"
+    if table_filter:
+        ws.auto_filter.ref=f"A1:{get_column_letter(len(headers))}1"
+    ws.sheet_view.showGridLines=False
+
+def excel_hide_meta_columns(ws):
+    for idx,cell in enumerate(ws[1],start=1):
+        if str(cell.value or "").startswith("_"):
+            ws.column_dimensions[get_column_letter(idx)].hidden=True
+
+def excel_project_snapshot(p):
+    return {
+        "name":p["name"] or "",
+        "customer":p["customer"] or "",
+        "project_manager":p["project_manager"] or "",
+        "description":p["description"] or "",
+        "start_date":p["start_date"] or "",
+        "end_date":p["end_date"] or "",
+    }
+
+def excel_task_snapshot(t):
+    return {
+        "wbs":t["wbs"] or "","title":t["title"] or "","owner":t["owner"] or "",
+        "start_date":t["start_date"] or "","end_date":t["end_date"] or "",
+        "actual_start":t["actual_start"] or "","actual_end":t["actual_end"] or "",
+        "status":t["status"] or "","priority":t["priority"] or "",
+        "progress":excel_int(t["progress"]),"milestone":excel_int(t["milestone"]),
+        "notes":t["notes"] or "",
+    }
+
+def excel_risk_snapshot(r):
+    return {
+        "kind":r["kind"] or "Risk","title":r["title"] or "","description":r["description"] or "",
+        "probability":excel_int(r["probability"],3),"impact":excel_int(r["impact"],3),
+        "owner":r["owner"] or "","action":r["action"] or "","status":r["status"] or "",
+        "due_date":r["due_date"] or "",
+    }
+
+def excel_change_snapshot(c):
+    return {
+        "title":c["title"] or "","description":c["description"] or "",
+        "impact_scope":c["impact_scope"] or "","impact_days":excel_int(c["impact_days"]),
+        "impact_cost":excel_float(c["impact_cost"]),"status":c["status"] or "",
+    }
+
+def excel_resource_snapshot(r):
+    return {
+        "resource_name":r["resource_name"] or "","week_start":r["week_start"] or "",
+        "allocation_pct":excel_int(r["allocation_pct"]),"planned_hours":excel_float(r["planned_hours"]),
+    }
+
+def excel_cost_snapshot(c):
+    return {
+        "category":c["category"] or "","description":c["description"] or "",
+        "planned":excel_float(c["planned"]),"actual":excel_float(c["actual"]),
+        "cost_date":c["cost_date"] or "",
+    }
+
+def excel_decision_snapshot(d):
+    return {
+        "title":d["title"] or "","decision":d["decision"] or "",
+        "decided_by":d["decided_by"] or "","decision_date":d["decision_date"] or "",
+        "owner":d["owner"] or "",
+    }
+
+def excel_meeting_snapshot(m):
+    return {
+        "title":m["title"] or "","meeting_date":m["meeting_date"] or "",
+        "attendees":m["attendees"] or "","notes":m["notes"] or "",
+    }
+
+def excel_action_snapshot(a):
+    return {
+        "title":a["title"] or "","owner":a["owner"] or "",
+        "due_date":a["due_date"] or "","status":a["status"] or "",
+    }
+
+def excel_benefit_snapshot(b):
+    return {
+        "title":b["title"] or "","unit":b["unit"] or "%",
+        "baseline_value":excel_float(b["baseline_value"]),
+        "target_value":excel_float(b["target_value"]),
+        "actual_value":None if b["actual_value"] is None else excel_float(b["actual_value"]),
+        "measurement_date":b["measurement_date"] or "",
+        "owner":b["owner"] or "","status":b["status"] or "",
+    }
+
+def build_roundtrip_workbook(project,data,scope="all"):
+    wb=Workbook()
+    default=wb.active
+    wb.remove(default)
+
+    # Project information
+    info=wb.create_sheet("Projektinformation")
+    info.sheet_view.showGridLines=False
+    info["A1"]="Project Planer – Excel Round-trip"
+    info["A1"].font=Font(size=18,bold=True,color="0F4C81")
+    info.merge_cells("A1:B1")
+    info["A3"]="Fält"; info["B3"]="Värde"; style_header(info,3)
+    labels=[
+        ("Projektnamn","name"),("Kund","customer"),("Projektledare","project_manager"),
+        ("Beskrivning","description"),("Plan start","start_date"),("Plan slut","end_date")
+    ]
+    ps=excel_project_snapshot(project)
+    for label,key in labels:
+        info.append([label,ps[key]])
+    info["A11"]="Instruktion"
+    info["B11"]="Redigera värden i kolumn B. Importen visar alltid en förhandsgranskning innan något skrivs tillbaka."
+    info["B11"].alignment=Alignment(wrap_text=True,vertical="top")
+    info.column_dimensions["A"].width=24
+    info.column_dimensions["B"].width=70
+
+    if scope in ("all","plan"):
+        ws=wb.create_sheet("Uppgifter")
+        headers=["WBS","Aktivitet","Ansvarig","Plan start","Plan slut","Faktisk start","Faktiskt slut","Status","Prioritet","Progress %","Milstolpe","Kommentar","_ID","_Hash"]
+        excel_prepare_sheet(ws,headers)
+        for t in data["tasks"]:
+            snap=excel_task_snapshot(t)
+            ws.append([snap["wbs"],snap["title"],snap["owner"],snap["start_date"],snap["end_date"],snap["actual_start"],snap["actual_end"],snap["status"],snap["priority"],snap["progress"],"Ja" if snap["milestone"] else "Nej",snap["notes"],t["id"],excel_row_hash(snap)])
+        excel_add_validation(ws,"H",STATUSES)
+        excel_add_validation(ws,"I",PRIORITIES)
+        excel_add_validation(ws,"K",["Ja","Nej"])
+        if ws.max_row>1:
+            ws.conditional_formatting.add(f"J2:J{ws.max_row}",DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color="0F4C81"))
+        excel_hide_meta_columns(ws); autosize(ws)
+        ws.column_dimensions["B"].width=34; ws.column_dimensions["L"].width=40
+
+        ms=wb.create_sheet("Milstolpar")
+        excel_prepare_sheet(ms,["WBS","Milstolpe","Planerat datum","Status","Progress %"])
+        for t in data["tasks"]:
+            if excel_int(t["milestone"]):
+                ms.append([t["wbs"],t["title"],t["end_date"],t["status"],t["progress"]])
+        ms["A1"].comment=None
+        ms.sheet_properties.tabColor="94A3B8"
+        autosize(ms)
+
+        dep=wb.create_sheet("Beroenden")
+        excel_prepare_sheet(dep,["Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar","_ID","_Hash"])
+        task_by_id={int(t["id"]):t for t in data["tasks"]}
+        for l in data["links"]:
+            pred=task_by_id.get(int(l["predecessor_id"]))
+            succ=task_by_id.get(int(l["successor_id"]))
+            snap={"predecessor_wbs":pred["wbs"] if pred else "","successor_wbs":succ["wbs"] if succ else "","link_type":l["link_type"] or "FS","lag_days":excel_int(l["lag_days"])}
+            dep.append([snap["predecessor_wbs"],snap["successor_wbs"],snap["link_type"],snap["lag_days"],l["id"],excel_row_hash(snap)])
+        excel_add_validation(dep,"C",["FS","SS","FF","SF"])
+        excel_hide_meta_columns(dep); autosize(dep)
+
+    if scope in ("all","risk"):
+        rw=wb.create_sheet("Risker")
+        excel_prepare_sheet(rw,["Typ","Titel","Beskrivning","Sannolikhet","Konsekvens","Ansvarig","Åtgärd","Status","Förfallodatum","_ID","_Hash"])
+        for r in data["risks"]:
+            snap=excel_risk_snapshot(r)
+            rw.append([snap["kind"],snap["title"],snap["description"],snap["probability"],snap["impact"],snap["owner"],snap["action"],snap["status"],snap["due_date"],r["id"],excel_row_hash(snap)])
+        excel_add_validation(rw,"A",["Risk","Issue"])
+        excel_add_validation(rw,"H",RISK_STATUSES)
+        excel_hide_meta_columns(rw); autosize(rw); rw.column_dimensions["C"].width=38; rw.column_dimensions["G"].width=38
+
+        cw=wb.create_sheet("Ändringsärenden")
+        excel_prepare_sheet(cw,["Rubrik","Beskrivning","Omfattningspåverkan","Dagar","Kostnad","Status","_ID","_Hash"])
+        for c in data["changes"]:
+            snap=excel_change_snapshot(c)
+            cw.append([snap["title"],snap["description"],snap["impact_scope"],snap["impact_days"],snap["impact_cost"],snap["status"],c["id"],excel_row_hash(snap)])
+        excel_add_validation(cw,"F",["Proposed","Submitted","Pending","Approved","Rejected","Closed"])
+        excel_hide_meta_columns(cw); autosize(cw); cw.column_dimensions["B"].width=38; cw.column_dimensions["C"].width=34
+
+        dw=wb.create_sheet("Beslut")
+        excel_prepare_sheet(dw,["Titel","Beslut","Beslutat av","Beslutsdatum","Ansvarig","_ID","_Hash"])
+        for d in data["decisions"]:
+            snap=excel_decision_snapshot(d)
+            dw.append([snap["title"],snap["decision"],snap["decided_by"],snap["decision_date"],snap["owner"],d["id"],excel_row_hash(snap)])
+        excel_hide_meta_columns(dw); autosize(dw); dw.column_dimensions["B"].width=48
+
+    if scope in ("all","resources"):
+        rs=wb.create_sheet("Resurser")
+        excel_prepare_sheet(rs,["Resurs","Vecka","Allokering %","Planerade timmar","_ID","_Hash"])
+        for r in data["resources"]:
+            snap=excel_resource_snapshot(r)
+            rs.append([snap["resource_name"],snap["week_start"],snap["allocation_pct"],snap["planned_hours"],r["id"],excel_row_hash(snap)])
+        excel_hide_meta_columns(rs); autosize(rs)
+
+    if scope in ("all","finance"):
+        co=wb.create_sheet("Kostnader")
+        excel_prepare_sheet(co,["Kategori","Beskrivning","Planerat","Utfall","Datum","_ID","_Hash"])
+        for c in data["costs"]:
+            snap=excel_cost_snapshot(c)
+            co.append([snap["category"],snap["description"],snap["planned"],snap["actual"],snap["cost_date"],c["id"],excel_row_hash(snap)])
+        excel_hide_meta_columns(co); autosize(co); co.column_dimensions["B"].width=40
+
+        be=wb.create_sheet("Nyttor")
+        excel_prepare_sheet(be,["Titel","Enhet","Baslinje","Mål","Utfall","Mätdatum","Ansvarig","Status","_ID","_Hash"])
+        for b in data["benefits"]:
+            snap=excel_benefit_snapshot(b)
+            be.append([snap["title"],snap["unit"],snap["baseline_value"],snap["target_value"],snap["actual_value"],snap["measurement_date"],snap["owner"],snap["status"],b["id"],excel_row_hash(snap)])
+        excel_add_validation(be,"H",["Planned","Measured","Realized","Closed"])
+        excel_hide_meta_columns(be); autosize(be)
+
+    if scope=="all":
+        mw=wb.create_sheet("Möten")
+        excel_prepare_sheet(mw,["Titel","Datum","Deltagare","Anteckningar","_ID","_Hash"])
+        for m in data["meetings"]:
+            snap=excel_meeting_snapshot(m)
+            mw.append([snap["title"],snap["meeting_date"],snap["attendees"],snap["notes"],m["id"],excel_row_hash(snap)])
+        excel_hide_meta_columns(mw); autosize(mw); mw.column_dimensions["D"].width=45
+
+        aw=wb.create_sheet("Åtgärder")
+        excel_prepare_sheet(aw,["Titel","Ansvarig","Förfallodatum","Status","_ID","_Hash"])
+        for a in data["actions"]:
+            snap=excel_action_snapshot(a)
+            aw.append([snap["title"],snap["owner"],snap["due_date"],snap["status"],a["id"],excel_row_hash(snap)])
+        excel_add_validation(aw,"D",["Open","In Progress","Blocked","Done","Closed"])
+        excel_hide_meta_columns(aw); autosize(aw)
+
+    meta=wb.create_sheet("_Metadata")
+    meta.sheet_state="veryHidden"
+    meta.append(["key","value"])
+    meta.append(["schema_version",EXCEL_SCHEMA_VERSION])
+    meta.append(["project_id",project["id"]])
+    meta.append(["project_name",project["name"]])
+    meta.append(["project_hash",excel_row_hash(ps)])
+    meta.append(["app_version",APP_VERSION])
+    meta.append(["exported_at",datetime.now().isoformat(timespec="seconds")])
+    meta.append(["scope",scope])
     return wb
 
+def excel_project_data(project_id):
+    with db() as conn:
+        return {
+            "tasks":conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY wbs,id",(project_id,)).fetchall(),
+            "links":conn.execute("SELECT * FROM task_links WHERE project_id=? ORDER BY id",(project_id,)).fetchall(),
+            "risks":conn.execute("SELECT * FROM risks WHERE project_id=? ORDER BY id",(project_id,)).fetchall(),
+            "changes":conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id",(project_id,)).fetchall(),
+            "resources":conn.execute("SELECT * FROM resource_allocations WHERE project_id=? ORDER BY resource_name,week_start,id",(project_id,)).fetchall(),
+            "costs":conn.execute("SELECT * FROM project_costs WHERE project_id=? ORDER BY cost_date,id",(project_id,)).fetchall(),
+            "decisions":conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decision_date,id",(project_id,)).fetchall(),
+            "meetings":conn.execute("SELECT * FROM meetings WHERE project_id=? ORDER BY meeting_date,id",(project_id,)).fetchall(),
+            "actions":conn.execute("SELECT * FROM action_items WHERE project_id=? ORDER BY due_date,id",(project_id,)).fetchall(),
+            "benefits":conn.execute("SELECT * FROM project_benefits WHERE project_id=? ORDER BY id",(project_id,)).fetchall(),
+        }
+
+@app.get("/projects/<int:project_id>/excel")
+@login_required
+def excel_center_v810(project_id):
+    p=project_or_404(project_id)
+    return render_template("excel_center_v810.html",project=p)
+
+@app.get("/projects/<int:project_id>/excel/export")
+@login_required
+def excel_export_v810(project_id):
+    p=project_or_404(project_id)
+    scope=request.args.get("scope","all")
+    if scope not in ("all","plan","risk","resources","finance"):
+        scope="all"
+    wb=build_roundtrip_workbook(p,excel_project_data(project_id),scope)
+    bio=BytesIO()
+    wb.save(bio)
+    bio.seek(0)
+    suffix="" if scope=="all" else f"-{scope}"
+    audit(project_id,"project",project_id,"excel_export",f"scope={scope}; app={APP_VERSION}")
+    return send_file(
+        bio,as_attachment=True,
+        download_name=f"{p['name']}-project-plan{suffix}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+# Legacy Excel export now produces the full round-trip workbook.
 @app.get("/projects/<int:project_id>/export.xlsx")
 @login_required
 def export_project(project_id):
     p=project_or_404(project_id)
-    with db() as conn:
-        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? ORDER BY id",(project_id,)).fetchall()
-        baselines=conn.execute("SELECT * FROM baselines WHERE project_id=? ORDER BY id",(project_id,)).fetchall()
-        members=conn.execute("""SELECT pm.*,u.username,u.display_name,u.role global_role FROM project_members pm
-                                JOIN users u ON u.id=pm.user_id WHERE pm.project_id=?""",(project_id,)).fetchall()
-    wb=build_workbook(p,tasks,risks,baselines,members); bio=BytesIO(); wb.save(bio); bio.seek(0)
+    wb=build_roundtrip_workbook(p,excel_project_data(project_id),"all")
+    bio=BytesIO(); wb.save(bio); bio.seek(0)
+    audit(project_id,"project",project_id,"excel_export","scope=all; legacy-route")
     return send_file(bio,as_attachment=True,download_name=f"{p['name']}-project-plan.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+EXCEL_SPECS={
+    "Uppgifter":{
+        "entity":"Uppgift","table":"tasks","required":"title",
+        "headers":{"WBS":"wbs","Aktivitet":"title","Ansvarig":"owner","Plan start":"start_date","Plan slut":"end_date","Faktisk start":"actual_start","Faktiskt slut":"actual_end","Status":"status","Prioritet":"priority","Progress %":"progress","Milstolpe":"milestone","Kommentar":"notes"},
+        "snapshot":excel_task_snapshot,
+        "converters":{"start_date":excel_date,"end_date":excel_date,"actual_start":excel_date,"actual_end":excel_date,"progress":lambda v: max(0,min(100,excel_int(v))),"milestone":excel_bool},
+    },
+    "Risker":{
+        "entity":"Risk","table":"risks","required":"title",
+        "headers":{"Typ":"kind","Titel":"title","Beskrivning":"description","Sannolikhet":"probability","Konsekvens":"impact","Ansvarig":"owner","Åtgärd":"action","Status":"status","Förfallodatum":"due_date"},
+        "snapshot":excel_risk_snapshot,
+        "converters":{"probability":lambda v:max(1,min(5,excel_int(v,3))),"impact":lambda v:max(1,min(5,excel_int(v,3))),"due_date":excel_date},
+    },
+    "Ändringsärenden":{
+        "entity":"Ändringsärende","table":"change_requests","required":"title",
+        "headers":{"Rubrik":"title","Beskrivning":"description","Omfattningspåverkan":"impact_scope","Dagar":"impact_days","Kostnad":"impact_cost","Status":"status"},
+        "snapshot":excel_change_snapshot,
+        "converters":{"impact_days":excel_int,"impact_cost":excel_float},
+    },
+    "Resurser":{
+        "entity":"Resursallokering","table":"resource_allocations","required":"resource_name",
+        "headers":{"Resurs":"resource_name","Vecka":"week_start","Allokering %":"allocation_pct","Planerade timmar":"planned_hours"},
+        "snapshot":excel_resource_snapshot,
+        "converters":{"week_start":excel_date,"allocation_pct":lambda v:max(0,min(300,excel_int(v))),"planned_hours":excel_float},
+    },
+    "Kostnader":{
+        "entity":"Kostnad","table":"project_costs","required":"description",
+        "headers":{"Kategori":"category","Beskrivning":"description","Planerat":"planned","Utfall":"actual","Datum":"cost_date"},
+        "snapshot":excel_cost_snapshot,
+        "converters":{"planned":excel_float,"actual":excel_float,"cost_date":excel_date},
+    },
+    "Beslut":{
+        "entity":"Beslut","table":"decisions","required":"title",
+        "headers":{"Titel":"title","Beslut":"decision","Beslutat av":"decided_by","Beslutsdatum":"decision_date","Ansvarig":"owner"},
+        "snapshot":excel_decision_snapshot,
+        "converters":{"decision_date":excel_date},
+    },
+    "Möten":{
+        "entity":"Möte","table":"meetings","required":"title",
+        "headers":{"Titel":"title","Datum":"meeting_date","Deltagare":"attendees","Anteckningar":"notes"},
+        "snapshot":excel_meeting_snapshot,
+        "converters":{"meeting_date":excel_date},
+    },
+    "Åtgärder":{
+        "entity":"Åtgärd","table":"action_items","required":"title",
+        "headers":{"Titel":"title","Ansvarig":"owner","Förfallodatum":"due_date","Status":"status"},
+        "snapshot":excel_action_snapshot,
+        "converters":{"due_date":excel_date},
+    },
+    "Nyttor":{
+        "entity":"Nytta","table":"project_benefits","required":"title",
+        "headers":{"Titel":"title","Enhet":"unit","Baslinje":"baseline_value","Mål":"target_value","Utfall":"actual_value","Mätdatum":"measurement_date","Ansvarig":"owner","Status":"status"},
+        "snapshot":excel_benefit_snapshot,
+        "converters":{"baseline_value":excel_float,"target_value":excel_float,"actual_value":lambda v:None if v in (None,"") else excel_float(v),"measurement_date":excel_date},
+    },
+}
+
+def excel_normalize_row(spec,raw):
+    result={}
+    converters=spec.get("converters",{})
+    for field,value in raw.items():
+        conv=converters.get(field,excel_text)
+        result[field]=conv(value)
+    return result
+
+def excel_headers(ws):
+    return {excel_text(cell.value):idx for idx,cell in enumerate(ws[1],start=1) if cell.value is not None}
+
+def excel_parse_metadata(wb):
+    if "_Metadata" not in wb.sheetnames:
+        return {}
+    ws=wb["_Metadata"]
+    return {excel_text(r[0].value):excel_text(r[1].value) for r in ws.iter_rows(min_row=2,max_col=2) if r[0].value}
+
+def excel_current_rows(conn,table,project_id):
+    return {int(r["id"]):r for r in conn.execute(f"SELECT * FROM {table} WHERE project_id=?",(project_id,)).fetchall()}
+
+def excel_diff(old,new):
+    changes={}
+    for key in new:
+        if excel_canon_value(old.get(key)) != excel_canon_value(new.get(key)):
+            changes[key]={"old":excel_canon_value(old.get(key)),"new":excel_canon_value(new.get(key))}
+    return changes
+
+def excel_import_preview(project_id,file_storage):
+    if not file_storage or not file_storage.filename:
+        raise ValueError("Välj en Excel-fil.")
+    if not file_storage.filename.lower().endswith(".xlsx"):
+        raise ValueError("Endast .xlsx stöds.")
+    payload=file_storage.read()
+    if len(payload)>15*1024*1024:
+        raise ValueError("Excel-filen är större än 15 MB.")
+    try:
+        wb=load_workbook(BytesIO(payload),data_only=False)
+    except Exception as ex:
+        raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
+
+    meta=excel_parse_metadata(wb)
+    if meta.get("schema_version")!=EXCEL_SCHEMA_VERSION:
+        raise ValueError("Filen är inte en kompatibel Project Planer Excel Round-trip-fil.")
+    if excel_int(meta.get("project_id"))!=project_id:
+        raise ValueError("Excel-filen tillhör ett annat projekt.")
+
+    preview={"project_id":project_id,"exported_at":meta.get("exported_at",""),"app_version":meta.get("app_version",""),"items":[],"errors":[],"counts":{"create":0,"update":0,"conflict":0,"error":0,"unchanged":0}}
+
+    with db() as conn:
+        project=conn.execute("SELECT * FROM projects WHERE id=?",(project_id,)).fetchone()
+        # Project information sheet.
+        if "Projektinformation" in wb.sheetnames:
+            ws=wb["Projektinformation"]
+            label_to_field={"Projektnamn":"name","Kund":"customer","Projektledare":"project_manager","Beskrivning":"description","Plan start":"start_date","Plan slut":"end_date"}
+            raw={}
+            for row in ws.iter_rows(min_row=4,max_col=2):
+                label=excel_text(row[0].value)
+                if label in label_to_field:
+                    field=label_to_field[label]
+                    raw[field]=excel_date(row[1].value) if field in ("start_date","end_date") else excel_text(row[1].value)
+            current=excel_project_snapshot(project)
+            current_hash=excel_row_hash(current)
+            exported_hash=meta.get("project_hash","")
+            excel_hash=excel_row_hash(raw)
+            changes=excel_diff(current,raw)
+            if changes:
+                kind="conflict" if exported_hash and current_hash!=exported_hash and excel_hash!=current_hash else "update"
+                preview["items"].append({"sheet":"Projektinformation","entity":"Projekt","kind":kind,"id":project_id,"row":0,"title":raw.get("name") or project["name"],"changes":changes,"data":raw})
+                preview["counts"][kind]+=1
+
+        for sheet_name,spec in EXCEL_SPECS.items():
+            if sheet_name not in wb.sheetnames:
+                continue
+            ws=wb[sheet_name]
+            hdr=excel_headers(ws)
+            missing=[h for h in spec["headers"] if h not in hdr]
+            if missing:
+                preview["errors"].append(f"{sheet_name}: saknar kolumner {', '.join(missing)}")
+                preview["counts"]["error"]+=1
+                continue
+            id_col=hdr.get("_ID")
+            hash_col=hdr.get("_Hash")
+            current_rows=excel_current_rows(conn,spec["table"],project_id)
+            for row_no in range(2,ws.max_row+1):
+                raw={field:ws.cell(row_no,col).value for label,field in spec["headers"].items() for col in [hdr[label]]}
+                data=excel_normalize_row(spec,raw)
+                row_id=excel_int(ws.cell(row_no,id_col).value) if id_col else 0
+                exported_hash=excel_text(ws.cell(row_no,hash_col).value) if hash_col else ""
+                required=excel_text(data.get(spec["required"]))
+                if not row_id and not required and all(v in ("",None,0,0.0) for v in data.values()):
+                    continue
+                if not required:
+                    preview["items"].append({"sheet":sheet_name,"entity":spec["entity"],"kind":"error","id":row_id or None,"row":row_no,"title":f"Rad {row_no}","changes":{},"data":data,"message":"Obligatoriskt namn/rubrik saknas."})
+                    preview["counts"]["error"]+=1
+                    continue
+                if not row_id:
+                    preview["items"].append({"sheet":sheet_name,"entity":spec["entity"],"kind":"create","id":None,"row":row_no,"title":required,"changes":{k:{"old":"","new":excel_canon_value(v)} for k,v in data.items() if v not in ("",None)},"data":data})
+                    preview["counts"]["create"]+=1
+                    continue
+                current_row=current_rows.get(row_id)
+                if not current_row:
+                    preview["items"].append({"sheet":sheet_name,"entity":spec["entity"],"kind":"error","id":row_id,"row":row_no,"title":required,"changes":{},"data":data,"message":"ID finns inte längre i appen."})
+                    preview["counts"]["error"]+=1
+                    continue
+                current=spec["snapshot"](current_row)
+                current_hash=excel_row_hash(current)
+                excel_hash=excel_row_hash(data)
+                if excel_hash==exported_hash:
+                    preview["counts"]["unchanged"]+=1
+                    continue
+                changes=excel_diff(current,data)
+                if not changes:
+                    preview["counts"]["unchanged"]+=1
+                    continue
+                kind="conflict" if exported_hash and current_hash!=exported_hash and excel_hash!=current_hash else "update"
+                preview["items"].append({"sheet":sheet_name,"entity":spec["entity"],"kind":kind,"id":row_id,"row":row_no,"title":required,"changes":changes,"data":data})
+                preview["counts"][kind]+=1
+
+        # Task dependencies need WBS mapping.
+        if "Beroenden" in wb.sheetnames:
+            ws=wb["Beroenden"]; hdr=excel_headers(ws)
+            needed=["Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"]
+            if all(x in hdr for x in needed):
+                tasks=conn.execute("SELECT id,wbs FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchall()
+                id_by_wbs={excel_text(t["wbs"]):int(t["id"]) for t in tasks if excel_text(t["wbs"])}
+                links={int(r["id"]):r for r in conn.execute("SELECT * FROM task_links WHERE project_id=?",(project_id,)).fetchall()}
+                id_col=hdr.get("_ID"); hash_col=hdr.get("_Hash")
+                for row_no in range(2,ws.max_row+1):
+                    pred=excel_text(ws.cell(row_no,hdr["Föregående WBS"]).value)
+                    succ=excel_text(ws.cell(row_no,hdr["Efterföljande WBS"]).value)
+                    typ=excel_text(ws.cell(row_no,hdr["Typ"]).value) or "FS"
+                    lag=excel_int(ws.cell(row_no,hdr["Förskjutning dagar"]).value)
+                    row_id=excel_int(ws.cell(row_no,id_col).value) if id_col else 0
+                    exported_hash=excel_text(ws.cell(row_no,hash_col).value) if hash_col else ""
+                    if not pred and not succ and not row_id: continue
+                    if pred not in id_by_wbs or succ not in id_by_wbs:
+                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"error","id":row_id or None,"row":row_no,"title":f"{pred} → {succ}","changes":{},"data":{},"message":"WBS finns inte bland projektets uppgifter."})
+                        preview["counts"]["error"]+=1; continue
+                    data={"predecessor_wbs":pred,"successor_wbs":succ,"link_type":typ,"lag_days":lag,"predecessor_id":id_by_wbs[pred],"successor_id":id_by_wbs[succ]}
+                    visible={"predecessor_wbs":pred,"successor_wbs":succ,"link_type":typ,"lag_days":lag}
+                    if not row_id:
+                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"create","id":None,"row":row_no,"title":f"{pred} → {succ}","changes":{},"data":data})
+                        preview["counts"]["create"]+=1; continue
+                    cur=links.get(row_id)
+                    if not cur:
+                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"error","id":row_id,"row":row_no,"title":f"{pred} → {succ}","changes":{},"data":data,"message":"Beroendet finns inte längre."})
+                        preview["counts"]["error"]+=1; continue
+                    pred_cur=next((k for k,v in id_by_wbs.items() if v==int(cur["predecessor_id"])),"")
+                    succ_cur=next((k for k,v in id_by_wbs.items() if v==int(cur["successor_id"])),"")
+                    current={"predecessor_wbs":pred_cur,"successor_wbs":succ_cur,"link_type":cur["link_type"] or "FS","lag_days":excel_int(cur["lag_days"])}
+                    excel_hash=excel_row_hash(visible); current_hash=excel_row_hash(current)
+                    if excel_hash==exported_hash or excel_hash==current_hash:
+                        preview["counts"]["unchanged"]+=1; continue
+                    kind="conflict" if exported_hash and current_hash!=exported_hash else "update"
+                    preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":kind,"id":row_id,"row":row_no,"title":f"{pred} → {succ}","changes":excel_diff(current,visible),"data":data})
+                    preview["counts"][kind]+=1
+            else:
+                preview["errors"].append("Beroenden: obligatoriska kolumner saknas.")
+                preview["counts"]["error"]+=1
+
+    return preview
+
+def excel_save_preview(preview):
+    EXCEL_IMPORT_DIR.mkdir(parents=True,exist_ok=True)
+    token=secrets.token_urlsafe(18)
+    path=EXCEL_IMPORT_DIR/f"{token}.json"
+    path.write_text(json.dumps(preview,ensure_ascii=False,default=str),encoding="utf-8")
+    return token
+
+def excel_load_preview(token,project_id):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,80}",token or ""):
+        abort(400)
+    path=EXCEL_IMPORT_DIR/f"{token}.json"
+    if not path.exists():
+        abort(404)
+    preview=json.loads(path.read_text(encoding="utf-8"))
+    if int(preview.get("project_id") or 0)!=project_id:
+        abort(403)
+    return preview,path
+
+def excel_backup_before_import():
+    BACKUP_DIR.mkdir(parents=True,exist_ok=True)
+    name=f"projectplan-before-excel-import-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db"
+    dst=BACKUP_DIR/name
+    src=sqlite3.connect(DB_PATH)
+    backup=sqlite3.connect(dst)
+    try:
+        src.backup(backup)
+    finally:
+        backup.close(); src.close()
+    return name
+
+def excel_insert(conn,table,project_id,data):
+    now=datetime.now().isoformat(timespec="seconds")
+    if table=="tasks":
+        cols=["project_id","wbs","title","owner","start_date","end_date","actual_start","actual_end","status","priority","progress","milestone","notes","sort_order"]
+        vals=[project_id,data["wbs"],data["title"],data["owner"],data["start_date"],data["end_date"],data["actual_start"],data["actual_end"],data["status"] or "Ej startad",data["priority"] or "Normal",data["progress"],data["milestone"],data["notes"],999999]
+    elif table=="risks":
+        cols=["project_id","kind","title","description","probability","impact","owner","action","status","due_date","created_at"]
+        vals=[project_id,data["kind"] or "Risk",data["title"],data["description"],data["probability"],data["impact"],data["owner"],data["action"],data["status"] or "Öppen",data["due_date"],now]
+    elif table=="change_requests":
+        cols=["project_id","title","description","impact_scope","impact_days","impact_cost","status","created_at"]
+        vals=[project_id,data["title"],data["description"],data["impact_scope"],data["impact_days"],data["impact_cost"],data["status"] or "Proposed",now]
+    elif table=="resource_allocations":
+        cols=["project_id","resource_name","week_start","allocation_pct","planned_hours"]
+        vals=[project_id,data["resource_name"],data["week_start"],data["allocation_pct"],data["planned_hours"]]
+    elif table=="project_costs":
+        cols=["project_id","category","description","planned","actual","cost_date"]
+        vals=[project_id,data["category"] or "External",data["description"],data["planned"],data["actual"],data["cost_date"]]
+    elif table=="decisions":
+        cols=["project_id","title","decision","decided_by","decision_date","owner","decided_at"]
+        vals=[project_id,data["title"],data["decision"],data["decided_by"],data["decision_date"] or date.today().isoformat(),data["owner"],now]
+    elif table=="meetings":
+        cols=["project_id","title","meeting_date","attendees","notes"]
+        vals=[project_id,data["title"],data["meeting_date"] or date.today().isoformat(),data["attendees"],data["notes"]]
+    elif table=="action_items":
+        cols=["project_id","title","owner","due_date","status"]
+        vals=[project_id,data["title"],data["owner"],data["due_date"],data["status"] or "Open"]
+    elif table=="project_benefits":
+        cols=["project_id","title","unit","baseline_value","target_value","actual_value","measurement_date","owner","status","created_at"]
+        vals=[project_id,data["title"],data["unit"] or "%",data["baseline_value"],data["target_value"],data["actual_value"],data["measurement_date"],data["owner"],data["status"] or "Planned",now]
+    else:
+        raise ValueError("Unsupported import table")
+    placeholders=",".join("?" for _ in cols)
+    cur=conn.execute(f"INSERT INTO {table}({','.join(cols)}) VALUES({placeholders})",vals)
+    return cur.lastrowid
+
+def excel_update(conn,table,row_id,project_id,data):
+    fields=list(data.keys())
+    setters=",".join(f"{f}=?" for f in fields)
+    vals=[data[f] for f in fields]+[row_id,project_id]
+    conn.execute(f"UPDATE {table} SET {setters} WHERE id=? AND project_id=?",vals)
+
+@app.route("/projects/<int:project_id>/excel/import",methods=["GET","POST"])
+@login_required
+def excel_import_v810(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    if request.method=="POST":
+        try:
+            preview=excel_import_preview(project_id,request.files.get("file"))
+            token=excel_save_preview(preview)
+            return render_template("excel_import_preview_v810.html",project=p,preview=preview,token=token)
+        except ValueError as ex:
+            flash(str(ex),"error")
+            return redirect(url_for("excel_import_v810",project_id=project_id))
+    return render_template("excel_import_v810.html",project=p)
+
+@app.post("/projects/<int:project_id>/excel/import/<token>/commit")
+@login_required
+def excel_import_commit_v810(project_id,token):
+    p=project_or_404(project_id,write=True)
+    preview,path=excel_load_preview(token,project_id)
+    policy=request.form.get("conflict_policy","app")
+    if policy not in ("app","excel"):
+        policy="app"
+    if preview.get("counts",{}).get("error",0):
+        flash("Importen innehåller fel. Rätta Excel-filen och förhandsgranska igen.","error")
+        return render_template("excel_import_preview_v810.html",project=p,preview=preview,token=token)
+
+    backup_name=excel_backup_before_import()
+    applied=created=updated=conflicts_skipped=0
+    with db() as conn:
+        conn.execute("BEGIN")
+        try:
+            for item in preview["items"]:
+                kind=item["kind"]
+                if kind=="error":
+                    continue
+                if kind=="conflict" and policy=="app":
+                    conflicts_skipped+=1
+                    continue
+                if item["entity"]=="Projekt":
+                    data=item["data"]
+                    conn.execute("""UPDATE projects SET name=?,customer=?,project_manager=?,description=?,start_date=?,end_date=? WHERE id=?""",
+                                 (data["name"],data["customer"],data["project_manager"],data["description"],data["start_date"],data["end_date"],project_id))
+                    updated+=1; applied+=1
+                    continue
+                if item["sheet"]=="Beroenden":
+                    d=item["data"]
+                    if kind=="create":
+                        conn.execute("""INSERT INTO task_links(project_id,predecessor_id,successor_id,link_type,lag_days) VALUES(?,?,?,?,?)""",
+                                     (project_id,d["predecessor_id"],d["successor_id"],d["link_type"],d["lag_days"]))
+                        created+=1
+                    else:
+                        conn.execute("""UPDATE task_links SET predecessor_id=?,successor_id=?,link_type=?,lag_days=? WHERE id=? AND project_id=?""",
+                                     (d["predecessor_id"],d["successor_id"],d["link_type"],d["lag_days"],item["id"],project_id))
+                        updated+=1
+                    applied+=1
+                    continue
+                spec=EXCEL_SPECS[item["sheet"]]
+                if kind=="create":
+                    excel_insert(conn,spec["table"],project_id,item["data"])
+                    created+=1
+                else:
+                    excel_update(conn,spec["table"],item["id"],project_id,item["data"])
+                    updated+=1
+                applied+=1
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    audit(project_id,"project",project_id,"excel_import",
+          f"applied={applied}; created={created}; updated={updated}; conflicts_skipped={conflicts_skipped}; backup={backup_name}")
+    try:
+        path.unlink()
+    except OSError:
+        pass
+    flash(f"Excel-import klar: {applied} ändringar genomförda ({created} nya, {updated} uppdaterade). Backup: {backup_name}.","success")
+    return redirect(url_for("project_workspace",project_id=project_id,tab="overview"))
 
 @app.route("/admin")
 @login_required

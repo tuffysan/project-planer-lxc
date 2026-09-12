@@ -1,20 +1,20 @@
 {% extends "base.html" %}
-{% block title %}{{project.name}} · Workspace{% endblock %}
+{% block title %}{{project.name}} · Projektarbetsyta{% endblock %}
 {% block content %}
 
-<nav class="project-breadcrumb" aria-label="Breadcrumb">
+<nav class="project-breadcrumb" aria-label="Sökväg">
   <a href="{{url_for('intelligent_ppm_v80')}}">Översikt</a>
   <span>›</span>
   <a href="{{url_for('project',project_id=project.id)}}">{{project.name}}</a>
   <span>›</span>
-  <span>Workspace</span>
+  <span>Projektarbetsyta</span>
 </nav>
 
 <section class="workspace-hero rag-{{health.rag}}">
   <div class="workspace-title">
     <span class="workspace-rag-dot {{health.rag}}" aria-hidden="true"></span>
     <div>
-      <div class="eyebrow">PROJECT WORKSPACE</div>
+      <div class="eyebrow">PROJEKTARBETSYTA</div>
       <h1>{{project.name}}</h1>
       <p>{{project.customer or 'Ingen kund'}} · PM: {{project.project_manager or 'Ej angiven'}}</p>
     </div>
@@ -22,13 +22,15 @@
 
   <div class="workspace-health">
     <div><small>Status</small><strong>{{health.label}}</strong></div>
-    <div><small>Health</small><strong>{{health.score}}/100</strong></div>
-    <div><small>Progress</small><strong>{{health.progress}}%</strong></div>
+    <div><small>Hälsopoäng</small><strong>{{health.score}}/100</strong></div>
+    <div><small>Framdrift</small><strong>{{health.progress}}%</strong></div>
     <div><small>Slutdatum</small><strong>{{project.end_date or '—'}}</strong></div>
   </div>
 
   <div class="workspace-actions">
     <a class="button primary" href="{{url_for('quick_add_v51')}}">＋ Skapa</a>
+    <a class="button" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">↓ Exportera Excel</a>
+    <a class="button" href="{{url_for('excel_import_v810',project_id=project.id)}}">↑ Importera Excel</a>
     <a class="button" href="{{url_for('edit_project',project_id=project.id)}}">Redigera projekt</a>
     <a class="button" href="{{url_for('pm_copilot_v60')}}">PM Copilot</a>
   </div>
@@ -39,7 +41,7 @@
     ('overview','Översikt'),
     ('plan','Plan'),
     ('tasks','Uppgifter'),
-    ('risks','Risk & change'),
+    ('risks','Risk & ändring'),
     ('resources','Resurser'),
     ('finance','Ekonomi'),
     ('documents','Dokument'),
@@ -61,7 +63,7 @@
           <h2>Behöver uppmärksamhet</h2>
           <div class="ux-help">Prioriterade signaler från plan, risk, resurs och ekonomi.</div>
         </div>
-        <a class="button" href="{{url_for('control_engine_v79')}}">Control Engine</a>
+        <a class="button" href="{{url_for('control_engine_v79')}}">Projektkontroll</a>
       </div>
 
       {% for a in attention %}
@@ -95,10 +97,10 @@
         </a>
         <a class="workspace-kpi" href="{{url_for('project_workspace',project_id=project.id,tab='risks')}}">
           <small>Risker</small><strong>{{risks|length}}</strong>
-          <span>{{high_risks|length}} höga · {{pending_changes|length}} väntande changes</span>
+          <span>{{high_risks|length}} höga · {{pending_changes|length}} väntande ändringar</span>
         </a>
         <a class="workspace-kpi" href="{{url_for('project_workspace',project_id=project.id,tab='finance')}}">
-          <small>Budget forecast</small><strong>{% if budget %}{{budget_pct}}%{% else %}—{% endif %}</strong>
+          <small>Budgetprognos</small><strong>{% if budget %}{{budget_pct}}%{% else %}—{% endif %}</strong>
           <span>{% if budget %}{{"%.0f"|format(variance)}} i varians{% else %}Ingen budget registrerad{% endif %}</span>
         </a>
       </div>
@@ -128,13 +130,13 @@
         <div>
           <h3>Projektet väntar på</h3>
           {% for d in incoming_deps %}
-          <div class="action-card"><div class="grow"><b>{{d.predecessor_name}}</b><small>{{d.link_type}} · lag {{d.lag_days}} dagar</small></div></div>
+          <div class="action-card"><div class="grow"><b>{{d.predecessor_name}}</b><small>{{d.link_type}} · förskjutning {{d.lag_days}} dagar</small></div></div>
           {% else %}<div class="empty compact">Inga inkommande beroenden.</div>{% endfor %}
         </div>
         <div>
           <h3>Projekt som väntar på detta</h3>
           {% for d in outgoing_deps %}
-          <div class="action-card"><div class="grow"><b>{{d.successor_name}}</b><small>{{d.link_type}} · lag {{d.lag_days}} dagar</small></div></div>
+          <div class="action-card"><div class="grow"><b>{{d.successor_name}}</b><small>{{d.link_type}} · förskjutning {{d.lag_days}} dagar</small></div></div>
           {% else %}<div class="empty compact">Inga utgående beroenden.</div>{% endfor %}
         </div>
       </div>
@@ -199,15 +201,15 @@
 {% if tab=='plan' %}
 <section class="panel">
   <div class="ux-section-head">
-    <div><h2>Plan & milstolpar</h2><div class="ux-help">Projektets leveransplan i samma workspace.</div></div>
+    <div><h2>Plan & milstolpar</h2><div class="ux-help">Projektets leveransplan i samma arbetsyta.</div></div>
     <div class="ux-actions">
-      <a class="button" href="{{url_for('project_timeline',project_id=project.id)}}">Timeline</a>
-      <a class="button" href="{{url_for('planning_pro_v43',project_id=project.id)}}">Planning Pro</a>
+      <a class="button" href="{{url_for('project_timeline',project_id=project.id)}}">Tidslinje</a>
+      <a class="button" href="{{url_for('planning_pro_v43',project_id=project.id)}}">Avancerad planering</a>
     </div>
   </div>
   <div class="table-wrap">
     <table>
-      <thead><tr><th>WBS</th><th>Aktivitet</th><th>Ägare</th><th>Start</th><th>Slut</th><th>Status</th><th>Progress</th></tr></thead>
+      <thead><tr><th>WBS</th><th>Aktivitet</th><th>Ägare</th><th>Start</th><th>Slut</th><th>Status</th><th>Framdrift</th></tr></thead>
       <tbody>
       {% for t in tasks %}
       <tr class="{% if t.milestone %}milestone-row{% endif %}">
@@ -227,7 +229,7 @@
     <div><h2>Uppgifter</h2><div class="ux-help">{{open_tasks|length}} öppna · {{overdue_tasks|length}} försenade · {{blocked_tasks|length}} blockerade.</div></div>
     <div class="ux-actions">
       <a class="button primary" href="{{url_for('new_task',project_id=project.id)}}">＋ Ny uppgift</a>
-      <a class="button" href="{{url_for('board_v53',project_id=project.id)}}">Board</a>
+      <a class="button" href="{{url_for('board_v53',project_id=project.id)}}">Tavla</a>
     </div>
   </div>
   {% for t in tasks %}
@@ -247,7 +249,7 @@
 {% if tab=='risks' %}
 <div class="workspace-two">
   <section class="panel">
-    <div class="ux-section-head"><div><h2>Risker</h2><div class="ux-help">Fokusera på det som kan påverka leveransen.</div></div><a class="button" href="{{url_for('risk_center_v44',project_id=project.id)}}">Risk Center</a></div>
+    <div class="ux-section-head"><div><h2>Risker</h2><div class="ux-help">Fokusera på det som kan påverka leveransen.</div></div><a class="button" href="{{url_for('risk_center_v44',project_id=project.id)}}">Riskcenter</a></div>
     {% for r in risks %}
     {% set score=(r.probability or 0)*(r.impact or 0) %}
     <div class="action-card">
@@ -258,13 +260,13 @@
   </section>
 
   <section class="panel">
-    <div class="ux-section-head"><div><h2>Change requests</h2><div class="ux-help">Beslut, påverkan och status.</div></div></div>
+    <div class="ux-section-head"><div><h2>Ändringsärenden</h2><div class="ux-help">Beslut, påverkan och status.</div></div></div>
     {% for c in changes %}
     <div class="action-card">
       <div class="grow"><b>{{c.title}}</b><small>{{c.status}} · {{c.impact_days or 0}} dagar · {{c.impact_cost or 0}} kostnadspåverkan</small></div>
       <span class="status-chip">{{c.status}}</span>
     </div>
-    {% else %}<div class="empty">Inga change requests.</div>{% endfor %}
+    {% else %}<div class="empty">Inga ändringsärenden.</div>{% endfor %}
   </section>
 </div>
 
@@ -278,7 +280,7 @@
 
 {% if tab=='resources' %}
 <section class="panel">
-  <div class="ux-section-head"><div><h2>Team & kapacitet</h2><div class="ux-help">Peak-allokering och planerade timmar.</div></div><a class="button" href="{{url_for('resource_planning_v65')}}">Resource Planning</a></div>
+  <div class="ux-section-head"><div><h2>Team & kapacitet</h2><div class="ux-help">Peak-allokering och planerade timmar.</div></div><a class="button" href="{{url_for('resource_planning_v65')}}">Resursplanering</a></div>
   <div class="resource-cards">
     {% for r in resource_summary %}
     <article class="pm-card">
@@ -296,25 +298,25 @@
 
 {% if tab=='finance' %}
 <section class="panel">
-  <div class="ux-section-head"><div><h2>Ekonomi</h2><div class="ux-help">Budget, actual och varians samlat.</div></div><a class="button" href="{{url_for('financial_control_v67')}}">Financial Control</a></div>
+  <div class="ux-section-head"><div><h2>Ekonomi</h2><div class="ux-help">Budget, utfall och varians samlat.</div></div><a class="button" href="{{url_for('financial_control_v67')}}">Ekonomistyrning</a></div>
   <div class="workspace-kpi-grid">
     <div class="workspace-kpi"><small>Budget</small><strong>{{"%.0f"|format(budget)}}</strong><span>Planerad kostnad</span></div>
-    <div class="workspace-kpi"><small>Actual</small><strong>{{"%.0f"|format(actual)}}</strong><span>Registrerad kostnad</span></div>
+    <div class="workspace-kpi"><small>Utfall</small><strong>{{"%.0f"|format(actual)}}</strong><span>Registrerad kostnad</span></div>
     <div class="workspace-kpi"><small>Varians</small><strong>{{"%.0f"|format(variance)}}</strong><span>{% if variance>0 %}Över plan{% else %}Inom plan{% endif %}</span></div>
     <div class="workspace-kpi"><small>Förbrukat</small><strong>{% if budget %}{{budget_pct}}%{% else %}—{% endif %}</strong><span>Av budget</span></div>
   </div>
   <div class="table-wrap">
-    <table><thead><tr><th>Datum</th><th>Kategori</th><th>Beskrivning</th><th>Plan</th><th>Actual</th></tr></thead>
+    <table><thead><tr><th>Datum</th><th>Kategori</th><th>Beskrivning</th><th>Plan</th><th>Utfall</th></tr></thead>
       <tbody>{% for c in costs %}<tr><td>{{c.cost_date}}</td><td>{{c.category}}</td><td>{{c.description}}</td><td>{{c.planned}}</td><td>{{c.actual}}</td></tr>{% else %}<tr><td colspan="5">Ingen kostnadsdata.</td></tr>{% endfor %}</tbody>
     </table>
   </div>
 </section>
 
 <section class="panel">
-  <h2>Benefits realization</h2>
+  <h2>Nyttohemtagning</h2>
   {% for b in benefits %}
-  <div class="action-card"><div class="grow"><b>{{b.title}}</b><small>Baseline {{b.baseline_value}} {{b.unit}} · Target {{b.target_value}} {{b.unit}} · Actual {{b.actual_value if b.actual_value is not none else '—'}} {{b.unit}}</small></div><span class="status-chip">{{b.status}}</span></div>
-  {% else %}<div class="empty">Inga benefits definierade för projektet.</div>{% endfor %}
+  <div class="action-card"><div class="grow"><b>{{b.title}}</b><small>Baslinje {{b.baseline_value}} {{b.unit}} · Mål {{b.target_value}} {{b.unit}} · Utfall {{b.actual_value if b.actual_value is not none else '—'}} {{b.unit}}</small></div><span class="status-chip">{{b.status}}</span></div>
+  {% else %}<div class="empty">Ingen nytta definierad för projektet.</div>{% endfor %}
 </section>
 {% endif %}
 
@@ -349,17 +351,17 @@
 {% if tab=='meetings' %}
 <div class="workspace-two">
   <section class="panel">
-    <div class="ux-section-head"><div><h2>Möten</h2><div class="ux-help">Beslut och actions ska leva vidare efter mötet.</div></div></div>
+    <div class="ux-section-head"><div><h2>Möten</h2><div class="ux-help">Beslut och åtgärder ska leva vidare efter mötet.</div></div></div>
     {% for m in meetings %}
     <div class="action-card"><div class="grow"><b>{{m.title}}</b><small>{{m.meeting_date}}</small></div></div>
     {% else %}<div class="empty">Inga möten.</div>{% endfor %}
   </section>
 
   <section class="panel">
-    <h2>Actions</h2>
+    <h2>Åtgärder</h2>
     {% for a in actions %}
     <div class="action-card"><div class="grow"><b>{{a.title}}</b><small>{{a.owner or 'Ingen ägare'}} · {{a.due_date or 'Inget datum'}} · {{a.status}}</small></div></div>
-    {% else %}<div class="empty">Inga actions.</div>{% endfor %}
+    {% else %}<div class="empty">Inga åtgärder.</div>{% endfor %}
   </section>
 </div>
 {% endif %}

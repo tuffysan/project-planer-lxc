@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Excel · {{project.name}}{% endblock %}
+{% block content %}
+<nav class="project-breadcrumb">
+  <a href="{{url_for('intelligent_ppm_v80')}}">Översikt</a><span>›</span>
+  <a href="{{url_for('project_workspace',project_id=project.id,tab='overview')}}">{{project.name}}</a><span>›</span>
+  <span>Excel</span>
+</nav>
+
+<div class="feature-hero excel-hero">
+  <div>
+    <div class="eyebrow">EXCEL ROUND-TRIP</div>
+    <h1>Arbeta med projektet i Excel</h1>
+    <p class="lead">Exportera, arbeta vidare offline och importera ändringarna tillbaka med förhandsgranskning, konflikthantering och automatisk backup.</p>
+  </div>
+  <div class="ux-actions">
+    <a class="button primary" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">↓ Exportera hela projektet</a>
+    <a class="button" href="{{url_for('excel_import_v810',project_id=project.id)}}">↑ Importera Excel</a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="ux-section-head"><div><h2>Exportera</h2><div class="ux-help">Välj hela round-trip-filen eller ett fokuserat arbetsområde.</div></div></div>
+  <div class="excel-export-grid">
+    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">
+      <h3>Hela projektet</h3>
+      <p>Projektinfo, uppgifter, milstolpar, risker, ändringar, resurser, kostnader, beroenden, beslut, möten, åtgärder och nyttor.</p>
+      <strong>Round-trip-kompatibel →</strong>
+    </a>
+    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='plan')}}">
+      <h3>Projektplan</h3><p>Uppgifter, milstolpar och beroenden.</p><strong>Exportera →</strong>
+    </a>
+    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='risk')}}">
+      <h3>Risk & ändring</h3><p>Risker, ändringsärenden och beslut.</p><strong>Exportera →</strong>
+    </a>
+    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='resources')}}">
+      <h3>Resurser</h3><p>Veckoallokering och planerade timmar.</p><strong>Exportera →</strong>
+    </a>
+    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='finance')}}">
+      <h3>Ekonomi</h3><p>Kostnader och nyttohemtagning.</p><strong>Exportera →</strong>
+    </a>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Så fungerar round-trip</h2>
+  <div class="excel-flow">
+    <div><span>1</span><b>Exportera</b><small>Appen lägger med interna ID:n och versionshashar i dolda kolumner.</small></div>
+    <div><span>2</span><b>Redigera</b><small>Ändra värden, lägg till nya rader och använd dropdown-listorna i Excel.</small></div>
+    <div><span>3</span><b>Förhandsgranska</b><small>Inget skrivs tillbaka innan du har sett exakt vad som ska ändras.</small></div>
+    <div><span>4</span><b>Importera</b><small>Appen tar backup, hanterar konflikter och skriver audit-logg.</small></div>
+  </div>
+  <div class="notice info"><b>Viktigt:</b> Rader som tas bort ur Excel raderas inte automatiskt i Project Planer. Detta är avsiktligt för att minska risken för oavsiktlig dataförlust.</div>
+</section>
+{% endblock %}

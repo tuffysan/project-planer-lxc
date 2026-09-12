@@ -9,32 +9,32 @@
   </div>
   <div class="ux-actions">
     <a class="button primary" href="{{url_for('quick_add_v51')}}">＋ Skapa</a>
-    <a class="button" href="{{url_for('action_inbox_v78')}}">Öppna Inbox</a>
+    <a class="button" href="{{url_for('action_inbox_v78')}}">Öppna inkorgen</a>
   </div>
 </div>
 
 <div class="visual-kpi-grid">
-  <a class="visual-kpi danger" href="{{url_for('visual_dashboard_v503')}}"><div><small>Röda projekt</small><strong>{{red}}</strong><span>Öppna portfolio health →</span></div></a>
+  <a class="visual-kpi danger" href="{{url_for('visual_dashboard_v503')}}"><div><small>Röda projekt</small><strong>{{red}}</strong><span>Öppna portföljstatus →</span></div></a>
   <a class="visual-kpi warning" href="{{url_for('visual_dashboard_v503')}}"><div><small>Orange projekt</small><strong>{{amber}}</strong><span>Se vad som kräver fokus →</span></div></a>
-  <a class="visual-kpi" href="{{url_for('intake_v63')}}"><div><small>Nya requests</small><strong>{{intake_count}}</strong><span>Granska intake →</span></div></a>
+  <a class="visual-kpi" href="{{url_for('intake_v63')}}"><div><small>Nya ärenden</small><strong>{{intake_count}}</strong><span>Granska inkommande behov →</span></div></a>
   <a class="visual-kpi" href="{{url_for('portfolio_dependencies_v73')}}"><div><small>Beroenden</small><strong>{{dep_count}}</strong><span>Se påverkan →</span></div></a>
 </div>
 
 <section class="panel">
   <div class="ux-section-head"><div><h2>Snabbvägar</h2><div class="ux-help">De vanligaste arbetsflödena.</div></div></div>
   <div class="pm-grid">
-    <a class="pm-card" href="{{url_for('action_inbox_v78')}}"><h3>◎ Min Inbox</h3><p>Åtgärder, risker, changes och försenade aktiviteter.</p></a>
+    <a class="pm-card" href="{{url_for('action_inbox_v78')}}"><h3>◎ Min inkorg</h3><p>Åtgärder, risker, ändringsärenden och försenade aktiviteter.</p></a>
     <a class="pm-card" href="{{url_for('my_work')}}"><h3>✓ Mitt arbete</h3><p>Det jag behöver göra nu och härnäst.</p></a>
-    <a class="pm-card" href="{{url_for('visual_dashboard_v503')}}"><h3>◉ Portfölj</h3><p>Health, progress och projekt som behöver uppmärksamhet.</p></a>
-    <a class="pm-card" href="{{url_for('control_engine_v79')}}"><h3>⚑ Control Engine</h3><p>Sammanvägda signaler från plan, risk, resurs och ekonomi.</p></a>
+    <a class="pm-card" href="{{url_for('visual_dashboard_v503')}}"><h3>◉ Portfölj</h3><p>Status, framdrift och projekt som behöver uppmärksamhet.</p></a>
+    <a class="pm-card" href="{{url_for('control_engine_v79')}}"><h3>⚑ Projektkontroll</h3><p>Sammanvägda signaler från plan, risk, resurs och ekonomi.</p></a>
   </div>
 </section>
 
 <section class="panel">
   <div class="ux-section-head"><div><h2>Styrning</h2><div class="ux-help">Använd vid planering och PMO-arbete.</div></div></div>
   <div class="pm-grid">
-    <a class="pm-card" href="{{url_for('business_cases_v72')}}"><h3>Prioritering</h3><p>Business cases och scoring.</p></a>
-    <a class="pm-card" href="{{url_for('scenario_planner_v76')}}"><h3>Scenarier</h3><p>{{scenario_count}} sparade portfolio-scenarier.</p></a>
+    <a class="pm-card" href="{{url_for('business_cases_v72')}}"><h3>Prioritering</h3><p>Beslutsunderlag och poängsättning.</p></a>
+    <a class="pm-card" href="{{url_for('scenario_planner_v76')}}"><h3>Scenarier</h3><p>{{scenario_count}} sparade portföljscenarier.</p></a>
     <a class="pm-card" href="{{url_for('resource_directory_v74')}}"><h3>Resurser</h3><p>Kompetens, kapacitet och tillgänglighet.</p></a>
     <a class="pm-card" href="{{url_for('benefits_v77')}}"><h3>Effekter</h3><p>Följ upp nyttan efter leverans.</p></a>
   </div>

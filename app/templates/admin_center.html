@@ -1,4 +1,19 @@
-{% extends "base.html" %}{% block content %}<div class="page-head"><div><h1>Admin Center</h1><p>Full systemadministration.</p></div></div>
+{% extends "base.html" %}{% block content %}
+
+<section class="panel system-version-panel">
+  <div class="ux-section-head">
+    <div>
+      <h2>Systeminformation</h2>
+      <div class="ux-help">Verifiera vilken version som faktiskt körs efter installation eller uppgradering.</div>
+    </div>
+  </div>
+  <div class="system-version-grid">
+    <div><small>Appversion</small><strong>v{{app_version}}</strong></div>
+    <div><small>Applikation</small><strong>Project Planer</strong></div>
+    <div><small>Status</small><strong><a href="/health">Öppna systemstatus →</a></strong></div>
+  </div>
+</section>
+<div class="page-head"><div><h1>Admin Center</h1><p>Full systemadministration.</p></div></div>
 <div class="kpis"><div class="kpi"><strong>{{counts.users}}</strong><span>Användare</span></div><div class="kpi success"><strong>{{counts.active_users}}</strong><span>Aktiva</span></div><div class="kpi"><strong>{{counts.projects}}</strong><span>Projekt</span></div><div class="kpi"><strong>{{counts.memberships}}</strong><span>Projektmedlemskap</span></div></div>
 <div class="admin-links"><a class="card admin-tile" href="{{url_for('admin_users')}}"><h2>Användare</h2><p>Skapa, inaktivera, byt roll och återställ lösenord.</p></a><a class="card admin-tile" href="{{url_for('admin_projects')}}"><h2>Projekt</h2><p>Se och administrera alla projekt.</p></a><a class="card admin-tile" href="{{url_for('admin_settings')}}"><h2>System</h2><p>Session och säkerhetsinställningar.</p></a><a class="card admin-tile" href="{{url_for('admin_api_keys')}}"><h2>API Keys</h2><p>Nycklar för REST API.</p></a><a class="card admin-tile" href="{{url_for('admin_custom_fields')}}"><h2>Custom Fields</h2><p>Egna metadatafält.</p></a><a class="card admin-tile" href="{{url_for('admin_backups')}}"><h2>Backup</h2><p>Skapa och hämta databasbackup.</p></a><a class="card admin-tile" href="{{url_for('diagnostics')}}"><h2>Diagnostik</h2><p>Version, databas och runtime.</p></a></div>
 <section class="card"><h2>Senaste audit-händelser</h2>{% for h in recent %}<div class="list-row"><div><strong>{{h.action}}</strong><small>{{h.project_name or 'System'}} · {{h.details}}</small></div><span>{{h.display_name or 'system'}}<small>{{h.created_at}}</small></span></div>{% endfor %}</section><div class="panel"><h2>Integrations & Automation</h2><a href="{{url_for('admin_integrations')}}">Öppna integrationscenter</a></div>

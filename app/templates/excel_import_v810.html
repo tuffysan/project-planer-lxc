@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Importera Excel · {{project.name}}{% endblock %}
+{% block content %}
+<nav class="project-breadcrumb">
+  <a href="{{url_for('project_workspace',project_id=project.id,tab='overview')}}">{{project.name}}</a><span>›</span>
+  <a href="{{url_for('excel_center_v810',project_id=project.id)}}">Excel</a><span>›</span>
+  <span>Import</span>
+</nav>
+
+<div class="feature-hero">
+  <div>
+    <div class="eyebrow">EXCEL IMPORT</div>
+    <h1>Importera ändringar från Excel</h1>
+    <p class="lead">Ladda upp en .xlsx som exporterats från Project Planer. Vi analyserar filen först och visar en förhandsgranskning.</p>
+  </div>
+</div>
+
+<section class="panel">
+  <form method="post" enctype="multipart/form-data" class="excel-upload-form">
+    <label class="excel-drop">
+      <span class="excel-drop-icon">⇧</span>
+      <strong>Välj Project Planer Excel-fil</strong>
+      <small>.xlsx · max 15 MB</small>
+      <input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+    </label>
+    <div class="ux-actions">
+      <button class="primary" type="submit">Analysera & förhandsgranska</button>
+      <a class="button" href="{{url_for('excel_center_v810',project_id=project.id)}}">Avbryt</a>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <h2>Importregler</h2>
+  <div class="excel-rules">
+    <div><b>✓ Uppdateringar</b><span>Befintliga rader identifieras med dolda ID:n.</span></div>
+    <div><b>＋ Nya rader</b><span>Rader utan ID skapas som nya poster.</span></div>
+    <div><b>⚠ Konflikter</b><span>Om både appen och Excel har ändrats sedan exporten markeras konflikten.</span></div>
+    <div><b>⊘ Ingen automatisk radering</b><span>Saknade rader i Excel raderas aldrig automatiskt.</span></div>
+  </div>
+</section>
+{% endblock %}
