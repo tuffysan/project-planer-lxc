@@ -30,15 +30,15 @@ En enkel självhostad projektplans-app för Proxmox LXC.
 Kör på Proxmox-host:
 
 ```bash
-VERSION=1.0.6 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
-Installern hämtar applikationen från GitHub-taggen `v1.0.6`, inte från den senaste koden på `main`.
+Installern hämtar applikationen från GitHub-taggen `v1.0.7`, inte från den senaste koden på `main`.
 
 Du kan också ange CTID:
 
 ```bash
-CTID=140 VERSION=1.0.6 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+CTID=140 VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Standard:
@@ -55,7 +55,7 @@ Standard:
 Kör på Proxmox-host:
 
 ```bash
-CTID=140 VERSION=1.0.6 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=140 VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## Excel-export
@@ -104,32 +104,35 @@ pct destroy <CTID>
 
 ## Publicera ny version
 
-Kör:
+Kör på Windows:
 
 ```powershell
 .\PUBLISH.cmd
 ```
 
-### GitHub-autentisering
+### Vad v1.0.7 ändrar
 
-v1.0.6 hanterar även gamla eller felaktiga `GITHUB_TOKEN` / `GH_TOKEN`
-miljövariabler.
+v1.0.7 kräver **inte** GitHub-behörigheten `workflow`.
 
-GitHub CLI prioriterar sådana variabler framför sin sparade inloggning.
-Om en sådan token finns men inte fungerar gör publish-scriptet därför:
+Tidigare version lade till `.github/workflows/validate.yml`. GitHub blockerar
+push av en sådan fil när den Personal Access Token som används saknar
+`workflow`-scope.
 
-1. testar befintlig GitHub-autentisering,
-2. upptäcker om `GH_TOKEN` eller `GITHUB_TOKEN` stör inloggningen,
-3. rensar variabeln endast i den aktuella publish-processen,
-4. testar sparad `gh`-inloggning igen,
-5. öppnar webbinloggning om det fortfarande behövs,
-6. kör `gh auth setup-git`,
-7. fortsätter med Git fetch/push och release.
+I v1.0.7:
 
-Dina permanenta Windows-miljövariabler ändras inte.
+- `.github/workflows/validate.yml` är borttagen.
+- Om filen ligger kvar från v1.0.6 tar `PUBLISH.ps1` bort den automatiskt.
+- `dist/` ligger i `.gitignore`.
+- Om `dist/` råkade bli Git-trackad av v1.0.6 tas den automatiskt bort ur Git-index.
+- Release-ZIP byggs fortfarande i `dist/` och laddas upp till GitHub Release.
+- Python-validering sker lokalt och måste lyckas innan publicering.
+- GitHub-autentisering, `fetch`, `push`, taggning och release sker som tidigare.
 
-### Installera v1.0.6 på Proxmox
+Det gör att en vanlig token med repository-innehållsbehörighet räcker för
+publish-flödet.
+
+### Installera v1.0.7 på Proxmox
 
 ```bash
-VERSION=1.0.6 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```

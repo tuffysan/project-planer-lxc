@@ -187,6 +187,13 @@ function Find-Python {
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
+# v1.0.7 no longer uses GitHub Actions. A workflow file from v1.0.6 would
+# require a PAT with workflow scope, so remove any stale copy before staging.
+$LegacyWorkflow = Join-Path $Root ".github\workflows\validate.yml"
+if (Test-Path $LegacyWorkflow) {
+    Remove-Item $LegacyWorkflow -Force
+}
+
 Write-Host "=== Project Planer LXC Publish ===" -ForegroundColor Cyan
 Write-Host "Folder: $Root" -ForegroundColor DarkGray
 Write-Host ""
@@ -209,7 +216,7 @@ $Version = $Version.TrimStart("v")
 $Tag = "v$Version"
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    Fail "Version must use semantic format, for example 1.0.6"
+    Fail "Version must use semantic format, for example 1.0.7"
 }
 
 Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
@@ -237,7 +244,7 @@ if ($python) {
     $pythonArgs += @("-m", "py_compile", (Join-Path $Root "app\app.py"))
     $pyResult = Invoke-NativeCapture -FilePath $python.File -ArgumentList $pythonArgs
     if ($pyResult.ExitCode -ne 0) {
-        Write-Host "Local Python validation failed. Continuing because GitHub Actions will validate the source." -ForegroundColor Yellow
+        Fail "Local Python validation failed. Fix the Python error before publishing."
         foreach ($line in $pyResult.Output) { Write-Host $line -ForegroundColor DarkYellow }
     }
 } else {
@@ -324,6 +331,14 @@ $Items = Get-ChildItem $Root -Force | Where-Object { $ExcludeTop -notcontains $_
 Compress-Archive -Path $Items.FullName -DestinationPath $ZipPath -CompressionLevel Optimal -Force
 
 Write-Host "[7/10] Committing source to $Branch..." -ForegroundColor Yellow
+
+# If v1.0.6 previously staged/committed dist locally, untrack it now.
+# The release ZIP remains on disk and will still be uploaded by gh release.
+$untrackDist = Invoke-NativeCapture -FilePath $Git -ArgumentList @("rm","-r","--cached","--ignore-unmatch","dist")
+if ($untrackDist.ExitCode -ne 0) {
+    Fail "Could not remove dist from Git tracking."
+}
+
 Invoke-Native -FilePath $Git -ArgumentList @("add","-A")
 
 $status = Invoke-NativeCapture -FilePath $Git -ArgumentList @("status","--porcelain")
