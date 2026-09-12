@@ -201,7 +201,7 @@ function Get-NextPatchVersion {
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
-# v1.0.8 no longer uses GitHub Actions. A workflow file from v1.0.6 would
+# v1.0.9 no longer uses GitHub Actions. A workflow file from v1.0.6 would
 # require a PAT with workflow scope, so remove any stale copy before staging.
 $LegacyWorkflow = Join-Path $Root ".github\workflows\validate.yml"
 if (Test-Path $LegacyWorkflow) {
@@ -230,7 +230,7 @@ $Version = $Version.TrimStart("v")
 $Tag = "v$Version"
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    Fail "Version must use semantic format, for example 1.0.8"
+    Fail "Version must use semantic format, for example 1.0.9"
 }
 
 Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
@@ -396,6 +396,8 @@ Write-Host "[10/10] Creating GitHub release..." -ForegroundColor Yellow
 
 # If the requested tag/release already exists, automatically increment the patch
 # version until a free version is found.
+$TagAlreadyExistsWithoutRelease = $false
+
 while ($true) {
     $releaseView = Invoke-NativeCapture -FilePath $Gh -ArgumentList @("release","view",$Tag,"--repo",$Repo)
     $remoteTag = Invoke-NativeCapture -FilePath $Gh -ArgumentList @(
@@ -405,6 +407,12 @@ while ($true) {
         "show-ref","--tags","--verify","--quiet","refs/tags/$Tag"
     )
 
+    if ($releaseView.ExitCode -ne 0 -and $remoteTag.ExitCode -eq 0) {
+        Write-Host "Tag $Tag already exists but no GitHub Release exists. Reusing the tag and creating the missing release." -ForegroundColor Yellow
+        $TagAlreadyExistsWithoutRelease = $true
+        break
+    }
+
     if ($releaseView.ExitCode -ne 0 -and $remoteTag.ExitCode -ne 0 -and $localTag.ExitCode -ne 0) {
         break
     }
@@ -413,7 +421,6 @@ while ($true) {
     $Version = Get-NextPatchVersion -CurrentVersion $Version
     $Tag = "v$Version"
     Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
-
     Write-Host "Version v$oldVersion already exists. Using $Tag instead." -ForegroundColor Yellow
 }
 
@@ -426,8 +433,10 @@ if (($versionStatus.Output -join "").Trim()) {
     Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Branch)
 }
 
-Invoke-Native -FilePath $Git -ArgumentList @("tag","-a",$Tag,"-m","Release $Tag")
-Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Tag)
+if (-not $TagAlreadyExistsWithoutRelease) {
+    Invoke-Native -FilePath $Git -ArgumentList @("tag","-a",$Tag,"-m","Release $Tag")
+    Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Tag)
+}
 
 # Rebuild release ZIP in case the patch version was auto-incremented.
 $FinalZipName = "project-planer-lxc-$Tag.zip"
@@ -439,20 +448,28 @@ $Items = Get-ChildItem $Root -Force | Where-Object { $ExcludeTop -notcontains $_
 Compress-Archive -Path $Items.FullName -DestinationPath $FinalZipPath -CompressionLevel Optimal -Force
 $ZipPath = $FinalZipPath
 
-$Notes = @"
-Project Planer LXC $Tag
-
-Install on Proxmox:
-
-VERSION=$Version bash -c "`$(curl -fsSL https://raw.githubusercontent.com/$Repo/$Branch/install-lxc.sh)"
-"@
-
-Invoke-Native -FilePath $Gh -ArgumentList @(
-    "release","create",$Tag,$ZipPath,
-    "--repo",$Repo,
-    "--title",$Tag,
-    "--notes",$Notes
-)
+$Notes = @"
+Project Planer LXC $Tag
+
+Install on Proxmox:
+
+VERSION=$Version bash -c "`$(curl -fsSL https://raw.githubusercontent.com/$Repo/$Branch/install-lxc.sh)"
+"@
+
+$NotesFile = Join-Path $env:TEMP "project-planer-release-notes-$Version.md"
+Set-Content -Path $NotesFile -Value $Notes -Encoding utf8
+try {
+    Invoke-Native -FilePath $Gh -ArgumentList @(
+        "release","create",$Tag,$ZipPath,
+        "--repo",$Repo,
+        "--title",$Tag,
+        "--notes-file",$NotesFile,
+        "--verify-tag"
+    )
+}
+finally {
+    Remove-Item $NotesFile -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host ""
 Write-Host "============================================" -ForegroundColor Green
