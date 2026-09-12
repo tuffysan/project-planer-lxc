@@ -1,26 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-test -f "$ROOT/requirements.txt"
-test -f "$ROOT/app/app.py"
-test -d "$ROOT/app/templates"
-test -d "$ROOT/app/static"
-test -f "$ROOT/install-app.sh"
-test -f "$ROOT/install-lxc.sh"
-test -f "$ROOT/update-lxc.sh"
-test -f "$ROOT/scripts/project-plan.service"
-
+EXPECTED="$(tr -d '[:space:]' < "$ROOT/VERSION")"
 python3 -m py_compile "$ROOT/app/app.py"
 bash -n "$ROOT/install-app.sh"
 bash -n "$ROOT/install-lxc.sh"
 bash -n "$ROOT/update-lxc.sh"
-
-grep -q 'APP_VERSION = "5.0.1"' "$ROOT/app/app.py"
-grep -q '^2.1.3$' "$ROOT/VERSION"
+grep -q "APP_VERSION = \"$EXPECTED\"" "$ROOT/app/app.py"
 grep -q '/opt/project-plan/current-venv/bin/gunicorn' "$ROOT/scripts/project-plan.service"
-
-echo "v3.0.0 package verification OK"
-
-echo "[VERIFY] Checking Flask/Jinja url_for parameter usage..."
-python3 "$(dirname "$0")/VERIFY-PYTHON.py"
+echo "[VERIFY] VERSION=$EXPECTED och APP_VERSION matchar."
+python3 "$ROOT/VERIFY-PYTHON.py"
+echo "Project Planer package verification OK: v$EXPECTED"

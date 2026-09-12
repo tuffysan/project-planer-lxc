@@ -129,10 +129,14 @@ test -x "$VENV_DIR/bin/gunicorn"
 "$VENV_DIR/bin/python" -c 'import flask, openpyxl, gunicorn'
 (
   cd "$RELEASE_DIR"
-  "$VENV_DIR/bin/python" - <<'PY'
+  EXPECTED_VERSION="$VERSION_VALUE" "$VENV_DIR/bin/python" - <<'PY'
+import os
 from app.app import app, APP_VERSION
 assert app is not None
+expected = os.environ["EXPECTED_VERSION"]
 print("Application import OK, version:", APP_VERSION)
+if APP_VERSION != expected:
+    raise SystemExit(f"VERSION MISMATCH: package VERSION={expected}, APP_VERSION={APP_VERSION}")
 PY
 )
 
@@ -208,9 +212,28 @@ if [[ "$healthy" != "1" ]]; then
   exit 1
 fi
 
-echo "Health check OK:"
+echo "Health check svar:"
 cat /tmp/project-plan-health.json || true
 echo
+
+echo "Verifierar att den körande appen verkligen är version $VERSION_VALUE..."
+RUNTIME_VERSION="$("$CURRENT_VENV_LINK/bin/python" - <<'PY'
+import json, urllib.request
+with urllib.request.urlopen("http://127.0.0.1:8080/health", timeout=10) as r:
+    data=json.load(r)
+print(data.get("version",""))
+PY
+)"
+if [[ "$RUNTIME_VERSION" != "$VERSION_VALUE" ]]; then
+  echo "FEL: Körande app rapporterar version '$RUNTIME_VERSION', förväntat '$VERSION_VALUE'."
+  echo "Current release: $(readlink -f "$CURRENT_LINK" || true)"
+  echo "Current venv:    $(readlink -f "$CURRENT_VENV_LINK" || true)"
+  systemctl status project-plan --no-pager || true
+  journalctl -u project-plan --no-pager -n 120 || true
+  rollback
+  exit 1
+fi
+echo "Runtime version OK: $RUNTIME_VERSION"
 
 rm -f "$SERVICE_BACKUP"
 

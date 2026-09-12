@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-10.0.0}"
+VERSION="${VERSION:-14.0.2}"
 CTID="${CTID:-}"
 
 if ! command -v pct >/dev/null 2>&1; then
@@ -12,7 +12,7 @@ fi
 
 if [[ -z "$CTID" ]]; then
   echo "FEL: Ange CTID."
-  echo "Exempel: CTID=200 VERSION=10.0.0 bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/update-lxc.sh)\""
+  echo "Exempel: CTID=200 VERSION=14.0.2 bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/update-lxc.sh)\""
   exit 1
 fi
 
@@ -61,17 +61,25 @@ pct exec "$CTID" -- bash -lc "
   SRC=\$(find /tmp/project-planer-update -mindepth 1 -maxdepth 1 -type d | head -1)
   test -n \"\$SRC\"
   test -f \"\$SRC/install-app.sh\"
+  test -f \"\$SRC/VERSION\"
+  echo \"Taggpaketets VERSION: \$(cat \"\$SRC/VERSION\")\"
+  grep -q \"^${VERSION}$\" \"\$SRC/VERSION\" || { echo \"FEL: fel VERSION i GitHub-taggen\"; exit 1; }
+  grep -q \"APP_VERSION = \\\"${VERSION}\\\"\" \"\$SRC/app/app.py\" || { echo \"FEL: APP_VERSION i GitHub-taggen matchar inte ${VERSION}\"; grep -m1 APP_VERSION \"\$SRC/app/app.py\" || true; exit 1; }
   chmod +x \"\$SRC/install-app.sh\"
   \"\$SRC/install-app.sh\"
 "
 
 echo "Verifierar..."
-pct exec "$CTID" -- bash -lc '
+pct exec "$CTID" -- bash -lc "
   set -euo pipefail
   systemctl is-active --quiet project-plan
   test -x /opt/project-plan/current-venv/bin/gunicorn
-  curl -fsS http://127.0.0.1:8080/health
-'
+  echo 'Current release:' \$(readlink -f /opt/project-plan/current)
+  echo 'Current venv:'    \$(readlink -f /opt/project-plan/current-venv)
+  HEALTH=\$(curl -fsS http://127.0.0.1:8080/health)
+  echo \"Health: \$HEALTH\"
+  python3 -c 'import json,sys; d=json.loads(sys.argv[1]); expected=sys.argv[2]; actual=str(d.get("version","")); print("Runtime version:",actual); raise SystemExit(0 if actual==expected else 42)' \"\$HEALTH\" '${VERSION}'
+"
 
 IP="$(pct exec "$CTID" -- hostname -I | awk '{print $1}')"
 
