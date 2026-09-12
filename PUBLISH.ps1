@@ -184,10 +184,24 @@ function Find-Python {
     return $null
 }
 
+function Get-NextPatchVersion {
+    param([Parameter(Mandatory=$true)][string]$CurrentVersion)
+
+    $parts = $CurrentVersion.Split(".")
+    if ($parts.Count -ne 3) {
+        Fail "Cannot auto-increment version '$CurrentVersion'. Expected MAJOR.MINOR.PATCH."
+    }
+
+    $major = [int]$parts[0]
+    $minor = [int]$parts[1]
+    $patch = [int]$parts[2] + 1
+    return "$major.$minor.$patch"
+}
+
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
-# v1.0.7 no longer uses GitHub Actions. A workflow file from v1.0.6 would
+# v1.0.8 no longer uses GitHub Actions. A workflow file from v1.0.6 would
 # require a PAT with workflow scope, so remove any stale copy before staging.
 $LegacyWorkflow = Join-Path $Root ".github\workflows\validate.yml"
 if (Test-Path $LegacyWorkflow) {
@@ -216,7 +230,7 @@ $Version = $Version.TrimStart("v")
 $Tag = "v$Version"
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
-    Fail "Version must use semantic format, for example 1.0.7"
+    Fail "Version must use semantic format, for example 1.0.8"
 }
 
 Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
@@ -380,20 +394,50 @@ if ($NoRelease) {
 
 Write-Host "[10/10] Creating GitHub release..." -ForegroundColor Yellow
 
-$releaseView = Invoke-NativeCapture -FilePath $Gh -ArgumentList @("release","view",$Tag,"--repo",$Repo)
-if ($releaseView.ExitCode -eq 0) {
-    Fail "GitHub release $Tag already exists. Increase VERSION before publishing."
+# If the requested tag/release already exists, automatically increment the patch
+# version until a free version is found.
+while ($true) {
+    $releaseView = Invoke-NativeCapture -FilePath $Gh -ArgumentList @("release","view",$Tag,"--repo",$Repo)
+    $remoteTag = Invoke-NativeCapture -FilePath $Gh -ArgumentList @(
+        "api","repos/$Repo/git/ref/tags/$Tag"
+    )
+    $localTag = Invoke-NativeCapture -FilePath $Git -ArgumentList @(
+        "show-ref","--tags","--verify","--quiet","refs/tags/$Tag"
+    )
+
+    if ($releaseView.ExitCode -ne 0 -and $remoteTag.ExitCode -ne 0 -and $localTag.ExitCode -ne 0) {
+        break
+    }
+
+    $oldVersion = $Version
+    $Version = Get-NextPatchVersion -CurrentVersion $Version
+    $Tag = "v$Version"
+    Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
+
+    Write-Host "Version v$oldVersion already exists. Using $Tag instead." -ForegroundColor Yellow
 }
 
-$tagCheck = Invoke-NativeCapture -FilePath $Git -ArgumentList @(
-    "show-ref","--tags","--verify","--quiet","refs/tags/$Tag"
-)
-if ($tagCheck.ExitCode -eq 0) {
-    Fail "Git tag $Tag already exists. Increase VERSION before publishing."
+# If auto-increment changed VERSION after the source commit, commit the updated
+# VERSION file before tagging/releasing.
+$versionStatus = Invoke-NativeCapture -FilePath $Git -ArgumentList @("status","--porcelain","VERSION")
+if (($versionStatus.Output -join "").Trim()) {
+    Invoke-Native -FilePath $Git -ArgumentList @("add","VERSION")
+    Invoke-Native -FilePath $Git -ArgumentList @("commit","-m","Set release version $Tag")
+    Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Branch)
 }
 
 Invoke-Native -FilePath $Git -ArgumentList @("tag","-a",$Tag,"-m","Release $Tag")
 Invoke-Native -FilePath $Git -ArgumentList @("push","origin",$Tag)
+
+# Rebuild release ZIP in case the patch version was auto-incremented.
+$FinalZipName = "project-planer-lxc-$Tag.zip"
+$FinalZipPath = Join-Path $Dist $FinalZipName
+if (Test-Path $FinalZipPath) {
+    Remove-Item $FinalZipPath -Force
+}
+$Items = Get-ChildItem $Root -Force | Where-Object { $ExcludeTop -notcontains $_.Name }
+Compress-Archive -Path $Items.FullName -DestinationPath $FinalZipPath -CompressionLevel Optimal -Force
+$ZipPath = $FinalZipPath
 
 $Notes = @"
 Project Planer LXC $Tag

@@ -30,15 +30,15 @@ En enkel självhostad projektplans-app för Proxmox LXC.
 Kör på Proxmox-host:
 
 ```bash
-VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=1.0.8 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
-Installern hämtar applikationen från GitHub-taggen `v1.0.7`, inte från den senaste koden på `main`.
+Installern hämtar applikationen från GitHub-taggen `v1.0.8`, inte från den senaste koden på `main`.
 
 Du kan också ange CTID:
 
 ```bash
-CTID=140 VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+CTID=140 VERSION=1.0.8 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Standard:
@@ -55,7 +55,7 @@ Standard:
 Kör på Proxmox-host:
 
 ```bash
-CTID=140 VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=140 VERSION=1.0.8 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## Excel-export
@@ -104,35 +104,47 @@ pct destroy <CTID>
 
 ## Publicera ny version
 
-Kör på Windows:
+Kör:
 
 ```powershell
 .\PUBLISH.cmd
 ```
 
-### Vad v1.0.7 ändrar
+### Nytt i v1.0.8
 
-v1.0.7 kräver **inte** GitHub-behörigheten `workflow`.
+Publish-scriptet hanterar nu versionskrockar automatiskt.
 
-Tidigare version lade till `.github/workflows/validate.yml`. GitHub blockerar
-push av en sådan fil när den Personal Access Token som används saknar
-`workflow`-scope.
+Om exempelvis `v1.0.8` redan finns som lokal tagg, GitHub-tagg eller GitHub Release,
+ökar scriptet automatiskt patch-versionen:
 
-I v1.0.7:
+```text
+v1.0.8 -> v1.0.9 -> v1.0.10 ...
+```
 
-- `.github/workflows/validate.yml` är borttagen.
-- Om filen ligger kvar från v1.0.6 tar `PUBLISH.ps1` bort den automatiskt.
-- `dist/` ligger i `.gitignore`.
-- Om `dist/` råkade bli Git-trackad av v1.0.6 tas den automatiskt bort ur Git-index.
-- Release-ZIP byggs fortfarande i `dist/` och laddas upp till GitHub Release.
-- Python-validering sker lokalt och måste lyckas innan publicering.
-- GitHub-autentisering, `fetch`, `push`, taggning och release sker som tidigare.
+tills en ledig version hittas.
 
-Det gör att en vanlig token med repository-innehållsbehörighet räcker för
-publish-flödet.
+När versionen ändras automatiskt:
 
-### Installera v1.0.7 på Proxmox
+- `VERSION` uppdateras,
+- ändringen commitas och pushas,
+- release-ZIP byggs om med rätt slutversion,
+- rätt Git-tagg skapas,
+- GitHub Release skapas med samma version.
+
+Övriga förbättringar från tidigare versioner finns kvar:
+
+- automatisk GitHub CLI-installation,
+- hantering av gamla `GITHUB_TOKEN` / `GH_TOKEN`,
+- `gh auth setup-git`,
+- ingen GitHub Actions-workflow krävs,
+- `dist/` commitas inte,
+- lokal validering före publicering.
+
+### Installera v1.0.8 på Proxmox
 
 ```bash
-VERSION=1.0.7 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=1.0.8 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
+
+Om publish-scriptet automatiskt väljer en högre version ska du använda den version
+som visas i slutet av publish-körningen.
