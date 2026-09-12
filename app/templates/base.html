@@ -20,6 +20,7 @@
   {% if current_user %}
   <nav class="primary-nav" aria-label="Main navigation">
     <a href="{{url_for('index')}}">{{t('dashboard')}}</a>
+    <a href="{{url_for('visual_dashboard_v503')}}">Portfolio Health</a>
     <a href="{{url_for('my_work')}}">My Work</a>
         <a href="{{url_for('home_v41')}}">Home</a>
     <a href="{{url_for('workspace')}}">Workspace</a>
@@ -123,5 +124,15 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 });
 </script>
+
+{% if current_user %}
+<nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+  <a href="{{url_for('index')}}"><span>⌂</span><small>Hem</small></a>
+  <a href="{{url_for('visual_dashboard_v503')}}"><span>◉</span><small>Portfolio</small></a>
+  <a href="{{url_for('my_work_2')}}"><span>✓</span><small>My Work</small></a>
+  <a href="{{url_for('command_palette')}}"><span>⌕</span><small>Sök</small></a>
+</nav>
+{% endif %}
+
 </body>
 </html>

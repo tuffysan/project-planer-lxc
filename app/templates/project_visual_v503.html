@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% block title %}{{project.name}} · Visual Cockpit{% endblock %}
+{% block content %}
+<div class="project-hero {{health.rag}}">
+  <div><div class="eyebrow">PROJECT COCKPIT</div><h1>{{project.name}}</h1><p>{{project.customer}} · {{project.project_manager}}</p></div>
+  <div class="project-health-badge {{health.rag}}"><span class="rag-dot {{health.rag}}"></span><div><small>Projektstatus</small><strong>{{health.label}}</strong></div></div>
+</div>
+<div class="health-explainer {{health.rag}}">
+  <b>Varför {{health.label|lower}}?</b>
+  <div class="reason-row">{% for reason in health.reasons %}<span>{{reason}}</span>{% endfor %}</div>
+</div>
+<nav class="project-quick-nav" aria-label="Project shortcuts">
+  <a href="{{url_for('project_workspace',project_id=project.id,tab='overview')}}">Overview</a>
+  <a href="{{url_for('gantt_pro',project_id=project.id)}}">Gantt</a>
+  <a href="{{url_for('risk_center_v44',project_id=project.id)}}">Risker</a>
+  <a href="{{url_for('control_center',project_id=project.id)}}">Control</a>
+  <a href="{{url_for('report_pack_v45',project_id=project.id)}}">Rapporter</a>
+</nav>
+<div class="visual-kpi-grid project-kpis">
+  <div class="visual-kpi"><div class="score-ring {{health.rag}}" style="--score:{{health.score}}"><span>{{health.score}}</span></div><div><small>Health score</small><strong>{{health.score}}/100</strong></div></div>
+  <div class="visual-kpi"><span class="kpi-icon">%</span><div><small>Progress</small><strong>{{health.progress}}%</strong></div></div>
+  <div class="visual-kpi danger"><span class="kpi-icon">!</span><div><small>Försenade</small><strong>{{health.overdue_count}}</strong></div></div>
+  <div class="visual-kpi warning"><span class="kpi-icon">△</span><div><small>Höga risker</small><strong>{{health.high_risk_count}}</strong></div></div>
+</div>
+<div class="panel">
+  <div class="section-title-row"><div><h2>Projektprogress</h2><p class="muted">Sammanvägd aktivitetsprogress.</p></div><strong>{{health.progress}}%</strong></div>
+  <div class="progress-track large {{health.rag}}"><span style="width:{{health.progress}}%"></span></div>
+</div>
+<div class="dashboard-columns">
+  <section class="panel">
+    <div class="section-title-row"><h2>Needs attention</h2><span class="status-chip {{health.rag}}">{{health.label}}</span></div>
+    {% for t in health.blocked %}<div class="attention-row"><span class="rag-dot red"></span><div><strong>Blockerad: {{t.title}}</strong><small>{{t.owner}}</small></div></div>{% endfor %}
+    {% for t in health.overdue %}<div class="attention-row"><span class="rag-dot amber"></span><div><strong>Försenad: {{t.title}}</strong><small>{{t.end_date}}</small></div></div>{% endfor %}
+    {% for r in health.high_risks %}<div class="attention-row"><span class="rag-dot red"></span><div><strong>Risk: {{r.title}}</strong><small>Score {{r.probability*r.impact}}</small></div></div>{% endfor %}
+    {% if not health.blocked and not health.overdue and not health.high_risks %}<div class="empty compact">Inga kritiska punkter.</div>{% endif %}
+  </section>
+  <section class="panel">
+    <div class="section-title-row"><h2>Milstolpar</h2><span class="status-chip">{{health.milestones_due_count}}</span></div>
+    {% for m in milestones[:10] %}
+      <div class="milestone-row"><span class="milestone-icon {% if m.progress>=100 %}done{% elif m.end_date and m.end_date < today_iso %}late{% endif %}">◆</span><div><strong>{{m.title}}</strong><small>{{m.end_date or 'Datum ej satt'}} · {{m.progress}}%</small></div></div>
+    {% else %}<div class="empty compact">Inga milstolpar.</div>{% endfor %}
+  </section>
+</div>
+<section class="panel">
+  <div class="section-title-row"><h2>Aktivitetsstatus</h2></div>
+  <div class="status-bar-wrap">
+    {% set total = status_counts.values()|sum %}
+    {% for name,count in status_counts.items() %}
+      <div class="status-bar-item"><div class="status-bar-label"><span>{{name}}</span><b>{{count}}</b></div><div class="mini-progress"><span style="width:{{ (count*100/total)|round(0) if total else 0 }}%"></span></div></div>
+    {% endfor %}
+  </div>
+</section>
+<section class="panel">
+  <div class="section-title-row"><h2>Senaste ändringar</h2><a href="{{url_for('project_workspace',project_id=project.id,tab='activity')}}">Visa aktivitet →</a></div>
+  <div class="timeline">
+    {% for a in recent %}<div class="timeline-item"><span class="timeline-dot"></span><div><strong>{{a.action}}</strong> · {{a.entity_type}}<small>{{a.created_at}} · {{a.details}}</small></div></div>{% else %}<div class="empty compact">Ingen aktivitet.</div>{% endfor %}
+  </div>
+</section>
+<div class="row-actions bottom-actions">
+  <a class="button primary" href="{{url_for('project_workspace',project_id=project.id,tab='overview')}}">Öppna workspace</a>
+  <a class="button" href="{{url_for('gantt_pro',project_id=project.id)}}">Gantt</a>
+  <a class="button" href="{{url_for('risk_center_v44',project_id=project.id)}}">Risk Center</a>
+  <a class="button" href="{{url_for('report_pack_v45',project_id=project.id)}}">Report Pack</a>
+</div>
+{% endblock %}

@@ -1,9 +1,92 @@
-{% extends "base.html" %}{% block content %}
-<div class="page-head"><div><h1>{{t('project_portfolio')}}</h1><p>{% if current_user['role']=='admin' %}{{t('admin_all_projects')}}{% else %}{{t('only_assigned')}}{% endif %}</p></div>
-{% if current_user['role'] in ['admin','pm'] %}<a class="button primary" href="{{url_for('new_project')}}">+ {{t('new_project')}}</a>{% endif %}</div>
-<div class="kpis"><div class="kpi"><strong>{{projects|length}}</strong><span>{{t('projects')}}</span></div><div class="kpi danger"><strong>{{overdue}}</strong><span>Försenade</span></div><div class="kpi warning"><strong>{{open_risks|length}}</strong><span>Öppna risker/issues</span></div></div>
-<div class="dashboard-grid"><section class="card span2"><h2>{{t('projects')}}</h2><div class="project-cards">{% for p in projects %}
-<a class="project-card" href="{{url_for('project',project_id=p.id)}}"><div class="project-card-head"><strong>{{p.name}}</strong><span>{{p.customer}}</span></div><div class="progress"><i style="width:{{p.avg_progress}}%"></i></div><div class="mini-stats"><span>{{p.avg_progress}}%</span><span>{{p.done_count or 0}}/{{p.task_count}} klara</span><span>{{p.blocked_count or 0}} blockerade</span></div></a>
-{% else %}<div class="empty">Du har inga tilldelade projekt.</div>{% endfor %}</div></section>
-<section class="card"><h2>Kommande deadlines</h2>{% for t in upcoming %}<div class="list-row"><div><strong>{{t.title}}</strong><small>{{t.project_name}}</small></div><span>{{t.end_date}}</span></div>{% else %}<div class="empty">Inga kommande deadlines.</div>{% endfor %}</section>
-<section class="card"><h2>Största riskerna</h2>{% for r in open_risks %}<div class="list-row"><div><strong>{{r.title}}</strong><small>{{r.project_name}} · {{r.kind}}</small></div><span class="score">{{r.probability*r.impact}}</span></div>{% else %}<div class="empty">Inga öppna risker.</div>{% endfor %}</section></div>{% endblock %}
+{% extends "base.html" %}{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head hero-head ux-hero">
+  <div>
+    <div class="eyebrow">PROJECT PORTFOLIO</div>
+    <h1>God överblick. Snabba beslut.</h1>
+    <p class="lead">Portfolio health visar var du behöver agera – utan att du behöver leta i tabeller.</p>
+  </div>
+  <div class="row-actions hero-actions">
+    <a class="button primary" href="{{url_for('visual_dashboard_v503')}}">Portfolio Health</a>
+    <a class="button" href="{{url_for('my_work_2')}}">My Work</a>
+    <a class="button ghost" href="{{url_for('command_palette')}}">Sök</a>
+  </div>
+</div>
+
+<div class="portfolio-strip">
+  <div class="portfolio-donut" style="--green:{{summary.green}};--amber:{{summary.amber}};--red:{{summary.red}};--total:{{projects|length or 1}}">
+    <div><strong>{{summary.avg_health}}</strong><small>Health</small></div>
+  </div>
+  <div class="portfolio-strip-content">
+    <div class="rag-legend">
+      <a href="{{url_for('visual_dashboard_v503',status='green')}}" class="legend-item"><span class="rag-dot green"></span><b>{{summary.green}}</b><small>Gröna</small></a>
+      <a href="{{url_for('visual_dashboard_v503',status='amber')}}" class="legend-item"><span class="rag-dot amber"></span><b>{{summary.amber}}</b><small>Orange</small></a>
+      <a href="{{url_for('visual_dashboard_v503',status='red')}}" class="legend-item"><span class="rag-dot red"></span><b>{{summary.red}}</b><small>Röda</small></a>
+    </div>
+    <div class="portfolio-progress">
+      <div class="section-title-row"><span>Genomsnittlig projektprogress</span><strong>{{summary.avg_progress}}%</strong></div>
+      <div class="progress-track large"><span style="width:{{summary.avg_progress}}%"></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="visual-kpi-grid">
+  <div class="visual-kpi"><span class="kpi-icon">◉</span><div><small>Aktiva projekt</small><strong>{{projects|length}}</strong></div></div>
+  <div class="visual-kpi danger"><span class="kpi-icon">!</span><div><small>Försenade aktiviteter</small><strong>{{overdue|length}}</strong></div></div>
+  <div class="visual-kpi danger-soft"><span class="kpi-icon">▲</span><div><small>Höga risker</small><strong>{{high_risks|length}}</strong></div></div>
+  <div class="visual-kpi"><span class="kpi-icon">◆</span><div><small>Nästa 21 dagar</small><strong>{{upcoming|length}}</strong></div></div>
+</div>
+
+<section class="panel">
+  <div class="section-title-row">
+    <div><h2>Projekt</h2><p class="muted">Sorterat visuellt med status, health, progress och förklaringar.</p></div>
+    <a href="{{url_for('visual_dashboard_v503')}}">Alla projekt →</a>
+  </div>
+  <div class="project-visual-grid">
+    {% for p in projects[:8] %}
+      <a class="project-health-card {{p.health.rag}}" href="{{url_for('project_visual_v503',project_id=p.id)}}">
+        <div class="project-card-top">
+          <div class="project-avatar">{{(p.name or 'P')[:2]|upper}}</div>
+          <div class="project-card-title"><strong>{{p.name}}</strong><small>{{p.customer or 'Ingen kund'}}</small></div>
+          <span class="status-chip {{p.health.rag}}"><span class="rag-dot {{p.health.rag}}"></span>{{p.health.label}}</span>
+        </div>
+        <div class="project-health-line">
+          <div class="score-ring small-ring {{p.health.rag}}" style="--score:{{p.health.score}}"><span>{{p.health.score}}</span></div>
+          <div class="project-card-body">
+            <div class="section-title-row compact"><span>Progress</span><b>{{p.health.progress}}%</b></div>
+            <div class="progress-track {{p.health.rag}}"><span style="width:{{p.health.progress}}%"></span></div>
+            <div class="reason-row">{% for reason in p.health.reasons %}<span>{{reason}}</span>{% endfor %}</div>
+          </div>
+        </div>
+        <div class="project-card-footer">
+          <span><b>{{p.health.overdue_count}}</b> försenade</span>
+          <span><b>{{p.health.high_risk_count}}</b> höga risker</span>
+          <span class="trend {{p.health.trend}}">{% if p.health.trend=='down' %}↘{% elif p.health.trend=='up' %}↗{% else %}→{% endif %}</span>
+        </div>
+      </a>
+    {% else %}<div class="empty">Inga projekt ännu.</div>{% endfor %}
+  </div>
+</section>
+
+<div class="dashboard-columns">
+  <section class="panel attention-panel">
+    <div class="section-title-row"><div><h2>Behöver uppmärksamhet</h2><p class="muted">Försenat och högrisk.</p></div><span class="status-chip red">{{overdue|length + high_risks|length}}</span></div>
+    {% for t in overdue[:5] %}
+      <div class="attention-row actionable"><span class="attention-icon red">!</span><div><strong>{{t.project_name}}</strong><span>{{t.title}}</span><small>Försenad sedan {{t.end_date}}</small></div></div>
+    {% endfor %}
+    {% for r in high_risks[:4] %}
+      <div class="attention-row actionable"><span class="attention-icon amber">▲</span><div><strong>{{r.project_name}}</strong><span>{{r.title}}</span><small>Risk score {{r.probability*r.impact}}</small></div></div>
+    {% endfor %}
+    {% if not overdue and not high_risks %}<div class="empty-state-good"><span>✓</span><div><b>Allt ser bra ut</b><small>Inga kritiska signaler just nu.</small></div></div>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="section-title-row"><div><h2>Kommande</h2><p class="muted">Nästa 21 dagar.</p></div><span class="status-chip green">{{upcoming|length}}</span></div>
+    <div class="mini-timeline">
+    {% for t in upcoming[:8] %}
+      <div class="mini-timeline-row"><div class="date-tile"><b>{{t.end_date[8:10]}}</b><small>{{t.end_date[5:7]}}</small></div><div><strong>{{t.title}}</strong><small>{{t.project_name}}</small></div></div>
+    {% else %}<div class="empty compact">Inga kommande aktiviteter.</div>{% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -16,13 +16,13 @@ This is a cumulative release. It contains all functionality from the preceding r
 ## Upgrade an existing LXC
 
 ```bash
-CTID=<your-ctid> VERSION=5.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=<your-ctid> VERSION=5.0.4 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## New install
 
 ```bash
-VERSION=5.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=5.0.4 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Run `./VERIFY.sh` before publishing. Keep a database backup before production upgrades.
@@ -42,3 +42,31 @@ Fixes:
 - exposes Delivery only from project context where `project_id` is available
 - adds `VERIFY-PYTHON.py` to detect template `url_for()` calls missing required route parameters
 - adds `SMOKE-TEST.sh` for post-upgrade HTTP/journal verification
+
+
+## v5.0.2 – Full App Stability & Responsive Edition
+
+Full static audit of the application with fixes for Project Control, automation notifications,
+intelligence action creation, archive filtering and Report Pack. Mobile/tablet styling has also
+been hardened across the app.
+
+Run before publishing:
+
+```bash
+./VERIFY.sh
+python3 VERIFY-PYTHON.py
+```
+
+After updating an LXC:
+
+```bash
+/opt/project-plan/current/SMOKE-TEST.sh
+```
+
+## v5.0.3 – Visual UX Edition
+
+Adds RAG project health, portfolio visual dashboard, visual project cockpit, health score, progress bars, status chips, attention panels, milestones and responsive visual components for desktop, tablet and mobile.
+
+## v5.0.4 – Visual UX Refinement
+
+Second visual UX pass: fixes dashboard data binding, makes RAG status visible directly on the main dashboard, adds portfolio distribution, status reasons, trend indicators, search/filter/sort and a mobile bottom navigation.

@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "5.0.1"
+APP_VERSION = "5.0.4"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1155,28 +1155,56 @@ def index():
     u=current_user()
     with db() as conn:
         if u["role"]=="admin":
-            projects=conn.execute("""SELECT p.*,COUNT(t.id) task_count,COALESCE(ROUND(AVG(t.progress)),0) avg_progress,
+            project_rows=conn.execute("""SELECT p.*,COUNT(t.id) task_count,COALESCE(ROUND(AVG(t.progress)),0) avg_progress,
                 SUM(CASE WHEN t.status='Klar' OR t.progress>=100 THEN 1 ELSE 0 END) done_count,
                 SUM(CASE WHEN t.status='Blockerad' THEN 1 ELSE 0 END) blocked_count
-                FROM projects p LEFT JOIN tasks t ON t.project_id=p.id GROUP BY p.id ORDER BY p.id DESC""").fetchall()
-            upcoming=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
-                WHERE t.end_date<>'' AND t.progress<100 ORDER BY t.end_date LIMIT 12""").fetchall()
+                FROM projects p LEFT JOIN tasks t ON t.project_id=p.id
+                WHERE COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                GROUP BY p.id ORDER BY p.id DESC""").fetchall()
+            task_rows=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+                WHERE t.end_date<>'' AND t.progress<100 AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                ORDER BY t.end_date LIMIT 50""").fetchall()
             open_risks=conn.execute("""SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id
-                WHERE r.status<>'Stängd' ORDER BY (r.probability*r.impact) DESC LIMIT 10""").fetchall()
+                WHERE r.status<>'Stängd' AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                ORDER BY (r.probability*r.impact) DESC LIMIT 20""").fetchall()
         else:
-            projects=conn.execute("""SELECT p.*,COUNT(t.id) task_count,COALESCE(ROUND(AVG(t.progress)),0) avg_progress,
+            project_rows=conn.execute("""SELECT p.*,COUNT(t.id) task_count,COALESCE(ROUND(AVG(t.progress)),0) avg_progress,
                 SUM(CASE WHEN t.status='Klar' OR t.progress>=100 THEN 1 ELSE 0 END) done_count,
                 SUM(CASE WHEN t.status='Blockerad' THEN 1 ELSE 0 END) blocked_count
                 FROM projects p JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-                LEFT JOIN tasks t ON t.project_id=p.id GROUP BY p.id ORDER BY p.id DESC""",(u["id"],)).fetchall()
-            upcoming=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+                LEFT JOIN tasks t ON t.project_id=p.id
+                WHERE COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                GROUP BY p.id ORDER BY p.id DESC""",(u["id"],)).fetchall()
+            task_rows=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
                 JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-                WHERE t.end_date<>'' AND t.progress<100 ORDER BY t.end_date LIMIT 12""",(u["id"],)).fetchall()
+                WHERE t.end_date<>'' AND t.progress<100 AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                ORDER BY t.end_date LIMIT 50""",(u["id"],)).fetchall()
             open_risks=conn.execute("""SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id
                 JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-                WHERE r.status<>'Stängd' ORDER BY (r.probability*r.impact) DESC LIMIT 10""",(u["id"],)).fetchall()
-    overdue=sum(1 for t in upcoming if parse_date(t["end_date"]) and parse_date(t["end_date"])<date.today())
-    return render_template("index.html",projects=projects,upcoming=upcoming,open_risks=open_risks,overdue=overdue)
+                WHERE r.status<>'Stängd' AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                ORDER BY (r.probability*r.impact) DESC LIMIT 20""",(u["id"],)).fetchall()
+
+    today=date.today()
+    projects=[]
+    for row in project_rows:
+        p=dict(row)
+        p["progress"]=int(p.get("avg_progress") or 0)
+        p["health"]=project_visual_health(p["id"])
+        projects.append(p)
+
+    overdue=[dict(t) for t in task_rows if parse_date(t["end_date"]) and parse_date(t["end_date"])<today]
+    upcoming=[dict(t) for t in task_rows if parse_date(t["end_date"]) and today<=parse_date(t["end_date"])<=today+timedelta(days=21)]
+    high_risks=[dict(r) for r in open_risks if int(r["probability"] or 0)*int(r["impact"] or 0)>=15]
+
+    summary={
+        "green":sum(1 for p in projects if p["health"]["rag"]=="green"),
+        "amber":sum(1 for p in projects if p["health"]["rag"]=="amber"),
+        "red":sum(1 for p in projects if p["health"]["rag"]=="red"),
+        "avg_health":round(sum(p["health"]["score"] for p in projects)/len(projects)) if projects else 0,
+        "avg_progress":round(sum(p["progress"] for p in projects)/len(projects)) if projects else 0,
+    }
+    return render_template("index.html",projects=projects,upcoming=upcoming,open_risks=open_risks,
+                           high_risks=high_risks,overdue=overdue,summary=summary)
 
 @app.route("/projects/new",methods=["GET","POST"])
 @login_required
@@ -2229,7 +2257,7 @@ def control_center():
     project_id=request.args.get("project_id",type=int) or (projects[0]["id"] if projects else None)
     if project_id: project_or_404(project_id)
     with db() as conn:
-        raid=conn.execute("SELECT * FROM raid_items WHERE project_id=? ORDER BY kind,status,due_date",(project_id,)).fetchall() if project_id else []
+        raid=conn.execute("SELECT * FROM raid_items WHERE project_id=? ORDER BY item_type,status,due_date",(project_id,)).fetchall() if project_id else []
         changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall() if project_id else []
         decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decided_at DESC,id DESC",(project_id,)).fetchall() if project_id else []
         approvals=conn.execute("SELECT * FROM approvals WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall() if project_id else []
@@ -3175,7 +3203,7 @@ def report_pack_v45(project_id):
 def automation_watch_v46():
     today=date.today(); created=0
     with db() as conn:
-        projects=conn.execute("SELECT * FROM projects WHERE COALESCE(archived,0)=0").fetchall() if table_has_column(conn,"projects","archived") else conn.execute("SELECT * FROM projects").fetchall()
+        projects=conn.execute("SELECT * FROM projects WHERE COALESCE(archived_at,'')='' AND COALESCE(deleted_at,'')=''").fetchall() if table_has_column(conn,"projects","archived") else conn.execute("SELECT * FROM projects").fetchall()
         for p in projects:
             overdue=conn.execute("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND progress<100 AND end_date<>'' AND end_date<?",(p["id"],today.isoformat())).fetchone()["c"]
             high=conn.execute("SELECT COUNT(*) c FROM risks WHERE project_id=? AND status<>'Stängd' AND probability*impact>=15",(p["id"],)).fetchone()["c"]
@@ -3212,8 +3240,8 @@ def automation_process_v46():
             payload=json.loads(r["payload_json"] or "{}")
             members=conn.execute("SELECT user_id FROM project_members WHERE project_id=?",(r["project_id"],)).fetchall()
             for m in members:
-                conn.execute("INSERT INTO notifications(user_id,project_id,title,body,created_at) VALUES(?,?,?,?,?)",
-                             (m["user_id"],r["project_id"],"Project attention needed",f"Overdue: {payload.get('overdue',0)} · High risks: {payload.get('high_risks',0)}",datetime.now().isoformat(timespec="seconds")))
+                conn.execute("INSERT INTO notifications(user_id,project_id,message,link,is_read,created_at) VALUES(?,?,?,?,0,?)",
+                             (m["user_id"],r["project_id"],f"Project attention needed · Overdue: {payload.get('overdue',0)} · High risks: {payload.get('high_risks',0)}",url_for("project_cockpit",project_id=r["project_id"]),datetime.now().isoformat(timespec="seconds")))
             conn.execute("UPDATE automation_queue_v46 SET status='Done',attempts=attempts+1,processed_at=? WHERE id=?",(datetime.now().isoformat(timespec="seconds"),r["id"]))
     return redirect(url_for("automation_ops_v46"))
 
@@ -3318,9 +3346,113 @@ def intelligence_create_actions_v50(project_id):
     with db() as conn:
         for title in items:
             if str(title).strip():
-                conn.execute("INSERT INTO action_items(project_id,title,owner,due_date,status,created_at) VALUES(?,?,?,?,?,?)",(project_id,str(title).strip(),current_user()["display_name"],"","Open",datetime.now().isoformat(timespec="seconds")))
+                conn.execute("INSERT INTO action_items(project_id,title,owner,due_date,status) VALUES(?,?,?,?,?)",(project_id,str(title).strip(),current_user()["display_name"],"","Open"))
     flash("Actions skapade.","success")
     return redirect(url_for("intelligence_center_v50",project_id=project_id))
+
+
+def project_visual_health(project_id):
+    today=date.today()
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd'",(project_id,))]
+        changes=[dict(r) for r in conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 25",(project_id,))]
+        milestones=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date",(project_id,))]
+    progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
+    overdue=[t for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t["end_date"])<today]
+    blocked=[t for t in tasks if (t.get("status") or "").strip().lower() in ("blockerad","blocked")]
+    high=[r for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=15]
+    amber=[r for r in risks if 8 <= int(r.get("probability") or 0)*int(r.get("impact") or 0) < 15]
+    pending_changes=[c for c in changes if (c.get("status") or "") in ("Submitted","Pending")]
+    due_milestones=[m for m in milestones if int(m.get("progress") or 0)<100 and parse_date(m.get("end_date")) and parse_date(m["end_date"])<=today+timedelta(days=14)]
+
+    score=100
+    score -= min(35, len(overdue)*6)
+    score -= min(30, len(high)*10)
+    score -= min(20, len(blocked)*8)
+    score -= min(15, len(pending_changes)*3)
+    score=max(0,score)
+    if high or blocked or len(overdue)>=3 or score<60:
+        rag="red"; label="Röd"
+    elif amber or overdue or pending_changes or score<80:
+        rag="amber"; label="Orange"
+    else:
+        rag="green"; label="Grön"
+    trend="down" if (len(overdue)>=3 or len(high)>=2) else ("up" if (not overdue and not high and progress>=50) else "stable")
+
+    reasons=[]
+    if blocked: reasons.append(f"{len(blocked)} blockerad")
+    if high: reasons.append(f"{len(high)} hög risk")
+    if overdue: reasons.append(f"{len(overdue)} försenad")
+    if pending_changes: reasons.append(f"{len(pending_changes)} väntande CR")
+    if not reasons: reasons.append("Inga kritiska signaler")
+    return {
+        "score":score,"rag":rag,"label":label,"trend":trend,"progress":progress,
+        "overdue_count":len(overdue),"blocked_count":len(blocked),"high_risk_count":len(high),
+        "amber_risk_count":len(amber),"pending_change_count":len(pending_changes),
+        "milestones_due_count":len(due_milestones),"reasons":reasons[:3],
+        "overdue":overdue[:8],"blocked":blocked[:8],"high_risks":high[:8],"milestones_due":due_milestones[:8]
+    }
+
+@app.get("/visual-dashboard")
+@login_required
+def visual_dashboard_v503():
+    rows=roadmap_accessible_projects()
+    cards=[]
+    for p in rows:
+        item=dict(p)
+        item["health"]=project_visual_health(p["id"])
+        cards.append(item)
+
+    status=(request.args.get("status") or "all").lower()
+    sort=(request.args.get("sort") or "attention").lower()
+    q=(request.args.get("q") or "").strip().lower()
+
+    all_cards=list(cards)
+    if status in ("green","amber","red"):
+        cards=[p for p in cards if p["health"]["rag"]==status]
+    if q:
+        cards=[p for p in cards if q in (p.get("name") or "").lower() or q in (p.get("customer") or "").lower()]
+
+    if sort=="name":
+        cards.sort(key=lambda p:(p.get("name") or "").lower())
+    elif sort=="progress":
+        cards.sort(key=lambda p:p["health"]["progress"],reverse=True)
+    elif sort=="health":
+        cards.sort(key=lambda p:p["health"]["score"],reverse=True)
+    else:
+        weight={"red":0,"amber":1,"green":2}
+        cards.sort(key=lambda p:(weight.get(p["health"]["rag"],9),p["health"]["score"]))
+
+    summary={
+        "green":sum(1 for p in all_cards if p["health"]["rag"]=="green"),
+        "amber":sum(1 for p in all_cards if p["health"]["rag"]=="amber"),
+        "red":sum(1 for p in all_cards if p["health"]["rag"]=="red"),
+        "overdue":sum(p["health"]["overdue_count"] for p in all_cards),
+        "high_risks":sum(p["health"]["high_risk_count"] for p in all_cards),
+        "blocked":sum(p["health"]["blocked_count"] for p in all_cards),
+        "total":len(all_cards)
+    }
+    return render_template("visual_dashboard_v503.html",projects=cards,summary=summary,status=status,sort=sort,q=q)
+
+@app.get("/projects/<int:project_id>/visual")
+@login_required
+def project_visual_v503(project_id):
+    p=project_or_404(project_id)
+    h=project_visual_health(project_id)
+    with db() as conn:
+        recent=conn.execute("SELECT * FROM audit_log WHERE project_id=? ORDER BY id DESC LIMIT 12",(project_id,)).fetchall()
+        milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date",(project_id,)).fetchall()
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,)).fetchall()
+    status_counts={}
+    for t in tasks:
+        key=(t["status"] or "Ej satt")
+        status_counts[key]=status_counts.get(key,0)+1
+    return render_template("project_visual_v503.html",project=p,health=h,recent=recent,milestones=milestones,status_counts=status_counts)
+
+@app.context_processor
+def visual_context_v503():
+    return {"today_iso": date.today().isoformat()}
 
 if __name__=="__main__":
     init_db()

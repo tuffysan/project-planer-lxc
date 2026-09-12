@@ -1,12 +1,84 @@
 {% extends "base.html" %}{% block title %}Project Control{% endblock %}
-{% block content %}<h1>Project Control</h1>
-<form class="toolbar" method="get"><select name="project_id" onchange="this.form.submit()">{% for p in projects %}<option value="{{p.id}}" {% if p.id==project_id %}selected{% endif %}>{{p.name}}</option>{% endfor %}</select></form>
-{% if project_id %}
-<div class="roadmap-grid">
-<div class="panel"><h2>RAID</h2><form method="post" action="{{url_for('roadmap_raid_new',project_id=project_id)}}"><select name="kind"><option>Risk</option><option>Assumption</option><option>Issue</option><option>Dependency</option></select><input name="title" placeholder="Titel" required><input name="owner" placeholder="Ansvarig"><input type="date" name="due_date"><textarea name="description" placeholder="Beskrivning"></textarea><button>Lägg till</button></form>
-<table class="compact-table">{% for r in raid %}<tr><td><span class="badge">{{r.item_type}}</span></td><td>{{r.title}}</td><td>{{r.owner}}</td><td>{{r.status}}</td><td>{{r.due_date}}</td></tr>{% else %}<tr><td>Tomt.</td></tr>{% endfor %}</table></div>
-<div class="panel"><h2>Change Requests</h2><form method="post" action="{{url_for('roadmap_change_new',project_id=project_id)}}"><input name="title" placeholder="Ändring" required><input name="reason" placeholder="Orsak"><input name="impact_cost" type="number" step="0.01" placeholder="Kostnad"><input name="impact_days" type="number" placeholder="Dagar"><textarea name="description"></textarea><button>Skicka CR</button></form>
-{% for c in changes %}<p><b>{{c.title}}</b> <span class="badge">{{c.status}}</span><br><small>+{{c.impact_days}} dagar · {{c.impact_cost}}</small>{% if c.status=='Submitted' %}<br><a href="#" onclick="document.getElementById('a{{c.id}}').submit();return false">Godkänn</a> · <a href="#" onclick="document.getElementById('r{{c.id}}').submit();return false">Avslå</a><form id="a{{c.id}}" method="post" action="{{url_for('roadmap_change_decision',project_id=project_id,change_id=c.id,decision='approve')}}"></form><form id="r{{c.id}}" method="post" action="{{url_for('roadmap_change_decision',project_id=project_id,change_id=c.id,decision='reject')}}"></form>{% endif %}</p>{% endfor %}</div>
+{% block content %}
+<div class="page-head">
+  <div><h1>Project Control</h1><p>RAID, ändringsärenden, beslut och approvals i en samlad projektvy.</p></div>
 </div>
-<div class="panel"><h2>Beslutslogg</h2><form class="toolbar" method="post" action="{{url_for('roadmap_decision_new',project_id=project_id)}}"><input name="title" placeholder="Beslut" required><input name="owner" placeholder="Ägare"><input name="decision" placeholder="Beslutstext" required><button>Spara beslut</button></form><table class="compact-table">{% for d in decisions %}<tr><td>{{d.decided_at}}</td><td><b>{{d.title}}</b></td><td>{{d.decision}}</td><td>{{d.owner}}</td></tr>{% endfor %}</table></div>
-{% endif %}{% endblock %}
+
+<form class="toolbar mobile-stack" method="get">
+  <label class="field-grow">Projekt
+    <select name="project_id" onchange="this.form.submit()">
+      {% for p in projects %}<option value="{{p.id}}" {% if p.id==project_id %}selected{% endif %}>{{p.name}}</option>{% endfor %}
+    </select>
+  </label>
+</form>
+
+{% if project_id %}
+<div class="control-grid">
+  <section class="panel">
+    <h2>RAID</h2>
+    <form class="responsive-form" method="post" action="{{url_for('roadmap_raid_new',project_id=project_id)}}">
+      <label>Typ<select name="kind"><option>Risk</option><option>Assumption</option><option>Issue</option><option>Dependency</option></select></label>
+      <label class="field-grow">Titel<input name="title" required></label>
+      <label>Ansvarig<input name="owner"></label>
+      <label>Förfallodatum<input type="date" name="due_date"></label>
+      <label class="field-full">Beskrivning<textarea name="description" rows="3"></textarea></label>
+      <div class="field-full"><button class="primary">Lägg till</button></div>
+    </form>
+    <div class="responsive-table">
+      <table class="compact-table">
+        <thead><tr><th>Typ</th><th>Titel</th><th>Ansvarig</th><th>Status</th><th>Datum</th></tr></thead>
+        <tbody>{% for r in raid %}<tr><td data-label="Typ"><span class="badge">{{r.item_type}}</span></td><td data-label="Titel">{{r.title}}</td><td data-label="Ansvarig">{{r.owner}}</td><td data-label="Status">{{r.status}}</td><td data-label="Datum">{{r.due_date}}</td></tr>{% else %}<tr><td colspan="5">Inga RAID-poster.</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Change Requests</h2>
+    <form class="responsive-form" method="post" action="{{url_for('roadmap_change_new',project_id=project_id)}}">
+      <label class="field-grow">Ändring<input name="title" required></label>
+      <label>Orsak<input name="reason"></label>
+      <label>Kostnadspåverkan<input name="impact_cost" type="number" step="0.01" value="0"></label>
+      <label>Tidspåverkan (dagar)<input name="impact_days" type="number" value="0"></label>
+      <label class="field-full">Beskrivning<textarea name="description" rows="3"></textarea></label>
+      <div class="field-full"><button class="primary">Skicka CR</button></div>
+    </form>
+    <div class="stack">
+      {% for c in changes %}
+      <article class="control-item">
+        <div class="page-head compact-head"><div><b>{{c.title}}</b><div class="muted">+{{c.impact_days}} dagar · {{c.impact_cost}}</div></div><span class="badge">{{c.status}}</span></div>
+        {% if c.description %}<p>{{c.description}}</p>{% endif %}
+        {% if c.status=='Submitted' %}
+        <div class="row-actions">
+          <form method="post" action="{{url_for('roadmap_change_decision',project_id=project_id,change_id=c.id,decision='approve')}}"><button class="primary">Godkänn</button></form>
+          <form method="post" action="{{url_for('roadmap_change_decision',project_id=project_id,change_id=c.id,decision='reject')}}"><button>Avslå</button></form>
+        </div>
+        {% endif %}
+      </article>
+      {% else %}<p class="muted">Inga change requests.</p>{% endfor %}
+    </div>
+  </section>
+</div>
+
+<section class="panel">
+  <h2>Beslutslogg</h2>
+  <form class="responsive-form" method="post" action="{{url_for('roadmap_decision_new',project_id=project_id)}}">
+    <label class="field-grow">Beslut<input name="title" required></label>
+    <label>Ägare<input name="owner"></label>
+    <label class="field-full">Beslutstext<textarea name="decision" rows="3" required></textarea></label>
+    <div class="field-full"><button class="primary">Spara beslut</button></div>
+  </form>
+  <div class="responsive-table">
+    <table class="compact-table">
+      <thead><tr><th>Datum</th><th>Beslut</th><th>Text</th><th>Ägare</th></tr></thead>
+      <tbody>{% for d in decisions %}<tr><td data-label="Datum">{{d.decided_at or d.decision_date}}</td><td data-label="Beslut"><b>{{d.title}}</b></td><td data-label="Text">{{d.decision}}</td><td data-label="Ägare">{{d.owner or d.decided_by}}</td></tr>{% else %}<tr><td colspan="4">Inga beslut.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
+
+{% if approvals %}
+<section class="panel"><h2>Approvals</h2><div class="responsive-table"><table class="compact-table"><thead><tr><th>Typ</th><th>Status</th><th>Skapad</th><th>Kommentar</th></tr></thead><tbody>{% for a in approvals %}<tr><td data-label="Typ">{{a.entity_type}}</td><td data-label="Status">{{a.status}}</td><td data-label="Skapad">{{a.created_at}}</td><td data-label="Kommentar">{{a.comment}}</td></tr>{% endfor %}</tbody></table></div></section>
+{% endif %}
+{% else %}
+<div class="empty">Du har inga projekt som kan visas i Project Control.</div>
+{% endif %}
+{% endblock %}

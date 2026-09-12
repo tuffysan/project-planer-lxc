@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% block title %}Portfolio Health{% endblock %}
+{% block content %}
+<div class="page-head hero-head">
+  <div><div class="eyebrow">PORTFOLIO HEALTH</div><h1>Projektstatus</h1><p class="lead">Färg är aldrig ensam signal – varje projekt visar även statusnamn, health score och orsaker.</p></div>
+  <div class="rag-help"><span><i class="rag-dot green"></i> Grön</span><span><i class="rag-dot amber"></i> Orange</span><span><i class="rag-dot red"></i> Röd</span></div>
+</div>
+
+<div class="rag-summary-grid">
+  <a href="{{url_for('visual_dashboard_v503',status='green')}}" class="rag-summary green {% if status=='green' %}selected{% endif %}"><span class="big-dot"></span><div><small>Gröna projekt</small><strong>{{summary.green}}</strong></div></a>
+  <a href="{{url_for('visual_dashboard_v503',status='amber')}}" class="rag-summary amber {% if status=='amber' %}selected{% endif %}"><span class="big-dot"></span><div><small>Orange projekt</small><strong>{{summary.amber}}</strong></div></a>
+  <a href="{{url_for('visual_dashboard_v503',status='red')}}" class="rag-summary red {% if status=='red' %}selected{% endif %}"><span class="big-dot"></span><div><small>Röda projekt</small><strong>{{summary.red}}</strong></div></a>
+  <a href="{{url_for('visual_dashboard_v503')}}" class="rag-summary neutral {% if status=='all' %}selected{% endif %}"><span class="kpi-icon">◉</span><div><small>Alla projekt</small><strong>{{summary.total}}</strong></div></a>
+</div>
+
+<form class="visual-filterbar" method="get">
+  <input type="hidden" name="status" value="{{status}}">
+  <label class="search-field"><span>⌕</span><input name="q" value="{{q}}" placeholder="Sök projekt eller kund"></label>
+  <label>Sortera
+    <select name="sort" onchange="this.form.submit()">
+      <option value="attention" {% if sort=='attention' %}selected{% endif %}>Behöver uppmärksamhet</option>
+      <option value="health" {% if sort=='health' %}selected{% endif %}>Health score</option>
+      <option value="progress" {% if sort=='progress' %}selected{% endif %}>Progress</option>
+      <option value="name" {% if sort=='name' %}selected{% endif %}>Namn</option>
+    </select>
+  </label>
+  <button>Sök</button>
+  {% if q or status!='all' %}<a class="button ghost" href="{{url_for('visual_dashboard_v503')}}">Rensa</a>{% endif %}
+</form>
+
+<div class="portfolio-risk-strip">
+  <span><b>{{summary.overdue}}</b> försenade aktiviteter</span>
+  <span><b>{{summary.high_risks}}</b> höga risker</span>
+  <span><b>{{summary.blocked}}</b> blockerade aktiviteter</span>
+</div>
+
+<div class="project-visual-grid">
+{% for p in projects %}
+  <a class="project-health-card {{p.health.rag}}" href="{{url_for('project_visual_v503',project_id=p.id)}}">
+    <div class="project-card-top">
+      <div class="project-avatar">{{(p.name or 'P')[:2]|upper}}</div>
+      <div class="project-card-title"><strong>{{p.name}}</strong><small>{{p.customer or 'Ingen kund'}}</small></div>
+      <span class="status-chip {{p.health.rag}}"><span class="rag-dot {{p.health.rag}}"></span>{{p.health.label}}</span>
+    </div>
+    <div class="health-score-row">
+      <div class="score-ring {{p.health.rag}}" style="--score:{{p.health.score}}"><span>{{p.health.score}}</span></div>
+      <div class="health-facts">
+        <div><small>Progress</small><strong>{{p.health.progress}}%</strong></div>
+        <div><small>Försenade</small><strong>{{p.health.overdue_count}}</strong></div>
+        <div><small>Höga risker</small><strong>{{p.health.high_risk_count}}</strong></div>
+      </div>
+    </div>
+    <div class="progress-track {{p.health.rag}}"><span style="width:{{p.health.progress}}%"></span></div>
+    <div class="reason-row">{% for reason in p.health.reasons %}<span>{{reason}}</span>{% endfor %}</div>
+    <div class="project-card-footer">
+      <span class="mini-stat">Blockerade <b>{{p.health.blocked_count}}</b></span>
+      <span class="mini-stat">CR <b>{{p.health.pending_change_count}}</b></span>
+      <span class="mini-stat">Milstolpar <b>{{p.health.milestones_due_count}}</b></span>
+      <span class="trend {{p.health.trend}}" title="Trend">{% if p.health.trend=='down' %}↘{% elif p.health.trend=='up' %}↗{% else %}→{% endif %}</span>
+    </div>
+  </a>
+{% else %}<div class="empty full-span"><b>Inga projekt matchar filtret.</b><br>Prova att rensa status eller söktext.</div>{% endfor %}
+</div>
+{% endblock %}
