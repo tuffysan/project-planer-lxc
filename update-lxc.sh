@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-2.1.2}"
+VERSION="${VERSION:-2.1.3}"
 CTID="${CTID:-}"
 
 if ! command -v pct >/dev/null 2>&1; then
@@ -11,8 +11,8 @@ if ! command -v pct >/dev/null 2>&1; then
 fi
 
 if [[ -z "$CTID" ]]; then
-  echo "FEL: Ange CTID, exempel:"
-  echo "CTID=200 VERSION=2.1.2 bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/update-lxc.sh)\""
+  echo "FEL: Ange CTID."
+  echo "Exempel: CTID=200 VERSION=2.1.3 bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/update-lxc.sh)\""
   exit 1
 fi
 
@@ -25,10 +25,7 @@ echo "Repo:    $REPO"
 echo "Version: $TAG"
 echo "CTID:    $CTID"
 
-if ! pct status "$CTID" >/dev/null 2>&1; then
-  echo "FEL: CT $CTID finns inte."
-  exit 1
-fi
+pct status "$CTID" >/dev/null 2>&1 || { echo "FEL: CT $CTID finns inte."; exit 1; }
 
 if ! pct status "$CTID" | grep -q running; then
   echo "Startar CT $CTID..."
@@ -43,17 +40,24 @@ echo "Installerar systemkrav..."
 pct exec "$CTID" -- bash -lc '
   set -euo pipefail
   export DEBIAN_FRONTEND=noninteractive
+  export LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
   apt-get update -qq
-  apt-get install -y -qq ca-certificates curl unzip rsync python3 python3-venv python3-pip locales >/dev/null
+  apt-get install -y -qq --no-install-recommends \
+    ca-certificates curl unzip rsync python3 python3-venv locales >/dev/null
 '
 
 echo "Hämtar release..."
 pct exec "$CTID" -- bash -lc "
   set -euo pipefail
+  export LANG=C.UTF-8
+  export LC_ALL=C.UTF-8
+
   rm -rf /tmp/project-planer-update
   mkdir -p /tmp/project-planer-update
   curl -fL '${ARCHIVE_URL}' -o /tmp/project-planer-update/repo.zip
   unzip -q /tmp/project-planer-update/repo.zip -d /tmp/project-planer-update
+
   SRC=\$(find /tmp/project-planer-update -mindepth 1 -maxdepth 1 -type d | head -1)
   test -n \"\$SRC\"
   test -f \"\$SRC/install-app.sh\"
@@ -65,6 +69,7 @@ echo "Verifierar..."
 pct exec "$CTID" -- bash -lc '
   set -euo pipefail
   systemctl is-active --quiet project-plan
+  test -x /opt/project-plan/current-venv/bin/gunicorn
   curl -fsS http://127.0.0.1:8080/health
 '
 

@@ -1,20 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/project-plan}"
+APP_ROOT="${APP_DIR:-/opt/project-plan}"
 PORT="${PORT:-8080}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="$SCRIPT_DIR"
-STAGING_DIR="${APP_DIR}.staging"
-BACKUP_DIR="${APP_DIR}.previous"
+
+RELEASES_DIR="$APP_ROOT/releases"
+VENVS_DIR="$APP_ROOT/venvs"
+DATA_DIR="$APP_ROOT/data"
+BACKUPS_DIR="$APP_ROOT/backups"
+CURRENT_LINK="$APP_ROOT/current"
+CURRENT_VENV_LINK="$APP_ROOT/current-venv"
+
+VERSION_VALUE="2.1.3"
+if [[ -f "$SOURCE_DIR/VERSION" ]]; then
+  VERSION_VALUE="$(tr -d '[:space:]' < "$SOURCE_DIR/VERSION")"
+fi
+[[ -n "$VERSION_VALUE" ]] || VERSION_VALUE="2.1.3"
+
+RELEASE_KEY="v${VERSION_VALUE}"
+if [[ -e "$RELEASES_DIR/$RELEASE_KEY" || -e "$VENVS_DIR/$RELEASE_KEY" ]]; then
+  RELEASE_KEY="${RELEASE_KEY}-$(date +%Y%m%d%H%M%S)"
+fi
+
+RELEASE_DIR="$RELEASES_DIR/$RELEASE_KEY"
+VENV_DIR="$VENVS_DIR/$RELEASE_KEY"
+SERVICE_FILE="/etc/systemd/system/project-plan.service"
+SERVICE_BACKUP="/etc/systemd/system/project-plan.service.pre-v213"
 
 echo "=== Project Planer app installer ==="
-echo "Source:  $SOURCE_DIR"
-echo "App dir: $APP_DIR"
-echo "Port:    $PORT"
+echo "Source:      $SOURCE_DIR"
+echo "App root:    $APP_ROOT"
+echo "Release:     $RELEASE_KEY"
+echo "Release dir: $RELEASE_DIR"
+echo "Venv dir:    $VENV_DIR"
+echo "Port:        $PORT"
 
-for cmd in python3 curl rsync; do
+for cmd in python3 curl rsync systemctl; do
   command -v "$cmd" >/dev/null 2>&1 || {
     echo "FEL: Saknar $cmd"
     exit 1
@@ -30,8 +54,7 @@ for required in \
   "$SOURCE_DIR/requirements.txt" \
   "$SOURCE_DIR/app/app.py" \
   "$SOURCE_DIR/app/templates" \
-  "$SOURCE_DIR/app/static" \
-  "$SOURCE_DIR/scripts/project-plan.service"
+  "$SOURCE_DIR/app/static"
 do
   if [[ ! -e "$required" ]]; then
     echo "FEL: Releasepaketet saknar: $required"
@@ -39,72 +62,130 @@ do
   fi
 done
 
-echo "Förbereder staging..."
-rm -rf "$STAGING_DIR"
-mkdir -p "$STAGING_DIR"
+mkdir -p "$APP_ROOT" "$RELEASES_DIR" "$VENVS_DIR" "$DATA_DIR" "$BACKUPS_DIR"
 
-# copy application while excluding generated/runtime data
+PREVIOUS_RELEASE=""
+PREVIOUS_VENV=""
+[[ -L "$CURRENT_LINK" ]] && PREVIOUS_RELEASE="$(readlink "$CURRENT_LINK" || true)"
+[[ -L "$CURRENT_VENV_LINK" ]] && PREVIOUS_VENV="$(readlink "$CURRENT_VENV_LINK" || true)"
+
+# Save the currently installed unit so the first migration from legacy layout
+# can also be rolled back.
+if [[ -f "$SERVICE_FILE" ]]; then
+  cp -a "$SERVICE_FILE" "$SERVICE_BACKUP"
+fi
+
+cleanup_candidate() {
+  rm -rf "$RELEASE_DIR" "$VENV_DIR"
+}
+
+rollback() {
+  echo "Återställer föregående fungerande release..."
+  systemctl stop project-plan >/dev/null 2>&1 || true
+
+  if [[ -n "$PREVIOUS_RELEASE" && -n "$PREVIOUS_VENV" ]]; then
+    ln -sfn "$PREVIOUS_RELEASE" "${CURRENT_LINK}.rollback"
+    mv -Tf "${CURRENT_LINK}.rollback" "$CURRENT_LINK"
+    ln -sfn "$PREVIOUS_VENV" "${CURRENT_VENV_LINK}.rollback"
+    mv -Tf "${CURRENT_VENV_LINK}.rollback" "$CURRENT_VENV_LINK"
+  else
+    rm -f "$CURRENT_LINK" "$CURRENT_VENV_LINK"
+    if [[ -f "$SERVICE_BACKUP" ]]; then
+      cp -a "$SERVICE_BACKUP" "$SERVICE_FILE"
+    fi
+  fi
+
+  systemctl daemon-reload || true
+  systemctl start project-plan >/dev/null 2>&1 || true
+  cleanup_candidate
+}
+
+echo "Kopierar release..."
+mkdir -p "$RELEASE_DIR"
 rsync -a \
   --exclude '.git' \
   --exclude '__pycache__' \
   --exclude '.venv' \
   --exclude 'data' \
   --exclude 'backups' \
+  --exclude 'releases' \
+  --exclude 'venvs' \
   --exclude '*.pyc' \
-  "$SOURCE_DIR/" "$STAGING_DIR/"
+  "$SOURCE_DIR/" "$RELEASE_DIR/"
 
-# Preserve runtime data from current install
-if [[ -d "$APP_DIR/data" ]]; then
-  mkdir -p "$STAGING_DIR/data"
-  rsync -a "$APP_DIR/data/" "$STAGING_DIR/data/"
-else
-  mkdir -p "$STAGING_DIR/data"
-fi
+# Persistent runtime directories. Path.resolve() in app.py resolves current ->
+# release, therefore each release gets a data symlink back to APP_ROOT/data.
+ln -sfn ../../data "$RELEASE_DIR/data"
+ln -sfn ../../backups "$RELEASE_DIR/backups"
 
-if [[ -d "$APP_DIR/backups" ]]; then
-  mkdir -p "$STAGING_DIR/backups"
-  rsync -a "$APP_DIR/backups/" "$STAGING_DIR/backups/"
-else
-  mkdir -p "$STAGING_DIR/backups"
-fi
+echo "Skapar virtuell miljö på slutlig sökväg..."
+python3 -m venv "$VENV_DIR"
+"$VENV_DIR/bin/python" -m pip install --upgrade pip
+"$VENV_DIR/bin/pip" install -r "$RELEASE_DIR/requirements.txt"
 
-echo "Skapar virtuell miljö..."
-python3 -m venv "$STAGING_DIR/.venv"
-"$STAGING_DIR/.venv/bin/python" -m pip install --upgrade pip
-"$STAGING_DIR/.venv/bin/pip" install -r "$STAGING_DIR/requirements.txt"
+echo "Verifierar kandidat innan aktivering..."
+test -x "$VENV_DIR/bin/python"
+test -x "$VENV_DIR/bin/gunicorn"
+"$VENV_DIR/bin/python" -c 'import flask, openpyxl, gunicorn'
+(
+  cd "$RELEASE_DIR"
+  "$VENV_DIR/bin/python" - <<'PY'
+from app.app import app, APP_VERSION
+assert app is not None
+print("Application import OK, version:", APP_VERSION)
+PY
+)
 
 echo "Installerar systemd service..."
-cp "$STAGING_DIR/scripts/project-plan.service" /etc/systemd/system/project-plan.service
-sed -i "s|Environment=PORT=.*|Environment=PORT=${PORT}|" /etc/systemd/system/project-plan.service || true
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=Project Planer
+After=network.target
 
-# Ensure the service points to the final app path
-sed -i "s|WorkingDirectory=.*|WorkingDirectory=${APP_DIR}|" /etc/systemd/system/project-plan.service || true
-sed -i "s|ExecStart=.*|ExecStart=${APP_DIR}/.venv/bin/gunicorn -w 2 -b 0.0.0.0:${PORT} app.app:app|" /etc/systemd/system/project-plan.service || true
+[Service]
+Type=simple
+WorkingDirectory=$CURRENT_LINK
+Environment=PORT=$PORT
+Environment=PYTHONUNBUFFERED=1
+Environment=LANG=C.UTF-8
+Environment=LC_ALL=C.UTF-8
+ExecStart=$CURRENT_VENV_LINK/bin/gunicorn --workers 2 --threads 4 --bind 0.0.0.0:\${PORT} --timeout 120 app.app:app
+Restart=always
+RestartSec=3
+User=root
 
-echo "Växlar release atomiskt..."
-rm -rf "$BACKUP_DIR"
-if [[ -d "$APP_DIR" ]]; then
-  mv "$APP_DIR" "$BACKUP_DIR"
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "Aktiverar release..."
+systemctl stop project-plan >/dev/null 2>&1 || true
+
+ln -sfn "$RELEASE_DIR" "${CURRENT_LINK}.new"
+mv -Tf "${CURRENT_LINK}.new" "$CURRENT_LINK"
+
+ln -sfn "$VENV_DIR" "${CURRENT_VENV_LINK}.new"
+mv -Tf "${CURRENT_VENV_LINK}.new" "$CURRENT_VENV_LINK"
+
+# Explicitly prove the symlinked executable exists before systemd starts.
+if [[ ! -x "$CURRENT_VENV_LINK/bin/gunicorn" ]]; then
+  echo "FEL: gunicorn saknas efter aktivering: $CURRENT_VENV_LINK/bin/gunicorn"
+  rollback
+  exit 1
 fi
-mv "$STAGING_DIR" "$APP_DIR"
 
-rollback() {
-  echo "Återställer föregående release..."
-  systemctl stop project-plan >/dev/null 2>&1 || true
-  rm -rf "$APP_DIR"
-  if [[ -d "$BACKUP_DIR" ]]; then
-    mv "$BACKUP_DIR" "$APP_DIR"
-    systemctl daemon-reload
-    systemctl start project-plan >/dev/null 2>&1 || true
-  fi
-}
+if ! "$CURRENT_VENV_LINK/bin/python" -c 'import sys; print("Runtime Python:", sys.executable)'; then
+  echo "FEL: Python i aktiverad venv kan inte köras."
+  rollback
+  exit 1
+fi
 
-echo "Startar tjänsten..."
 systemctl daemon-reload
 systemctl enable project-plan >/dev/null
-if ! systemctl restart project-plan; then
+
+if ! systemctl start project-plan; then
   echo "FEL: Kunde inte starta project-plan."
-  journalctl -u project-plan --no-pager -n 100 || true
+  journalctl -u project-plan --no-pager -n 120 || true
   rollback
   exit 1
 fi
@@ -121,7 +202,8 @@ done
 
 if [[ "$healthy" != "1" ]]; then
   echo "FEL: health check misslyckades."
-  journalctl -u project-plan --no-pager -n 120 || true
+  systemctl status project-plan --no-pager || true
+  journalctl -u project-plan --no-pager -n 160 || true
   rollback
   exit 1
 fi
@@ -130,5 +212,29 @@ echo "Health check OK:"
 cat /tmp/project-plan-health.json || true
 echo
 
-rm -rf "$BACKUP_DIR"
-echo "Project Planer installerad."
+rm -f "$SERVICE_BACKUP"
+
+# Keep the current release plus the two most recent older releases/venvs.
+# Never remove the targets currently referenced by the symlinks.
+CURRENT_RELEASE_TARGET="$(readlink -f "$CURRENT_LINK" || true)"
+CURRENT_VENV_TARGET="$(readlink -f "$CURRENT_VENV_LINK" || true)"
+
+prune_dir() {
+  local parent="$1"
+  local keep_target="$2"
+  local count=0
+  while IFS= read -r candidate; do
+    [[ "$candidate" == "$keep_target" ]] && continue
+    count=$((count+1))
+    if (( count > 2 )); then
+      rm -rf "$candidate"
+    fi
+  done < <(find "$parent" -mindepth 1 -maxdepth 1 -type d -printf '%T@ %p\n' | sort -nr | cut -d' ' -f2-)
+}
+
+prune_dir "$RELEASES_DIR" "$CURRENT_RELEASE_TARGET"
+prune_dir "$VENVS_DIR" "$CURRENT_VENV_TARGET"
+
+echo "Project Planer $VERSION_VALUE installerad."
+echo "Current: $(readlink -f "$CURRENT_LINK")"
+echo "Venv:    $(readlink -f "$CURRENT_VENV_LINK")"
