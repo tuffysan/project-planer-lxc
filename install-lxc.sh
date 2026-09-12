@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${REPO:-tuffysan/project-plan-lxc}"
-BRANCH="${BRANCH:-main}"
-HOSTNAME="${HOSTNAME:-project-plan}"
+REPO="${REPO:-tuffysan/project-planer-lxc}"
+VERSION="${VERSION:-1.0.1}"
+HOSTNAME="${HOSTNAME:-project-planer}"
 CORES="${CORES:-1}"
 MEMORY="${MEMORY:-1024}"
 SWAP="${SWAP:-512}"
@@ -17,10 +17,13 @@ if ! command -v pct >/dev/null 2>&1; then
   exit 1
 fi
 
+# Accept VERSION=1.0.1 or VERSION=v1.0.1
+TAG="$VERSION"
+[[ "$TAG" == v* ]] || TAG="v$TAG"
+
 get_next_ctid() {
-  local id="${CTID:-}"
-  if [[ -n "$id" ]]; then echo "$id"; return; fi
-  id=200
+  if [[ -n "${CTID:-}" ]]; then echo "$CTID"; return; fi
+  local id=200
   while pct status "$id" >/dev/null 2>&1; do id=$((id+1)); done
   echo "$id"
 }
@@ -45,12 +48,23 @@ if [[ -z "$TEMPLATE_STORAGE" ]]; then
   exit 1
 fi
 
-echo "=== Project Plan LXC installer ==="
+ARCHIVE_URL="https://github.com/${REPO}/archive/refs/tags/${TAG}.zip"
+
+echo "=== Project Planer LXC installer ==="
 echo "Repo:      $REPO"
+echo "Version:   $TAG"
 echo "CTID:      $CTID"
 echo "Hostname:  $HOSTNAME"
 echo "Storage:   $STORAGE"
 echo "Bridge:    $BRIDGE"
+echo "Release:   $ARCHIVE_URL"
+
+echo "Kontrollerar att release $TAG finns..."
+if ! curl -fsIL "$ARCHIVE_URL" >/dev/null; then
+  echo "FEL: Release $TAG kunde inte hämtas från $REPO."
+  echo "Kontrollera att GitHub-releasen/taggen finns och är publik."
+  exit 1
+fi
 
 TEMPLATE="$(pveam list "$TEMPLATE_STORAGE" 2>/dev/null | awk '/debian-12-standard_.*amd64.tar.zst/{print $1}' | tail -1 || true)"
 if [[ -z "$TEMPLATE" ]]; then
@@ -69,7 +83,7 @@ if [[ "$IP_CONFIG" == "dhcp" ]]; then
   NET0="name=eth0,bridge=${BRIDGE},ip=dhcp"
 else
   NET0="name=eth0,bridge=${BRIDGE},ip=${IP_CONFIG}"
-  if [[ -n "${GATEWAY:-}" ]]; then NET0="${NET0},gw=${GATEWAY}"; fi
+  [[ -n "${GATEWAY:-}" ]] && NET0="${NET0},gw=${GATEWAY}"
 fi
 
 echo "Skapar LXC..."
@@ -91,16 +105,18 @@ for i in {1..30}; do
   sleep 2
 done
 
-echo "Installerar appen från GitHub..."
+echo "Installerar $TAG..."
 pct exec "$CTID" -- bash -lc "
-  set -e
+  set -euo pipefail
   apt-get update
   DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl unzip
-  rm -rf /tmp/project-plan
-  mkdir -p /tmp/project-plan
-  curl -fsSL https://github.com/${REPO}/archive/refs/heads/${BRANCH}.zip -o /tmp/project-plan/repo.zip
-  unzip -q /tmp/project-plan/repo.zip -d /tmp/project-plan
-  SRC=\$(find /tmp/project-plan -mindepth 1 -maxdepth 1 -type d -name '*-${BRANCH}' | head -1)
+  rm -rf /tmp/project-planer
+  mkdir -p /tmp/project-planer
+  curl -fL '${ARCHIVE_URL}' -o /tmp/project-planer/repo.zip
+  unzip -q /tmp/project-planer/repo.zip -d /tmp/project-planer
+  SRC=\$(find /tmp/project-planer -mindepth 1 -maxdepth 1 -type d | head -1)
+  test -n \"\$SRC\"
+  test -f \"\$SRC/install-app.sh\"
   chmod +x \"\$SRC/install-app.sh\"
   \"\$SRC/install-app.sh\"
 "
@@ -110,6 +126,7 @@ IP="$(pct exec "$CTID" -- hostname -I | awk '{print $1}')"
 echo
 echo "============================================"
 echo "KLART"
+echo "Version:   $TAG"
 echo "CTID:      $CTID"
 echo "LXC root:  root / $PASSWORD"
 echo "App:       http://${IP}:8080"

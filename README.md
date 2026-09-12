@@ -30,37 +30,32 @@ En enkel självhostad projektplans-app för Proxmox LXC.
 Kör på Proxmox-host:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-plan-lxc/main/install-lxc.sh)"
+VERSION=1.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+```
+
+Installern hämtar applikationen från GitHub-taggen `v1.0.1`, inte från den senaste koden på `main`.
+
+Du kan också ange CTID:
+
+```bash
+CTID=140 VERSION=1.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Standard:
 - CTID: första lediga ID från 200
-- Hostname: `project-plan`
+- Hostname: `project-planer`
 - Port: `8080`
 - Debian 12
 - 1 CPU
 - 1 GB RAM
 - 8 GB disk
 
-Du kan styra värden:
-
-```bash
-CTID=140 \
-HOSTNAME=project-plan \
-STORAGE=local-lvm \
-BRIDGE=vmbr0 \
-IP_CONFIG=dhcp \
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-plan-lxc/main/install-lxc.sh)"
-```
-
-Efter installation visas URL till webbappen.
-
 ## Uppgradering
 
 Kör på Proxmox-host:
 
 ```bash
-CTID=140 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-plan-lxc/main/update-lxc.sh)"
+CTID=140 VERSION=1.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## Excel-export
