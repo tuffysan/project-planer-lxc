@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+    {% block title %}Resource & Capacity Planning · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V9.4.0</div><h1>Resource & Capacity Planning</h1><p class="lead">Resurscenter för kapacitet, överbeläggning, kompetenser och veckoplanering med direkt åtkomst till resursplaneringen.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('resource_planning_v65')}}"><h3>Resursplanering Pro</h3><p>Veckokapacitet och allokering.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('team_capacity_v55')}}"><h3>Team Capacity</h3><p>Kapacitetsöversikt.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('resource_directory_v74')}}"><h3>Resursregister</h3><p>Kompetenser och tillgänglighet.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('financial_control_v67')}}"><h3>Financial Control</h3><p>Koppla resurs och kostnad.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

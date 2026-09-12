@@ -463,3 +463,86 @@ tbody tr:hover{background:color-mix(in srgb,var(--primary,#0f4c81) 4%,transparen
 .prompt-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.prompt-chips button{border:1px solid #d7dee8;background:#f8fafc;border-radius:999px;padding:7px 10px}.assistant-answer{margin-top:16px;padding:16px;border-radius:14px;background:#eff6ff}
 
 .next-project-hero{display:flex;justify-content:space-between;gap:20px;align-items:center;padding:24px;border-radius:18px;background:linear-gradient(135deg,#f8fbff,#eef4fb);margin-bottom:10px}.next-project-hero h1{margin:.2rem 0}.next-health{text-align:right}.next-health small,.next-health strong{display:block}.next-health strong{font-size:1.4rem}.next-actions,.next-tabs{display:flex;gap:8px;overflow:auto;margin:10px 0}.next-tabs a{padding:9px 12px;text-decoration:none;white-space:nowrap}.next-attention .attention-row{display:grid;grid-template-columns:24px 1fr auto;align-items:center}.next-plan-row{display:grid;grid-template-columns:minmax(220px,1fr) minmax(250px,2fr) 110px;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #edf0f4}.next-plan-row small,.next-plan-row b{display:block}@media(max-width:700px){.next-project-hero{align-items:flex-start;flex-direction:column}.next-health{text-align:left}.next-plan-row{grid-template-columns:1fr}.next-tabs{position:sticky;top:0;background:#fff;z-index:5;padding:6px 0}}
+
+/* v9.0.1 Full Quality, UI/UX, Export & Reports */
+.report-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:14px 0}
+.report-kpi{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px}.report-kpi small,.report-kpi strong{display:block}.report-kpi strong{font-size:1.45rem;margin-top:5px}.report-kpi.red,.report-kpi.danger{border-left:5px solid #dc2626}.report-kpi.amber,.report-kpi.warning{border-left:5px solid #d97706}.report-kpi.green{border-left:5px solid #16a34a}
+.report-format-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.report-format-card{display:grid;grid-template-columns:58px 1fr;gap:14px;padding:18px;border:1px solid #e5e7eb;border-radius:16px;text-decoration:none;color:inherit;background:#fff;transition:transform .15s,box-shadow .15s}.report-format-card:hover{transform:translateY(-2px);box-shadow:0 10px 30px #0f172a14}.report-format-card h3{margin:0 0 5px}.report-format-card p{margin:0 0 9px;color:#667085}.report-format-card strong{color:#0f4c81}.report-format-icon{display:grid;place-items:center;width:54px;height:54px;border-radius:14px;background:#eef4fb;color:#0f4c81;font-weight:900}
+.executive-summary{font-size:1.04rem;line-height:1.65;padding:16px;border-left:4px solid #0f4c81;background:#f8fafc;border-radius:10px}
+.report-attention-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}.report-line{display:grid;grid-template-columns:105px 1fr auto;gap:10px;padding:9px 0;border-bottom:1px solid #edf0f4}.report-line em{font-style:normal;color:#667085}
+.table-wrap{overflow:auto;-webkit-overflow-scrolling:touch}
+@media(max-width:900px){.report-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.report-format-grid,.report-attention-grid{grid-template-columns:1fr}}
+@media(max-width:580px){.report-kpis{grid-template-columns:1fr 1fr}.report-format-card{grid-template-columns:1fr}.report-line{grid-template-columns:1fr}.report-line span,.report-line em{font-size:.85rem}}
+
+/* v9.0.2 Excel Pro */
+.excel-purpose-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.excel-purpose-card{display:grid;grid-template-columns:58px 1fr;gap:14px;padding:20px;border:1px solid #dfe5ec;border-radius:18px;text-decoration:none;color:inherit;background:#fff;transition:transform .15s,box-shadow .15s,border-color .15s}.excel-purpose-card:hover{transform:translateY(-2px);box-shadow:0 12px 35px #0f172a14;border-color:#9fb4cc}.excel-purpose-card.primary-card{background:linear-gradient(145deg,#f8fbff,#eef5fb);border-color:#b9cee0}.excel-purpose-card h2{margin:.2rem 0 .45rem}.excel-purpose-card p{color:#667085;line-height:1.5}.excel-purpose-card strong{color:#0f4c81}.excel-purpose-icon{width:54px;height:54px;display:grid;place-items:center;border-radius:14px;background:#0f4c81;color:white;font-size:1.35rem;font-weight:900}.excel-pro-export-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.excel-quality-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.excel-quality-grid>div{padding:15px;background:#f8fafc;border-radius:13px}.excel-quality-grid b,.excel-quality-grid small{display:block}.excel-quality-grid small{margin-top:5px;color:#667085}.excel-swatch{display:inline-block;width:26px;height:10px;border-radius:999px;margin-bottom:9px}.excel-swatch.editable{background:#eaf5ea;border:1px solid #b8d9b8}.excel-swatch.readonly{background:#f3f4f6;border:1px solid #d1d5db}.excel-swatch.dashboard{background:#eef4fb;border:1px solid #b9cee0}.excel-swatch.technical{background:repeating-linear-gradient(45deg,#d1d5db,#d1d5db 4px,#fff 4px,#fff 8px);border:1px solid #cbd5e1}@media(max-width:1050px){.excel-purpose-grid{grid-template-columns:1fr}.excel-pro-export-grid,.excel-quality-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.excel-pro-export-grid,.excel-quality-grid{grid-template-columns:1fr}.excel-purpose-card{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}
+
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0}
+.roadmap-card{display:block;padding:20px;border:1px solid #e4e7ec;border-radius:16px;background:#fff;color:inherit;text-decoration:none}
+.roadmap-card:hover{box-shadow:0 12px 32px #0f172a14;transform:translateY(-1px)}
+.roadmap-card h3{margin:0 0 6px}.roadmap-card p{color:#667085;margin:0 0 12px}.roadmap-card strong{color:#0f4c81}
+@media(max-width:700px){.roadmap-grid{grid-template-columns:1fr}}

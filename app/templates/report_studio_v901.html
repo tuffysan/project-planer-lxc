@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Rapportstudio · {{d.project.name}}{% endblock %}
+{% block content %}
+<nav class="project-breadcrumb">
+  <a href="{{url_for('project_next_v900',project_id=d.project.id)}}">{{d.project.name}}</a><span>›</span>
+  <span>Rapportstudio</span>
+</nav>
+
+<div class="feature-hero report-studio-hero">
+  <div>
+    <div class="eyebrow">REPORT STUDIO</div>
+    <h1>Rapporter & export</h1>
+    <p class="lead">Skapa styrgruppsmaterial, ledningsstatus och exportpaket från samma projektdata.</p>
+  </div>
+  <div class="ux-actions">
+    <a class="button" href="{{url_for('report_preview_v901',project_id=d.project.id)}}" target="_blank">Förhandsgranska</a>
+    <a class="button primary" href="{{url_for('report_pack_zip_v901',project_id=d.project.id)}}">↓ Hämta komplett rapportpaket</a>
+  </div>
+</div>
+
+<div class="report-kpis">
+  <div class="report-kpi {{d.rag}}"><small>Projektstatus</small><strong>{{d.rag|upper}}</strong></div>
+  <div class="report-kpi"><small>Framdrift</small><strong>{{d.progress}}%</strong></div>
+  <div class="report-kpi {% if d.overdue %}warning{% endif %}"><small>Försenade</small><strong>{{d.overdue|length}}</strong></div>
+  <div class="report-kpi {% if d.high %}danger{% endif %}"><small>Höga risker</small><strong>{{d.high|length}}</strong></div>
+  <div class="report-kpi"><small>Prognos slut</small><strong>{{d.forecast.forecast_end or '–'}}</strong></div>
+</div>
+
+<section class="panel">
+  <div class="ux-section-head">
+    <div><h2>Exportformat</h2><div class="ux-help">Välj format beroende på mottagare och arbetssätt.</div></div>
+  </div>
+  <div class="report-format-grid">
+    <a class="report-format-card" href="{{url_for('report_pdf_v901',project_id=d.project.id)}}">
+      <div class="report-format-icon">PDF</div><div><h3>Ledningsrapport</h3><p>Sammanfattning, RAG, milstolpar, risker, uppmärksamhet och beslut.</p><strong>Ladda ner PDF →</strong></div>
+    </a>
+    <a class="report-format-card" href="{{url_for('report_pptx_v901',project_id=d.project.id)}}">
+      <div class="report-format-icon">PPT</div><div><h3>Styrgruppspresentation</h3><p>Färdig presentation med status, milstolpar, risker, ekonomi och nästa steg.</p><strong>Ladda ner PowerPoint →</strong></div>
+    </a>
+    <a class="report-format-card" href="{{url_for('report_excel_v901',project_id=d.project.id)}}">
+      <div class="report-format-icon">XLS</div><div><h3>Statusrapport i Excel</h3><p>Projektstatus, milstolpar, risker, försenade aktiviteter, ändringar och beslut.</p><strong>Ladda ner Excel →</strong></div>
+    </a>
+    <a class="report-format-card" href="{{url_for('excel_center_v810',project_id=d.project.id)}}">
+      <div class="report-format-icon">↔</div><div><h3>Excel Round-trip</h3><p>Arbeta vidare med hela projektplanen utanför appen och importera tillbaka ändringar.</p><strong>Öppna Excel-center →</strong></div>
+    </a>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="ux-section-head"><div><h2>Ledningssammanfattning</h2><div class="ux-help">Används i rapportförhandsgranskningen och exporter.</div></div></div>
+  <div class="executive-summary">{{d.summary}}</div>
+  <div class="report-attention-grid">
+    <div><h3>Milstolpar</h3>{% for m in d.milestones[:6] %}<div class="report-line"><span>{{m.end_date or '–'}}</span><b>{{m.title}}</b><em>{{m.progress}}%</em></div>{% else %}<div class="empty">Inga milstolpar.</div>{% endfor %}</div>
+    <div><h3>Behöver uppmärksamhet</h3>{% for t in d.overdue[:6] %}<div class="report-line"><span>⚠</span><b>{{t.title}}</b><em>{{t.end_date}}</em></div>{% else %}<div class="notice info">Inga försenade aktiviteter.</div>{% endfor %}</div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="ux-section-head"><div><h2>Exporthistorik</h2><div class="ux-help">Senaste exporter från projektet.</div></div></div>
+  {% if history %}
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>Tid</th><th>Format</th><th>Typ</th><th>Fil</th><th>Exporterad av</th></tr></thead>
+  <tbody>{% for x in history %}<tr><td>{{x.created_at}}</td><td><span class="status-chip">{{x.format|upper}}</span></td><td>{{x.report_type}}</td><td>{{x.file_name}}</td><td>{{x.exported_by_name or '–'}}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="empty">Ingen rapport har exporterats ännu.</div>{% endif %}
+</section>
+{% endblock %}

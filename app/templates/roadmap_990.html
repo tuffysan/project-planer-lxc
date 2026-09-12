@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+    {% block title %}PM Intelligence · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V9.9.0</div><h1>PM Intelligence</h1><p class="lead">PM Intelligence kopplar ihop prognos, Control Engine och PM Assistant så avvikelser och orsaker blir handlingsbara.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('pm_copilot_v60')}}"><h3>PM Copilot</h3><p>Projektfrågor.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('control_engine_v79')}}"><h3>Control Engine</h3><p>Avvikelser och kontroll.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('intelligence_center')}}"><h3>Project Intelligence</h3><p>Projektintelligens.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('action_inbox_v78')}}"><h3>Action Inbox</h3><p>Omsätt signaler till handling.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

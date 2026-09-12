@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+    {% block title %}Collaboration & Decisions · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V9.7.0</div><h1>Collaboration & Decisions</h1><p class="lead">Samarbetscenter för projekttråd, beslut, åtgärder, möten och senaste ändringar.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('pmo')}}"><h3>Möten</h3><p>Möten och åtgärder.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('pmo')}}"><h3>Beslut</h3><p>Beslutslogg.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('notifications_page')}}"><h3>Notiser</h3><p>Notifieringar.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('action_inbox_v78')}}"><h3>Action Inbox</h3><p>Åtgärder och uppmärksamhet.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

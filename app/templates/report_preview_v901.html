@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Projektstatus · {{d.project.name}}</title>
+<link rel="stylesheet" href="{{url_for('static',filename='style.css')}}">
+<style>
+body{background:#eef2f6}.print-report{max-width:1000px;margin:24px auto;background:white;padding:36px;box-shadow:0 10px 40px #0001}
+.print-head{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f4c81;padding-bottom:20px;margin-bottom:22px}
+.print-head h1{margin:0}.print-meta{text-align:right}.print-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}.print-kpi{padding:14px;border:1px solid #e5e7eb;border-radius:12px}.print-kpi small,.print-kpi strong{display:block}.print-kpi strong{font-size:1.35rem;margin-top:5px}
+.print-section{margin-top:26px}.print-section h2{border-bottom:1px solid #e5e7eb;padding-bottom:7px}.print-table{width:100%;border-collapse:collapse}.print-table th,.print-table td{text-align:left;padding:8px;border-bottom:1px solid #edf0f4}
+@media print{body{background:#fff}.print-report{box-shadow:none;margin:0;max-width:none}.no-print{display:none!important}}
+@media(max-width:700px){.print-report{margin:0;padding:18px}.print-head{flex-direction:column}.print-meta{text-align:left}.print-kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<main class="print-report">
+  <div class="print-head">
+    <div><div class="eyebrow">PROJEKTSTATUS</div><h1>{{d.project.name}}</h1><p>{{d.project.customer}} · {{d.project.project_manager}}</p></div>
+    <div class="print-meta"><b>{{generated_at}}</b><br>Project Planer v{{app_version}}</div>
+  </div>
+  <div class="no-print ux-actions"><button onclick="window.print()">Skriv ut / Spara som PDF</button><a class="button" href="{{url_for('report_studio_v901',project_id=d.project.id)}}">Tillbaka</a></div>
+  <div class="print-kpis">
+    <div class="print-kpi"><small>RAG</small><strong>{{d.rag|upper}}</strong></div>
+    <div class="print-kpi"><small>Framdrift</small><strong>{{d.progress}}%</strong></div>
+    <div class="print-kpi"><small>Försenade</small><strong>{{d.overdue|length}}</strong></div>
+    <div class="print-kpi"><small>Höga risker</small><strong>{{d.high|length}}</strong></div>
+    <div class="print-kpi"><small>Prognos slut</small><strong>{{d.forecast.forecast_end or '–'}}</strong></div>
+  </div>
+  <section class="print-section"><h2>Ledningssammanfattning</h2><p>{{d.summary}}</p></section>
+  <section class="print-section"><h2>Milstolpar</h2><table class="print-table"><tr><th>Datum</th><th>Milstolpe</th><th>Status</th><th>Progress</th></tr>{% for m in d.milestones %}<tr><td>{{m.end_date}}</td><td>{{m.title}}</td><td>{{m.status}}</td><td>{{m.progress}}%</td></tr>{% endfor %}</table></section>
+  <section class="print-section"><h2>Höga risker</h2><table class="print-table"><tr><th>Risk</th><th>Poäng</th><th>Ansvarig</th><th>Status</th></tr>{% for r in d.high %}<tr><td>{{r.title}}</td><td>{{r.probability*r.impact}}</td><td>{{r.owner}}</td><td>{{r.status}}</td></tr>{% endfor %}</table></section>
+  <section class="print-section"><h2>Försenade aktiviteter</h2><table class="print-table"><tr><th>WBS</th><th>Aktivitet</th><th>Ansvarig</th><th>Slut</th></tr>{% for t in d.overdue %}<tr><td>{{t.wbs}}</td><td>{{t.title}}</td><td>{{t.owner}}</td><td>{{t.end_date}}</td></tr>{% endfor %}</table></section>
+  <section class="print-section"><h2>Beslut</h2>{% for x in d.decisions %}<p><b>{{x.title}}</b> · {{x.decision_date}}<br>{{x.decision}}</p>{% else %}<p>Inga beslut registrerade.</p>{% endfor %}</section>
+</main>
+</body></html>

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+    {% block title %}Everyday UX + Excel & Reporting Pro · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V9.1.0</div><h1>Everyday UX + Excel & Reporting Pro</h1><p class="lead">En gemensam vardagsyta för projektledaren: Mitt arbete, projektgenvägar, Excel Pro och rapporter samlat utan menyjakt.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('my_work')}}"><h3>Mitt arbete</h3><p>Dina aktiviteter och fokus.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('excel_portfolio_v902')}}"><h3>Excel Pro</h3><p>Portfolio Excel och projektarbetsböcker.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('report_center')}}"><h3>Rapportstudio</h3><p>Rapporter och export på ett ställe.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('focus_v56')}}"><h3>Fokus</h3><p>Det viktigaste just nu.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

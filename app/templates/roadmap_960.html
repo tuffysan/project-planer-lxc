@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+    {% block title %}Reporting Automation · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V9.6.0</div><h1>Reporting Automation</h1><p class="lead">Rapportcenter som binder ihop statusrapport, Report Studio, PDF/PPTX/Excel och exporthistorik till ett publiceringsflöde.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('report_center')}}"><h3>Rapporter</h3><p>Rapportöversikt.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('scheduled_reports')}}"><h3>Schemalagda rapporter</h3><p>Återkommande rapportering.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('excel_portfolio_v902')}}"><h3>Excel Portfolio</h3><p>Ledningsarbetsbok.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('report_center')}}"><h3>Statusrapporter</h3><p>Historiska statusrapporter.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

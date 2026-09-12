@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+    {% block title %}Gantt & Planning Pro · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V9.3.0</div><h1>Gantt & Planning Pro</h1><p class="lead">Planeringscenter för Gantt, beroenden, critical path, baseline och konsekvensanalys med direktvägar till befintliga planeringsfunktioner.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('planning_hub')}}"><h3>Planering</h3><p>Planeringsöversikt.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('portfolio_dependencies_v73')}}"><h3>Portfolio-beroenden</h3><p>Beroenden mellan projekt.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('scenario_planner_v76')}}"><h3>Scenarioplanering</h3><p>What-if för portfolion.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('control_engine_v79')}}"><h3>Control Engine</h3><p>Kontrollera planpåverkan.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

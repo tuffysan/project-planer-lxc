@@ -16,13 +16,13 @@ This is a cumulative release. It contains all functionality from the preceding r
 ## Upgrade an existing LXC
 
 ```bash
-CTID=<your-ctid> VERSION=9.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=<your-ctid> VERSION=9.0.2 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## New install
 
 ```bash
-VERSION=9.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=9.0.2 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Run `./VERIFY.sh` before publishing. Keep a database backup before production upgrades.
@@ -82,3 +82,7 @@ See `AUDIT-v7.0.1.md`. This release focuses on permissions, database reliability
 From Project Workspace, choose **Exportera Excel** or **Importera Excel**.
 
 The full workbook supports offline editing for project information, tasks, risks, change requests, resources, costs, task dependencies, decisions, meetings, actions and benefits. Import always runs through a preview. Stable hidden IDs identify existing records; snapshot hashes detect concurrent changes. Missing spreadsheet rows do not delete data. A database backup is created before commit.
+
+## Excel Pro (v9.0.2)
+
+Excel Center now offers three explicit workflows: a round-trip Project Workbook, a presentation-oriented Status Report workbook, and a Portfolio workbook. The project workbook includes a visual overview, formatted Excel tables, editable-field highlighting, filters, validations, conditional formatting, charts, print setup and hidden technical metadata for safe re-import.

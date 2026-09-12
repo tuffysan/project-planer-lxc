@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+    {% block title %}Project Planer Enterprise UX · Project Planer{% endblock %}
+    {% block content %}
+    <div class="feature-hero roadmap-hero"><div><div class="eyebrow">V10.0.0</div><h1>Project Planer Enterprise UX</h1><p class="lead">Konsoliderad produktupplevelse med Hem → Mitt arbete → Projekt → Portfolio och avancerade funktioner grupperade bakom tydliga arbetsområden.</p></div></div>
+    <div class="roadmap-grid"><a class="roadmap-card" href="{{url_for('my_work')}}"><h3>Mitt arbete</h3><p>Din personliga startpunkt.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('index')}}"><h3>Projekt</h3><p>Projektarbetsytor.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('pmo')}}"><h3>Portfolio</h3><p>Program och portfolio.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('excel_portfolio_v902')}}"><h3>Excel Pro</h3><p>Professionell Excel-export.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('report_center')}}"><h3>Rapporter</h3><p>Status och styrgruppsmaterial.</p><strong>Öppna →</strong></a>
+<a class="roadmap-card" href="{{url_for('focus_v56')}}"><h3>Fokus</h3><p>Det viktigaste idag.</p><strong>Öppna →</strong></a></div>
+    {% endblock %}

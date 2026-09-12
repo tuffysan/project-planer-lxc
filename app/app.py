@@ -8,12 +8,15 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment
-from openpyxl.formatting.rule import DataBarRule
+from openpyxl.formatting.rule import DataBarRule, FormulaRule
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
-from openpyxl.styles import Border, Side
+from openpyxl.styles import Border, Side, Protection
+from openpyxl.chart import BarChart, DoughnutChart, Reference
+from openpyxl.chart.label import DataLabelList
+from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "9.0.0"
+APP_VERSION = "10.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -619,6 +622,19 @@ def init_db():
             created_at TEXT NOT NULL,
             FOREIGN KEY(owner_user_id) REFERENCES users(id) ON DELETE SET NULL
         );
+        CREATE TABLE IF NOT EXISTS report_export_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            format TEXT NOT NULL,
+            report_type TEXT NOT NULL DEFAULT 'executive',
+            file_name TEXT NOT NULL DEFAULT '',
+            exported_by INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(exported_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_report_export_project_created
+            ON report_export_log(project_id, created_at DESC);
         CREATE TABLE IF NOT EXISTS oidc_settings (
             id INTEGER PRIMARY KEY CHECK (id=1),
             enabled INTEGER NOT NULL DEFAULT 0,
@@ -1854,7 +1870,7 @@ def build_roundtrip_workbook(project,data,scope="all"):
     meta.append(["app_version",APP_VERSION])
     meta.append(["exported_at",datetime.now().isoformat(timespec="seconds")])
     meta.append(["scope",scope])
-    return wb
+    return excel_pro_finalize_workbook(wb,project,data,scope)
 
 def excel_project_data(project_id):
     with db() as conn:
@@ -1870,6 +1886,182 @@ def excel_project_data(project_id):
             "actions":conn.execute("SELECT * FROM action_items WHERE project_id=? ORDER BY due_date,id",(project_id,)).fetchall(),
             "benefits":conn.execute("SELECT * FROM project_benefits WHERE project_id=? ORDER BY id",(project_id,)).fetchall(),
         }
+
+
+EXCEL_PRO_HEADER="163A5F"
+EXCEL_PRO_ACCENT="0F4C81"
+EXCEL_PRO_INPUT="EAF5EA"
+EXCEL_PRO_READONLY="F3F4F6"
+EXCEL_PRO_RED="FEE2E2"
+EXCEL_PRO_AMBER="FEF3C7"
+EXCEL_PRO_GREEN="DCFCE7"
+
+def excel_safe_table_name(name):
+    clean=re.sub(r"[^A-Za-z0-9_]","_",name or "Table")
+    if not clean or clean[0].isdigit(): clean="T_"+clean
+    return clean[:200]
+
+def excel_add_table(ws,name):
+    if ws.max_row<2 or ws.max_column<1: return
+    tab=Table(displayName=excel_safe_table_name(name),ref=f"A1:{get_column_letter(ws.max_column)}{ws.max_row}")
+    tab.tableStyleInfo=TableStyleInfo(name="TableStyleMedium2",showFirstColumn=False,showLastColumn=False,showRowStripes=True,showColumnStripes=False)
+    ws.add_table(tab)
+
+def excel_page_setup(ws,landscape=True):
+    ws.sheet_properties.pageSetUpPr.fitToPage=True
+    ws.page_setup.orientation="landscape" if landscape else "portrait"
+    ws.page_setup.paperSize=ws.PAPERSIZE_A4
+    ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0
+    ws.oddFooter.center.text=f"Project Planer v{APP_VERSION} · {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws.oddFooter.center.size=8
+
+def excel_to_date(v):
+    if not isinstance(v,str) or not v: return v
+    try: return datetime.strptime(v[:10],"%Y-%m-%d").date()
+    except: return v
+
+def excel_pro_style_sheet(ws,editable_headers=None,readonly=False,table_name=None):
+    editable_headers=set(editable_headers or [])
+    ws.freeze_panes="A2"; ws.sheet_view.showGridLines=False; style_header(ws,1)
+    headers={c.column:excel_text(c.value) for c in ws[1]}
+    date_headers={"Plan start","Plan slut","Faktisk start","Faktiskt slut","Förfallodatum","Datum","Vecka","Beslutsdatum","Mätdatum","Slutdatum"}
+    money_headers={"Kostnad","Planerat","Utfall","Baslinje","Mål"}
+    for col,header in headers.items():
+        letter=get_column_letter(col)
+        if header.startswith("_"):
+            ws.column_dimensions[letter].hidden=True; continue
+        fill=EXCEL_PRO_READONLY if readonly or header not in editable_headers else EXCEL_PRO_INPUT
+        for row in range(2,ws.max_row+1):
+            cell=ws.cell(row,col); cell.fill=PatternFill("solid",fgColor=fill)
+            cell.alignment=Alignment(vertical="top",wrap_text=header in {"Aktivitet","Kommentar","Beskrivning","Åtgärd","Beslut","Anteckningar"})
+            if header in date_headers:
+                cell.value=excel_to_date(cell.value); cell.number_format="yyyy-mm-dd"
+            elif header in money_headers: cell.number_format='#,##0.00'
+    if "Progress %" in [c.value for c in ws[1]] and ws.max_row>=2:
+        col=[c.column for c in ws[1] if c.value=="Progress %"][0]; letter=get_column_letter(col)
+        ws.conditional_formatting.add(f"{letter}2:{letter}{ws.max_row}",DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color=EXCEL_PRO_ACCENT))
+    if "Status" in [c.value for c in ws[1]] and ws.max_row>=2:
+        col=[c.column for c in ws[1] if c.value=="Status"][0]; letter=get_column_letter(col); rng=f"{letter}2:{letter}{ws.max_row}"
+        ws.conditional_formatting.add(rng,FormulaRule(formula=[f'OR(${letter}2="Blockerad",${letter}2="Blocked")'],fill=PatternFill("solid",fgColor=EXCEL_PRO_RED)))
+        ws.conditional_formatting.add(rng,FormulaRule(formula=[f'OR(${letter}2="Klar",${letter}2="Done",${letter}2="Closed",${letter}2="Stängd")'],fill=PatternFill("solid",fgColor=EXCEL_PRO_GREEN)))
+    autosize(ws)
+    for c in ws[1]:
+        h=excel_text(c.value); letter=get_column_letter(c.column)
+        if h in {"Aktivitet","Titel","Rubrik","Milstolpe"}: ws.column_dimensions[letter].width=34
+        elif h in {"Kommentar","Beskrivning","Åtgärd","Beslut","Anteckningar"}: ws.column_dimensions[letter].width=42
+    if table_name: excel_add_table(ws,table_name)
+    excel_page_setup(ws,True)
+
+def excel_pro_overview(wb,project,data):
+    ws=wb.create_sheet("Översikt",0); ws.sheet_view.showGridLines=False
+    ws["A1"]="Project Planer"; ws["A1"].font=Font(size=11,bold=True,color="FFFFFF"); ws["A1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER)
+    ws["B1"]=f"Excel Pro · v{APP_VERSION}"; ws["B1"].font=Font(size=11,color="FFFFFF"); ws["B1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.merge_cells("B1:F1")
+    ws["A3"]=project["name"]; ws["A3"].font=Font(size=22,bold=True,color=EXCEL_PRO_HEADER); ws.merge_cells("A3:F3")
+    ws["A4"]=f"{project['customer'] or 'Ingen kund angiven'} · Projektledare: {project['project_manager'] or 'Ej satt'}"; ws["A4"].font=Font(color="667085"); ws.merge_cells("A4:F4")
+    tasks=data.get("tasks",[]); risks=data.get("risks",[]); costs=data.get("costs",[])
+    milestones=[t for t in tasks if excel_int(t["milestone"])]
+    overdue=[t for t in tasks if t["end_date"] and excel_int(t["progress"])<100 and str(t["end_date"])<date.today().isoformat()]
+    blocked=[t for t in tasks if (t["status"] or "").lower() in ("blocked","blockerad")]
+    high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]
+    progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0
+    planned=sum(excel_float(c["planned"]) for c in costs); actual=sum(excel_float(c["actual"]) for c in costs)
+    rag="RÖD" if len(overdue)>=3 or len(high)>=2 else ("GUL" if overdue or high or blocked else "GRÖN")
+    kpis=[("RAG",rag),("Framdrift",f"{progress}%"),("Försenade",len(overdue)),("Blockerade",len(blocked)),("Höga risker",len(high)),("Milstolpar",len(milestones)),("Planerad kostnad",planned),("Utfall",actual)]
+    for i,(label,val) in enumerate(kpis):
+        col=1+(i%4)*2; row=6+(i//4)*3
+        ws.cell(row,col,label).font=Font(size=9,color="667085",bold=True); ws.cell(row+1,col,val).font=Font(size=16,bold=True,color=EXCEL_PRO_HEADER)
+        ws.merge_cells(start_row=row,start_column=col,end_row=row,end_column=col+1); ws.merge_cells(start_row=row+1,start_column=col,end_row=row+1,end_column=col+1)
+        for rr in (row,row+1):
+            for cc in (col,col+1): ws.cell(rr,cc).fill=PatternFill("solid",fgColor="F8FAFC")
+    fill={"RÖD":EXCEL_PRO_RED,"GUL":EXCEL_PRO_AMBER,"GRÖN":EXCEL_PRO_GREEN}[rag]
+    ws["A7"].fill=PatternFill("solid",fgColor=fill); ws["B7"].fill=PatternFill("solid",fgColor=fill)
+    ws["A13"]="Ledningsbild"; ws["A13"].font=Font(size=14,bold=True,color=EXCEL_PRO_HEADER); ws.merge_cells("A13:F13")
+    ws["A14"]=f"Projektet är {progress}% klart. {len(overdue)} aktiviteter är försenade, {len(blocked)} blockerade och {len(high)} höga risker är öppna. Planerat slutdatum är {project['end_date'] or 'inte satt'}."; ws.merge_cells("A14:F16"); ws["A14"].alignment=Alignment(wrap_text=True,vertical="top"); ws["A14"].fill=PatternFill("solid",fgColor="F8FAFC")
+    ws["A18"]="Kommande milstolpar"; ws["A18"].font=Font(size=13,bold=True,color=EXCEL_PRO_HEADER)
+    for c,v in enumerate(["Datum","Milstolpe","Status","Progress"],1): ws.cell(19,c,v); ws.cell(19,c).fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.cell(19,c).font=Font(color="FFFFFF",bold=True)
+    for i,m in enumerate(sorted(milestones,key=lambda x:(x["end_date"] or "9999",x["id"]))[:8],20):
+        ws.cell(i,1,excel_to_date(m["end_date"])); ws.cell(i,1).number_format="yyyy-mm-dd"; ws.cell(i,2,m["title"]); ws.cell(i,3,m["status"]); ws.cell(i,4,excel_int(m["progress"]))
+    ws["J2"]="Status"; ws["K2"]="Antal"; counts={}
+    for t in tasks: counts[t["status"] or "Ej satt"]=counts.get(t["status"] or "Ej satt",0)+1
+    row=3
+    for key,val in counts.items(): ws.cell(row,10,key); ws.cell(row,11,val); row+=1
+    if row>3:
+        ch=DoughnutChart(); ch.title="Aktiviteter per status"; ch.add_data(Reference(ws,min_col=11,min_row=2,max_row=row-1),titles_from_data=True); ch.set_categories(Reference(ws,min_col=10,min_row=3,max_row=row-1)); ch.height=7; ch.width=10; ch.dataLabels=DataLabelList(); ch.dataLabels.showPercent=True; ws.add_chart(ch,"F18")
+    ws["J15"]="Ekonomi"; ws["K15"]="Belopp"; ws["J16"]="Planerat"; ws["K16"]=planned; ws["J17"]="Utfall"; ws["K17"]=actual
+    if planned or actual:
+        ch=BarChart(); ch.type="col"; ch.title="Ekonomi"; ch.legend=None; ch.add_data(Reference(ws,min_col=11,min_row=15,max_row=17),titles_from_data=True); ch.set_categories(Reference(ws,min_col=10,min_row=16,max_row=17)); ch.height=6; ch.width=10; ws.add_chart(ch,"F32")
+    ws.column_dimensions["J"].hidden=True; ws.column_dimensions["K"].hidden=True; ws.freeze_panes="A5"
+    for col,w in {"A":18,"B":35,"C":18,"D":14,"E":14,"F":14,"G":14,"H":14}.items(): ws.column_dimensions[col].width=w
+    excel_page_setup(ws,True); ws.print_area=f"A1:H{max(42,ws.max_row)}"
+
+def excel_pro_finalize_workbook(wb,project,data,scope="all"):
+    wb.properties.title=f"{project['name']} – Project Planer"; wb.properties.subject="Excel Pro / Round-trip"; wb.properties.creator="Project Planer"
+    wb.properties.description=f"Project Planer v{APP_VERSION} · {datetime.now().isoformat(timespec='seconds')}"
+    if "Översikt" not in wb.sheetnames: excel_pro_overview(wb,project,data)
+    specs={
+      "Uppgifter":({"WBS","Aktivitet","Ansvarig","Plan start","Plan slut","Faktisk start","Faktiskt slut","Status","Prioritet","Progress %","Milstolpe","Kommentar"},False,"TasksTable"),
+      "Milstolpar":(set(),True,"MilestonesView"),
+      "Risker":({"Typ","Titel","Beskrivning","Sannolikhet","Konsekvens","Ansvarig","Åtgärd","Status","Förfallodatum"},False,"RisksTable"),
+      "Ändringsärenden":({"Rubrik","Beskrivning","Omfattningspåverkan","Dagar","Kostnad","Status"},False,"ChangesTable"),
+      "Resurser":({"Resurs","Vecka","Allokering %","Planerade timmar"},False,"ResourcesTable"),
+      "Kostnader":({"Kategori","Beskrivning","Planerat","Utfall","Datum"},False,"CostsTable"),
+      "Beroenden":({"Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"},False,"DependenciesTable"),
+      "Beslut":({"Titel","Beslut","Beslutat av","Beslutsdatum","Ansvarig"},False,"DecisionsTable"),
+      "Möten":({"Titel","Datum","Deltagare","Anteckningar"},False,"MeetingsTable"),
+      "Åtgärder":({"Titel","Ansvarig","Förfallodatum","Status"},False,"ActionsTable"),
+      "Nyttor":({"Titel","Enhet","Baslinje","Mål","Utfall","Mätdatum","Ansvarig","Status"},False,"BenefitsTable")}
+    for name,(editable,readonly,table) in specs.items():
+        if name in wb.sheetnames: excel_pro_style_sheet(wb[name],editable,readonly,table)
+    if "Projektinformation" in wb.sheetnames:
+        info=wb["Projektinformation"]; info.sheet_view.showGridLines=False
+        for row in range(4,10): info.cell(row,2).fill=PatternFill("solid",fgColor=EXCEL_PRO_INPUT)
+        info["A12"]="Färgförklaring"; info["B12"]="Grönt = redigerbart. Grått/blått = rapport eller beräknat. Dolda tekniska kolumner används för säker round-trip."; info["B12"].alignment=Alignment(wrap_text=True); excel_page_setup(info,False)
+    if "_Metadata" in wb.sheetnames: wb["_Metadata"].sheet_state="veryHidden"
+    return wb
+
+def excel_pro_report_finalize_v902(wb,payload):
+    ws=wb["Projektstatus"]; ws.sheet_view.showGridLines=False; ws.freeze_panes="A3"; ws["D3"]="Excel Pro"; ws["D3"].font=Font(bold=True,color=EXCEL_PRO_ACCENT); ws["D4"]=f"v{APP_VERSION}"; ws["D5"]=datetime.now().strftime("%Y-%m-%d %H:%M")
+    ws["A18"]="Användning"; ws["B18"]="Rapportexport. För redigering och återimport används Excel Round-trip."; ws["B18"].alignment=Alignment(wrap_text=True); excel_page_setup(ws,False)
+    for name in ["Milstolpar","Höga risker","Försenade","Ändringar","Beslut"]:
+        if name in wb.sheetnames: excel_pro_style_sheet(wb[name],set(),True,f"Report_{name}")
+    dash=wb.create_sheet("Dashboard",0); dash.sheet_view.showGridLines=False; dash["A1"]="Project Planer – Statusdashboard"; dash["A1"].font=Font(size=20,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells("A1:F1"); dash["A3"]=payload["project"]["name"]; dash["A3"].font=Font(size=16,bold=True); dash.merge_cells("A3:F3")
+    metrics=[("RAG",payload["rag"].upper()),("Framdrift",f"{payload['progress']}%"),("Försenade",len(payload["overdue"])),("Höga risker",len(payload["high"])),("Planerat slut",payload["project"]["end_date"] or "–"),("Prognos slut",payload["forecast"]["forecast_end"] or "–")]
+    for i,(label,val) in enumerate(metrics):
+        row=5+(i//3)*3; col=1+(i%3)*2; dash.cell(row,col,label).font=Font(color="667085",bold=True); dash.cell(row+1,col,val).font=Font(size=16,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells(start_row=row,start_column=col,end_row=row,end_column=col+1); dash.merge_cells(start_row=row+1,start_column=col,end_row=row+1,end_column=col+1)
+    planned=float(payload["costs"]["planned"] or 0); actual=float(payload["costs"]["actual"] or 0); dash["H2"]="Ekonomi"; dash["I2"]="Belopp"; dash["H3"]="Planerat"; dash["I3"]=planned; dash["H4"]="Utfall"; dash["I4"]=actual
+    ch=BarChart(); ch.type="col"; ch.title="Ekonomi"; ch.legend=None; ch.add_data(Reference(dash,min_col=9,min_row=2,max_row=4),titles_from_data=True); ch.set_categories(Reference(dash,min_col=8,min_row=3,max_row=4)); ch.height=7; ch.width=10; dash.add_chart(ch,"A12"); dash.column_dimensions["H"].hidden=True; dash.column_dimensions["I"].hidden=True; excel_page_setup(dash,True)
+    return wb
+
+def build_portfolio_excel_v902(projects):
+    wb=Workbook(); ws=wb.active; ws.title="Portfolio"; ws.sheet_view.showGridLines=False
+    ws["A1"]="Project Planer – Portfolio Excel"; ws["A1"].font=Font(size=20,bold=True,color="FFFFFF"); ws["A1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.merge_cells("A1:L1"); ws["A2"]=f"Exporterad {datetime.now().strftime('%Y-%m-%d %H:%M')} · v{APP_VERSION}"; ws.merge_cells("A2:L2")
+    headers=["Projekt","Kund","Projektledare","RAG","Framdrift %","Planerat slut","Prognos slut","Försenade","Blockerade","Höga risker","Planerad kostnad","Utfall"]
+    ws.append([]); ws.append(headers); style_header(ws,4)
+    for p in projects:
+        pid=p["id"]; f=forecast_project_v850(pid)
+        with db() as conn:
+            tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall(); risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd')",(pid,)).fetchall(); costs=conn.execute("SELECT COALESCE(SUM(planned),0) p,COALESCE(SUM(actual),0) a FROM project_costs WHERE project_id=?",(pid,)).fetchone()
+        overdue=[t for t in tasks if t["end_date"] and excel_int(t["progress"])<100 and t["end_date"]<date.today().isoformat()]; blocked=[t for t in tasks if (t["status"] or "").lower() in ("blocked","blockerad")]; high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]; progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0; rag="Röd" if len(overdue)>=3 or len(high)>=2 else ("Gul" if overdue or high or blocked else "Grön")
+        ws.append([p["name"],p["customer"],p["project_manager"],rag,progress,excel_to_date(p["end_date"]),excel_to_date(f["forecast_end"]),len(overdue),len(blocked),len(high),float(costs["p"] or 0),float(costs["a"] or 0)])
+    if ws.max_row>=5:
+        excel_add_table(ws,"PortfolioTable"); ws.conditional_formatting.add(f"E5:E{ws.max_row}",DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color=EXCEL_PRO_ACCENT)); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Röd"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_RED))); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Gul"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_AMBER))); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Grön"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_GREEN)))
+        for row in range(5,ws.max_row+1): ws.cell(row,6).number_format="yyyy-mm-dd"; ws.cell(row,7).number_format="yyyy-mm-dd"; ws.cell(row,11).number_format='#,##0.00'; ws.cell(row,12).number_format='#,##0.00'
+    ws.freeze_panes="A5"; autosize(ws); ws.column_dimensions["A"].width=30; ws.column_dimensions["B"].width=24; ws.column_dimensions["C"].width=24; excel_page_setup(ws,True)
+    dash=wb.create_sheet("Översikt",0); dash.sheet_view.showGridLines=False; dash["A1"]="Portfolioöversikt"; dash["A1"].font=Font(size=22,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells("A1:F1")
+    total=len(projects); vals=list(ws.iter_rows(min_row=5,values_only=True)) if ws.max_row>=5 else []; red=sum(1 for r in vals if r[3]=="Röd"); amber=sum(1 for r in vals if r[3]=="Gul"); green=sum(1 for r in vals if r[3]=="Grön")
+    for i,(label,val) in enumerate([("Projekt",total),("Röda",red),("Gula",amber),("Gröna",green)]): col=1+i*2; dash.cell(3,col,label).font=Font(color="667085",bold=True); dash.cell(4,col,val).font=Font(size=18,bold=True,color=EXCEL_PRO_HEADER)
+    dash["H2"]="RAG"; dash["I2"]="Antal"
+    for rr,(label,val) in enumerate([("Röd",red),("Gul",amber),("Grön",green)],3): dash.cell(rr,8,label); dash.cell(rr,9,val)
+    if total:
+        ch=DoughnutChart(); ch.title="Portfolio RAG"; ch.add_data(Reference(dash,min_col=9,min_row=2,max_row=5),titles_from_data=True); ch.set_categories(Reference(dash,min_col=8,min_row=3,max_row=5)); ch.height=8; ch.width=12; ch.dataLabels=DataLabelList(); ch.dataLabels.showPercent=True; dash.add_chart(ch,"A7")
+    dash.column_dimensions["H"].hidden=True; dash.column_dimensions["I"].hidden=True; excel_page_setup(dash,True)
+    return wb
+
+@app.get("/excel/portfolio")
+@login_required
+def excel_portfolio_v902():
+    wb=build_portfolio_excel_v902(visible_projects_for_user()); bio=BytesIO(); wb.save(bio); bio.seek(0)
+    return send_file(bio,as_attachment=True,download_name=f"Project-Planer-Portfolio-{date.today().isoformat()}.xlsx",mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @app.get("/projects/<int:project_id>/excel")
 @login_required
@@ -2483,6 +2675,293 @@ def project_next_v900(project_id):
         if excel_int(r["probability"])*excel_int(r["impact"])>=15: attention.append(("Hög risk",r["title"],f"Riskpoäng {excel_int(r['probability'])*excel_int(r['impact'])}"))
     for c in changes[:5]: attention.append(("Ändringsärende",c["title"],c["status"]))
     return render_template("project_next_v900.html",project=p,f=f,tasks=tasks,attention=attention[:8])
+
+def report_studio_payload_v901(project_id):
+    p=project_or_404(project_id)
+    f=forecast_project_v850(project_id)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,wbs,id",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd') ORDER BY probability*impact DESC,id",(project_id,)).fetchall()
+        changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 12",(project_id,)).fetchall()
+        decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decision_date DESC,id DESC LIMIT 12",(project_id,)).fetchall()
+        costs=conn.execute("SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?",(project_id,)).fetchone()
+        latest_status=conn.execute("SELECT * FROM status_reports WHERE project_id=? ORDER BY report_date DESC,id DESC LIMIT 1",(project_id,)).fetchone()
+    milestones=[t for t in tasks if excel_int(t["milestone"])]
+    overdue=[t for t in tasks if t["end_date"] and excel_int(t["progress"])<100 and t["end_date"]<date.today().isoformat()]
+    blocked=[t for t in tasks if (t["status"] or "").lower() in ("blocked","blockerad")]
+    high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]
+    progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0
+    rag="red" if len(overdue)>=3 or len(high)>=2 else ("amber" if overdue or high or blocked else "green")
+    summary=(
+        f"{p['name']} är {progress}% klart. "
+        f"{len(overdue)} aktiviteter är försenade, {len(blocked)} blockerade och {len(high)} höga risker är öppna. "
+        f"Prognostiserat slut är {f['forecast_end'] or p['end_date'] or 'inte satt'}."
+    )
+    if latest_status and latest_status["summary"]:
+        summary=latest_status["summary"]
+    return {
+        "project":p,"forecast":f,"tasks":tasks,"milestones":milestones,"risks":risks,"high":high,
+        "changes":changes,"decisions":decisions,"overdue":overdue,"blocked":blocked,
+        "progress":progress,"rag":rag,"costs":costs,"summary":summary
+    }
+
+def log_report_export_v901(project_id,fmt,report_type,file_name):
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO report_export_log(project_id,format,report_type,file_name,exported_by,created_at) VALUES(?,?,?,?,?,?)",
+            (project_id,fmt,report_type,file_name,current_user()["id"],datetime.now().isoformat(timespec="seconds"))
+        )
+        conn.commit()
+    audit(project_id,"project",project_id,"report_export",f"{report_type}:{fmt}:{file_name}")
+
+def build_report_excel_v901(payload):
+    wb=Workbook()
+    ws=wb.active
+    ws.title="Projektstatus"
+    ws.sheet_view.showGridLines=False
+    ws["A1"]="Project Planer – Projektstatus"
+    ws["A1"].font=Font(size=18,bold=True,color="0F4C81")
+    ws.merge_cells("A1:D1")
+    project=payload["project"]
+    rows=[
+        ("Projekt",project["name"]),("Kund",project["customer"]),("Projektledare",project["project_manager"]),
+        ("RAG",payload["rag"].upper()),("Framdrift %",payload["progress"]),
+        ("Planerat slut",project["end_date"]),("Prognostiserat slut",payload["forecast"]["forecast_end"]),
+        ("Försenade aktiviteter",len(payload["overdue"])),("Blockerade aktiviteter",len(payload["blocked"])),
+        ("Höga risker",len(payload["high"])),("Planerad kostnad",float(payload["costs"]["planned"] or 0)),
+        ("Utfall",float(payload["costs"]["actual"] or 0))
+    ]
+    ws.append([])
+    for r in rows: ws.append(list(r))
+    ws["A16"]="Ledningssammanfattning"; ws["A16"].font=Font(bold=True)
+    ws["B16"]=payload["summary"]; ws["B16"].alignment=Alignment(wrap_text=True,vertical="top")
+    ws.column_dimensions["A"].width=28; ws.column_dimensions["B"].width=70
+
+    for title, headers, source, mapper in [
+        ("Milstolpar",["WBS","Milstolpe","Slutdatum","Status","Progress %"],payload["milestones"],
+         lambda x:[x["wbs"],x["title"],x["end_date"],x["status"],x["progress"]]),
+        ("Höga risker",["Risk","Sannolikhet","Konsekvens","Poäng","Ansvarig","Status"],payload["high"],
+         lambda x:[x["title"],x["probability"],x["impact"],excel_int(x["probability"])*excel_int(x["impact"]),x["owner"],x["status"]]),
+        ("Försenade",["WBS","Aktivitet","Ansvarig","Slutdatum","Progress %"],payload["overdue"],
+         lambda x:[x["wbs"],x["title"],x["owner"],x["end_date"],x["progress"]]),
+        ("Ändringar",["Rubrik","Status","Dagar","Kostnad","Beskrivning"],payload["changes"],
+         lambda x:[x["title"],x["status"],x["impact_days"],x["impact_cost"],x["description"]]),
+        ("Beslut",["Titel","Beslut","Datum","Beslutat av"],payload["decisions"],
+         lambda x:[x["title"],x["decision"],x["decision_date"],x["decided_by"]]),
+    ]:
+        sheet=wb.create_sheet(title)
+        excel_prepare_sheet(sheet,headers)
+        for item in source:
+            sheet.append(mapper(item))
+        autosize(sheet)
+    return excel_pro_report_finalize_v902(wb,payload)
+
+def build_report_pdf_v901(payload):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.colors import HexColor
+    b=BytesIO(); c=canvas.Canvas(b,pagesize=A4); w,h=A4
+    c.setFillColor(HexColor("#0F4C81")); c.rect(0,h-92,w,92,fill=1,stroke=0)
+    c.setFillColor(HexColor("#FFFFFF")); c.setFont("Helvetica-Bold",18)
+    c.drawString(42,h-52,payload["project"]["name"][:58])
+    c.setFont("Helvetica",9); c.drawString(42,h-72,f"Projektstatus · {date.today().isoformat()} · Project Planer v{APP_VERSION}")
+    y=h-122
+    c.setFillColor(HexColor("#111827")); c.setFont("Helvetica-Bold",13); c.drawString(42,y,"Ledningssammanfattning"); y-=20
+    c.setFont("Helvetica",10)
+    text=c.beginText(42,y)
+    for line in textwrap.wrap(payload["summary"],92):
+        text.textLine(line)
+    c.drawText(text); y=text.getY()-18
+    c.setFont("Helvetica-Bold",11)
+    metrics=[
+        f"RAG: {payload['rag'].upper()}",
+        f"Framdrift: {payload['progress']}%",
+        f"Försenade: {len(payload['overdue'])}",
+        f"Blockerade: {len(payload['blocked'])}",
+        f"Höga risker: {len(payload['high'])}",
+        f"Prognos slut: {payload['forecast']['forecast_end'] or '–'}"
+    ]
+    for i,m in enumerate(metrics):
+        col=i%2; row=i//2
+        c.drawString(42+col*255,y-row*22,m)
+    y-=78
+
+    def section(title, rows):
+        nonlocal y
+        if y<120:
+            c.showPage(); y=h-55
+        c.setFont("Helvetica-Bold",12); c.drawString(42,y,title); y-=18
+        c.setFont("Helvetica",9)
+        for line in rows[:10]:
+            if y<65:
+                c.showPage(); y=h-55; c.setFont("Helvetica",9)
+            c.drawString(52,y,line[:100]); y-=14
+        y-=8
+
+    section("Milstolpar",[f"{m['end_date'] or '–'}  {m['title']}  ({m['progress']}%)" for m in payload["milestones"]])
+    section("Höga risker",[f"{r['title']} · poäng {excel_int(r['probability'])*excel_int(r['impact'])} · {r['owner'] or 'utan ansvarig'}" for r in payload["high"]])
+    section("Behöver uppmärksamhet",[f"{t['title']} · slut {t['end_date']}" for t in payload["overdue"]])
+    section("Senaste beslut",[f"{d['decision_date'] or '–'} · {d['title']}: {d['decision']}" for d in payload["decisions"]])
+    c.save(); b.seek(0); return b
+
+def build_report_pptx_v901(payload):
+    from pptx import Presentation
+    from pptx.util import Inches
+    prs=Presentation()
+    prs.slide_width=Inches(13.333); prs.slide_height=Inches(7.5)
+    slide=prs.slides.add_slide(prs.slide_layouts[0])
+    slide.shapes.title.text=payload["project"]["name"]
+    slide.placeholders[1].text=f"Projektstatus · {date.today().isoformat()} · Project Planer v{APP_VERSION}"
+
+    slide=prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text="Ledningssammanfattning"
+    slide.placeholders[1].text=payload["summary"]+"\n\n"+(
+        f"RAG: {payload['rag'].upper()}   |   Framdrift: {payload['progress']}%   |   "
+        f"Försenade: {len(payload['overdue'])}   |   Höga risker: {len(payload['high'])}\n"
+        f"Planerat slut: {payload['project']['end_date'] or '–'}   |   Prognos: {payload['forecast']['forecast_end'] or '–'}"
+    )
+
+    slide=prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text="Milstolpar"
+    slide.placeholders[1].text="\n".join(f"• {m['end_date'] or '–'} · {m['title']} · {m['progress']}%" for m in payload["milestones"][:10]) or "Inga milstolpar"
+
+    slide=prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text="Risk & uppmärksamhet"
+    lines=[f"• RISK: {r['title']} · poäng {excel_int(r['probability'])*excel_int(r['impact'])}" for r in payload["high"][:6]]
+    lines += [f"• FÖRSENAD: {t['title']} · {t['end_date']}" for t in payload["overdue"][:6]]
+    slide.placeholders[1].text="\n".join(lines) or "Inga kritiska signaler"
+
+    slide=prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text="Ekonomi & prognos"
+    planned=float(payload["costs"]["planned"] or 0); actual=float(payload["costs"]["actual"] or 0)
+    slide.placeholders[1].text=(
+        f"Planerat: {planned:,.0f}\nUtfall: {actual:,.0f}\n"
+        f"Kostnadsprognos: {payload['forecast']['forecast_cost']:,.0f}\n"
+        f"Prognostiserat slut: {payload['forecast']['forecast_end'] or '–'}"
+    )
+
+    slide=prs.slides.add_slide(prs.slide_layouts[1])
+    slide.shapes.title.text="Beslut & nästa steg"
+    decisions="\n".join(f"• {d['title']}: {d['decision']}" for d in payload["decisions"][:6]) or "Inga beslut registrerade"
+    next_steps="\n".join(f"• {x}" for x in payload["forecast"]["reasons"]) or "• Fortsätt följa milstolpar, risker och resursbelastning."
+    slide.placeholders[1].text=decisions+"\n\nNästa fokus:\n"+next_steps
+    b=BytesIO(); prs.save(b); b.seek(0); return b
+
+@app.get("/projects/<int:project_id>/report-studio")
+@login_required
+def report_studio_v901(project_id):
+    payload=report_studio_payload_v901(project_id)
+    with db() as conn:
+        history=conn.execute(
+            """SELECT l.*,COALESCE(NULLIF(u.display_name,''),u.username) exported_by_name
+               FROM report_export_log l LEFT JOIN users u ON u.id=l.exported_by
+               WHERE l.project_id=? ORDER BY l.id DESC LIMIT 20""",(project_id,)
+        ).fetchall()
+    return render_template("report_studio_v901.html",d=payload,history=history)
+
+@app.get("/projects/<int:project_id>/report-preview")
+@login_required
+def report_preview_v901(project_id):
+    return render_template("report_preview_v901.html",d=report_studio_payload_v901(project_id),generated_at=datetime.now().strftime("%Y-%m-%d %H:%M"))
+
+@app.get("/projects/<int:project_id>/report-studio.pdf")
+@login_required
+def report_pdf_v901(project_id):
+    payload=report_studio_payload_v901(project_id)
+    file_name=f"{secure_filename(payload['project']['name'])}-project-status.pdf"
+    log_report_export_v901(project_id,"pdf","executive",file_name)
+    return send_file(build_report_pdf_v901(payload),mimetype="application/pdf",as_attachment=True,download_name=file_name)
+
+@app.get("/projects/<int:project_id>/report-studio.pptx")
+@login_required
+def report_pptx_v901(project_id):
+    payload=report_studio_payload_v901(project_id)
+    file_name=f"{secure_filename(payload['project']['name'])}-steering-group.pptx"
+    log_report_export_v901(project_id,"pptx","steering",file_name)
+    return send_file(build_report_pptx_v901(payload),mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",as_attachment=True,download_name=file_name)
+
+@app.get("/projects/<int:project_id>/report-studio.xlsx")
+@login_required
+def report_excel_v901(project_id):
+    payload=report_studio_payload_v901(project_id)
+    wb=build_report_excel_v901(payload)
+    b=BytesIO(); wb.save(b); b.seek(0)
+    file_name=f"{secure_filename(payload['project']['name'])}-status-report.xlsx"
+    log_report_export_v901(project_id,"xlsx","status",file_name)
+    return send_file(b,mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",as_attachment=True,download_name=file_name)
+
+@app.get("/projects/<int:project_id>/report-pack-v901.zip")
+@login_required
+def report_pack_zip_v901(project_id):
+    import zipfile
+    payload=report_studio_payload_v901(project_id)
+    base=secure_filename(payload["project"]["name"])
+    package=BytesIO()
+    with zipfile.ZipFile(package,"w",zipfile.ZIP_DEFLATED) as z:
+        pdf=build_report_pdf_v901(payload); z.writestr(f"{base}-project-status.pdf",pdf.getvalue())
+        ppt=build_report_pptx_v901(payload); z.writestr(f"{base}-steering-group.pptx",ppt.getvalue())
+        wb=build_report_excel_v901(payload); x=BytesIO(); wb.save(x)
+        z.writestr(f"{base}-status-report.xlsx",x.getvalue())
+        z.writestr("README.txt",
+            "Project Planer report pack\n"
+            f"Project: {payload['project']['name']}\n"
+            f"Generated: {datetime.now().isoformat(timespec='seconds')}\n"
+            f"App version: {APP_VERSION}\n"
+            "Contents: executive PDF, steering-group PowerPoint, status Excel workbook.\n")
+    package.seek(0)
+    file_name=f"{base}-report-pack.zip"
+    log_report_export_v901(project_id,"zip","report_pack",file_name)
+    return send_file(package,mimetype="application/zip",as_attachment=True,download_name=file_name)
+
+@app.get("/everyday-ux")
+@login_required
+def everyday_ux_v910():
+    return render_template("roadmap_910.html")
+
+@app.get("/workspace-ux-3")
+@login_required
+def workspace_ux_v920():
+    return render_template("roadmap_920.html")
+
+@app.get("/planning-pro-3")
+@login_required
+def planning_pro_v930():
+    return render_template("roadmap_930.html")
+
+@app.get("/capacity-pro-3")
+@login_required
+def capacity_pro_v940():
+    return render_template("roadmap_940.html")
+
+@app.get("/project-control-center")
+@login_required
+def control_center_v950():
+    return render_template("roadmap_950.html")
+
+@app.get("/reporting-automation")
+@login_required
+def reporting_automation_v960():
+    return render_template("roadmap_960.html")
+
+@app.get("/collaboration-decisions")
+@login_required
+def collaboration_decisions_v970():
+    return render_template("roadmap_970.html")
+
+@app.get("/portfolio-programs")
+@login_required
+def portfolio_programs_v980():
+    return render_template("roadmap_980.html")
+
+@app.get("/pm-intelligence")
+@login_required
+def pm_intelligence_v990():
+    return render_template("roadmap_990.html")
+
+@app.get("/enterprise-next")
+@login_required
+def enterprise_ux_v1000():
+    return render_template("roadmap_1000.html")
 
 @app.route("/admin")
 @login_required

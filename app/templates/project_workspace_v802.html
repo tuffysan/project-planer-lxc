@@ -29,8 +29,8 @@
 
   <div class="workspace-actions">
     <a class="button primary" href="{{url_for('quick_add_v51')}}">＋ Skapa</a>
-    <a class="button" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">↓ Exportera Excel</a>
-    <a class="button" href="{{url_for('excel_import_v810',project_id=project.id)}}">↑ Importera Excel</a>
+    <a class="button" href="{{url_for('excel_center_v810',project_id=project.id)}}">Excel Pro</a>
+    <a class="button" href="{{url_for('report_studio_v901',project_id=project.id)}}">Rapporter & export</a>
     <a class="button" href="{{url_for('edit_project',project_id=project.id)}}">Redigera projekt</a>
     <a class="button" href="{{url_for('pm_copilot_v60')}}">PM Copilot</a>
     <a class="button" href="{{url_for('project_next_v900',project_id=project.id)}}">Next UX</a>
