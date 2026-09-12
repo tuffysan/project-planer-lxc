@@ -1,4 +1,8 @@
-{% extends "base.html" %}{% block title %}Workspace · {{project.name}}{% endblock %}{% block content %}
+{% extends "base.html" %}{% block title %}Workspace · {{project.name}}
+{% if project and project.id %}
+<div class="workspace-tabs"><a href="{{url_for('delivery_center', project_id=project.id)}}">Delivery</a></div>
+{% endif %}
+{% endblock %}{% block content %}
 <div class="page-head"><div><h1>{{project.name}}</h1><p>{{project.customer}} · {{project.project_manager}}</p></div><a href="{{url_for('project_cockpit',project_id=project.id)}}">Cockpit</a></div>
 <div class="workspace-tabs">{% for key,label in [('overview','Overview'),('plan','Plan'),('control','RAID & Control'),('resources','Resources'),('finance','Finance'),('documents','Documents'),('meetings','Meetings'),('reports','Reports'),('activity','Activity')] %}<a href="{{url_for('project_workspace',project_id=project.id,tab=key)}}"><b>{% if tab==key %}● {% endif %}</b>{{label}}</a>{% endfor %}</div>
 {% if tab=='overview' %}<div class="grid-4"><div class="metric">Tasks<span class="value">{{tasks|length}}</span></div><div class="metric">Open risks<span class="value">{{risks|length}}</span></div><div class="metric">Documents<span class="value">{{docs|length}}</span></div><div class="metric">Meetings<span class="value">{{meetings|length}}</span></div></div>

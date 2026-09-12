@@ -16,13 +16,13 @@ This is a cumulative release. It contains all functionality from the preceding r
 ## Upgrade an existing LXC
 
 ```bash
-CTID=<your-ctid> VERSION=5.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=<your-ctid> VERSION=5.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## New install
 
 ```bash
-VERSION=5.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=5.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Run `./VERIFY.sh` before publishing. Keep a database backup before production upgrades.
@@ -30,3 +30,15 @@ Run `./VERIFY.sh` before publishing. Keep a database backup before production up
 ## Navigation hotfix
 
 Rebuilt navigation: no dynamic `undefined` labels, compact dropdown navigation, responsive header and account menu.
+
+## v5.0.1 hotfix
+
+This release fixes the HTTP 500 error on the start page introduced in v5.0.0.
+
+Cause: the global navigation rendered `url_for('delivery_center')`, while the `delivery_center` route requires `project_id`.
+
+Fixes:
+- removes the invalid global Delivery link
+- exposes Delivery only from project context where `project_id` is available
+- adds `VERIFY-PYTHON.py` to detect template `url_for()` calls missing required route parameters
+- adds `SMOKE-TEST.sh` for post-upgrade HTTP/journal verification

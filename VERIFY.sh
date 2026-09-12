@@ -16,8 +16,11 @@ bash -n "$ROOT/install-app.sh"
 bash -n "$ROOT/install-lxc.sh"
 bash -n "$ROOT/update-lxc.sh"
 
-grep -q 'APP_VERSION = "5.0.0"' "$ROOT/app/app.py"
+grep -q 'APP_VERSION = "5.0.1"' "$ROOT/app/app.py"
 grep -q '^2.1.3$' "$ROOT/VERSION"
 grep -q '/opt/project-plan/current-venv/bin/gunicorn' "$ROOT/scripts/project-plan.service"
 
 echo "v3.0.0 package verification OK"
+
+echo "[VERIFY] Checking Flask/Jinja url_for parameter usage..."
+python3 "$(dirname "$0")/VERIFY-PYTHON.py"
