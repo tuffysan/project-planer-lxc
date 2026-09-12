@@ -86,3 +86,30 @@ The full workbook supports offline editing for project information, tasks, risks
 ## Excel Pro (v9.0.2)
 
 Excel Center now offers three explicit workflows: a round-trip Project Workbook, a presentation-oriented Status Report workbook, and a Portfolio workbook. The project workbook includes a visual overview, formatted Excel tables, editable-field highlighting, filters, validations, conditional formatting, charts, print setup and hidden technical metadata for safe re-import.
+
+
+## Senaste versionen automatiskt
+
+Från och med v14.0.3 behöver du normalt inte ange versionsnummer.
+
+### Smart deploy – rekommenderad
+
+Samma kommando installerar om CTID inte finns och uppgraderar om CTID redan finns:
+
+```bash
+CTID=200 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/deploy-lxc.sh)"
+```
+
+### Uppgradera befintlig CT till senaste release
+
+```bash
+CTID=200 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+```
+
+### Ny installation av senaste release
+
+```bash
+CTID=200 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+```
+
+`VERSION=x.y.z` kan fortfarande anges om en specifik release ska installeras.
