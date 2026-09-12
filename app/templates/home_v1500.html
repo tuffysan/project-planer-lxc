@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Idag · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<section class="v15-hero">
+  <div>
+    <span class="v15-kicker">DIN ARBETSYTA</span>
+    <h1>God morgon, {{user.display_name}}</h1>
+    <p>{{attention_items|length}} saker är prioriterade just nu. Börja med det som påverkar leverans, beslut eller människor.</p>
+  </div>
+  <div class="v15-actions">
+    <a class="btn primary" href="/my-work-2">Öppna min inkorg</a>
+    {% if user.role in ['admin','pm'] %}<a class="btn" href="/projects/new-guided">＋ Nytt projekt</a>{% endif %}
+  </div>
+</section>
+
+<section class="v15-kpis">
+  <a href="#attention"><strong>{{attention_items|length}}</strong><span>behöver åtgärd</span></a>
+  <a href="#portfolio"><strong>{{attention}}</strong><span>projekt i risk/gult</span></a>
+  <a href="/my-work-2"><strong>{{my_tasks|length}}</strong><span>öppna för dig</span></a>
+  <a href="/notifications-2"><strong>{{unread}}</strong><span>nya notifieringar</span></a>
+  <a href="/resource-planner-2"><strong>{{overloaded_people}}</strong><span>överbeläggningar</span></a>
+</section>
+
+<div class="v15-grid-main">
+<section class="v15-panel" id="attention">
+  <div class="v15-panel-head"><div><span class="v15-kicker">ACTION INBOX</span><h2>Det här behöver din uppmärksamhet</h2></div><a href="/my-work-2">Visa allt →</a></div>
+  <div class="v15-attention-list">
+    {% for a in attention_items %}
+    <a class="v15-attention sev-{{a.severity}}" href="{{a.url}}">
+      <i></i><div><small>{{a.kind}}</small><strong>{{a.title}}</strong><span>{{a.detail}}</span></div><b>→</b>
+    </a>
+    {% else %}
+    <div class="v15-empty"><strong>Inga kritiska avvikelser</strong><span>Din portfölj ser stabil ut just nu.</span></div>
+    {% endfor %}
+  </div>
+</section>
+
+<aside class="v15-panel">
+  <div class="v15-panel-head"><div><span class="v15-kicker">MITT ARBETE</span><h2>Närmast på tur</h2></div><a href="/my-work-2">Alla →</a></div>
+  <div class="v15-mini-list">
+    {% for t in my_tasks[:10] %}
+    <a href="/projects/{{t.project_id}}/ultimate"><strong>{{t.title}}</strong><span>{{t.project_name}} · {{t.end_date or 'utan datum'}} · {{t.priority|sv}}</span></a>
+    {% else %}<div class="v15-empty">Inget öppet just nu.</div>{% endfor %}
+  </div>
+</aside>
+</div>
+
+<section class="v15-panel" id="portfolio">
+  <div class="v15-panel-head"><div><span class="v15-kicker">PORTFÖLJ</span><h2>Projektöversikt</h2></div><a href="/portfolio-cockpit">Öppna Portfolio →</a></div>
+  <div class="v15-project-table">
+    <div class="v15-project-row header"><span>Projekt</span><span>Hälsa</span><span>Klart</span><span>Försenat</span><span>Risker</span><span>Budget</span><span>Nästa milstolpe</span></div>
+    {% for c in cards %}
+    <a class="v15-project-row" href="/projects/{{c.project.id}}/ultimate">
+      <span><strong>{{c.project.name}}</strong><small>{{c.project.customer or 'Ingen kund'}}</small></span>
+      <span><b class="v15-rag {{c.health.rag}}"></b>{{'Grön' if c.health.rag=='green' else 'Gul' if c.health.rag=='amber' else 'Röd'}}</span>
+      <span>{{c.progress}}%</span>
+      <span class="{% if c.overdue %}v15-danger{% endif %}">{{c.overdue}}</span>
+      <span class="{% if c.high_risks %}v15-danger{% endif %}">{{c.high_risks}}</span>
+      <span>{{"%.0f"|format(c.actual)}} / {{"%.0f"|format(c.planned)}}</span>
+      <span>{% if c.upcoming %}{{c.upcoming[0].title}}<small>{{c.upcoming[0].end_date}}</small>{% else %}—{% endif %}</span>
+    </a>
+    {% else %}<div class="v15-empty">Inga aktiva projekt.</div>{% endfor %}
+  </div>
+</section>
+</div>
+{% endblock %}

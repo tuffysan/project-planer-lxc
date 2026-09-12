@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, abort, jsonify
+﻿from flask import Flask, render_template, request, redirect, url_for, flash, send_file, session, abort, jsonify
 import sqlite3, os, json, secrets, hmac, hashlib, shutil, platform, re
 from pathlib import Path
 from datetime import datetime, date, timedelta
@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "14.0.6"
+APP_VERSION = "15.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -43,36 +43,36 @@ def get_secret():
 
 app.secret_key = get_secret()
 
-STATUSES = ["Ej startad", "Pågår", "Blockerad", "Klar", "Pausad"]
-PRIORITIES = ["Låg", "Normal", "Hög", "Kritisk"]
-RISK_STATUSES = ["Öppen", "Bevakas", "Åtgärdas", "Stängd"]
+STATUSES = ["Ej startad", "PÃ¥gÃ¥r", "Blockerad", "Klar", "Pausad"]
+PRIORITIES = ["LÃ¥g", "Normal", "HÃ¶g", "Kritisk"]
+RISK_STATUSES = ["Ã–ppen", "Bevakas", "Ã…tgÃ¤rdas", "StÃ¤ngd"]
 ROLES = ["admin", "pm", "member", "viewer"]
 
 PROJECT_ROLES = ["pm", "member", "viewer"]
 
 LANGUAGES = {
-    "sv": {"name": "Svenska", "flag": "🇸🇪"},
-    "en": {"name": "English", "flag": "🇬🇧"},
-    "de": {"name": "Deutsch", "flag": "🇩🇪"},
-    "no": {"name": "Norsk", "flag": "🇳🇴"},
-    "da": {"name": "Dansk", "flag": "🇩🇰"},
-    "fi": {"name": "Suomi", "flag": "🇫🇮"},
+    "sv": {"name": "Svenska", "flag": "ðŸ‡¸ðŸ‡ª"},
+    "en": {"name": "English", "flag": "ðŸ‡¬ðŸ‡§"},
+    "de": {"name": "Deutsch", "flag": "ðŸ‡©ðŸ‡ª"},
+    "no": {"name": "Norsk", "flag": "ðŸ‡³ðŸ‡´"},
+    "da": {"name": "Dansk", "flag": "ðŸ‡©ðŸ‡°"},
+    "fi": {"name": "Suomi", "flag": "ðŸ‡«ðŸ‡®"},
 }
 
 TRANSLATIONS = {
     "sv": {
-        "dashboard":"Dashboard","admin":"Admin","password":"Lösenord","logout":"Logga ut","api":"API",
+        "dashboard":"Dashboard","admin":"Admin","password":"LÃ¶senord","logout":"Logga ut","api":"API",
         "notifications":"Notiser","pmo":"PMO","resources":"Resurser","my_work":"Mina uppgifter",
-        "language":"Språk","projects":"Projekt","new_project":"Nytt projekt","search":"Sök",
-        "welcome":"Välkommen tillbaka!","active_projects":"Aktiva projekt","activities":"Aktiviteter",
+        "language":"SprÃ¥k","projects":"Projekt","new_project":"Nytt projekt","search":"SÃ¶k",
+        "welcome":"VÃ¤lkommen tillbaka!","active_projects":"Aktiva projekt","activities":"Aktiviteter",
         "milestones":"Milstolpar","risks":"Risker","project_status":"Projektstatus","upcoming_milestones":"Kommande milstolpar",
         "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Tidrapportering",
-        "documents":"Dokument","meetings":"Möten","reports":"Rapporter","settings":"Inställningar",
-        "users":"Användare","system":"System","open":"Öppna","save":"Spara","cancel":"Avbryt",
-        "login":"Logga in","username":"Användarnamn","display_name":"Visningsnamn","current_password":"Nuvarande lösenord",
-        "new_password":"Nytt lösenord","change_password":"Byt lösenord","project_portfolio":"Mina projekt",
-        "only_assigned":"Du ser bara projekt där du är medlem.","admin_all_projects":"Administratörsvy: alla projekt.",
-        "brand_tagline":"PLAN · GENOMFÖR · LYCKAS"
+        "documents":"Dokument","meetings":"MÃ¶ten","reports":"Rapporter","settings":"InstÃ¤llningar",
+        "users":"AnvÃ¤ndare","system":"System","open":"Ã–ppna","save":"Spara","cancel":"Avbryt",
+        "login":"Logga in","username":"AnvÃ¤ndarnamn","display_name":"Visningsnamn","current_password":"Nuvarande lÃ¶senord",
+        "new_password":"Nytt lÃ¶senord","change_password":"Byt lÃ¶senord","project_portfolio":"Mina projekt",
+        "only_assigned":"Du ser bara projekt dÃ¤r du Ã¤r medlem.","admin_all_projects":"AdministratÃ¶rsvy: alla projekt.",
+        "brand_tagline":"PLAN Â· GENOMFÃ–R Â· LYCKAS"
     },
     "en": {
         "dashboard":"Dashboard","admin":"Admin","password":"Password","logout":"Sign out","api":"API",
@@ -86,63 +86,63 @@ TRANSLATIONS = {
         "login":"Sign in","username":"Username","display_name":"Display name","current_password":"Current password",
         "new_password":"New password","change_password":"Change password","project_portfolio":"My projects",
         "only_assigned":"You only see projects where you are a member.","admin_all_projects":"Administrator view: all projects.",
-        "brand_tagline":"PLAN · EXECUTE · SUCCEED"
+        "brand_tagline":"PLAN Â· EXECUTE Â· SUCCEED"
     },
     "de": {
         "dashboard":"Dashboard","admin":"Admin","password":"Passwort","logout":"Abmelden","api":"API",
         "notifications":"Benachrichtigungen","pmo":"PMO","resources":"Ressourcen","my_work":"Meine Aufgaben",
         "language":"Sprache","projects":"Projekte","new_project":"Neues Projekt","search":"Suchen",
-        "welcome":"Willkommen zurück!","active_projects":"Aktive Projekte","activities":"Aufgaben",
+        "welcome":"Willkommen zurÃ¼ck!","active_projects":"Aktive Projekte","activities":"Aufgaben",
         "milestones":"Meilensteine","risks":"Risiken","project_status":"Projektstatus","upcoming_milestones":"Kommende Meilensteine",
         "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Zeiterfassung",
         "documents":"Dokumente","meetings":"Meetings","reports":"Berichte","settings":"Einstellungen",
-        "users":"Benutzer","system":"System","open":"Öffnen","save":"Speichern","cancel":"Abbrechen",
+        "users":"Benutzer","system":"System","open":"Ã–ffnen","save":"Speichern","cancel":"Abbrechen",
         "login":"Anmelden","username":"Benutzername","display_name":"Anzeigename","current_password":"Aktuelles Passwort",
-        "new_password":"Neues Passwort","change_password":"Passwort ändern","project_portfolio":"Meine Projekte",
+        "new_password":"Neues Passwort","change_password":"Passwort Ã¤ndern","project_portfolio":"Meine Projekte",
         "only_assigned":"Sie sehen nur Projekte, denen Sie zugewiesen sind.","admin_all_projects":"Administratoransicht: alle Projekte.",
-        "brand_tagline":"PLANEN · UMSETZEN · ERFOLG"
+        "brand_tagline":"PLANEN Â· UMSETZEN Â· ERFOLG"
     },
     "no": {
         "dashboard":"Dashboard","admin":"Admin","password":"Passord","logout":"Logg ut","api":"API",
         "notifications":"Varsler","pmo":"PMO","resources":"Ressurser","my_work":"Mine oppgaver",
-        "language":"Språk","projects":"Prosjekter","new_project":"Nytt prosjekt","search":"Søk",
+        "language":"SprÃ¥k","projects":"Prosjekter","new_project":"Nytt prosjekt","search":"SÃ¸k",
         "welcome":"Velkommen tilbake!","active_projects":"Aktive prosjekter","activities":"Aktiviteter",
-        "milestones":"Milepæler","risks":"Risikoer","project_status":"Prosjektstatus","upcoming_milestones":"Kommende milepæler",
+        "milestones":"MilepÃ¦ler","risks":"Risikoer","project_status":"Prosjektstatus","upcoming_milestones":"Kommende milepÃ¦ler",
         "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Timeregistrering",
-        "documents":"Dokumenter","meetings":"Møter","reports":"Rapporter","settings":"Innstillinger",
-        "users":"Brukere","system":"System","open":"Åpne","save":"Lagre","cancel":"Avbryt",
-        "login":"Logg inn","username":"Brukernavn","display_name":"Visningsnavn","current_password":"Nåværende passord",
+        "documents":"Dokumenter","meetings":"MÃ¸ter","reports":"Rapporter","settings":"Innstillinger",
+        "users":"Brukere","system":"System","open":"Ã…pne","save":"Lagre","cancel":"Avbryt",
+        "login":"Logg inn","username":"Brukernavn","display_name":"Visningsnavn","current_password":"NÃ¥vÃ¦rende passord",
         "new_password":"Nytt passord","change_password":"Endre passord","project_portfolio":"Mine prosjekter",
         "only_assigned":"Du ser bare prosjekter du er medlem av.","admin_all_projects":"Administratorvisning: alle prosjekter.",
-        "brand_tagline":"PLANLEGG · GJENNOMFØR · LYKKES"
+        "brand_tagline":"PLANLEGG Â· GJENNOMFÃ˜R Â· LYKKES"
     },
     "da": {
         "dashboard":"Dashboard","admin":"Admin","password":"Adgangskode","logout":"Log ud","api":"API",
         "notifications":"Notifikationer","pmo":"PMO","resources":"Ressourcer","my_work":"Mine opgaver",
-        "language":"Sprog","projects":"Projekter","new_project":"Nyt projekt","search":"Søg",
+        "language":"Sprog","projects":"Projekter","new_project":"Nyt projekt","search":"SÃ¸g",
         "welcome":"Velkommen tilbage!","active_projects":"Aktive projekter","activities":"Aktiviteter",
-        "milestones":"Milepæle","risks":"Risici","project_status":"Projektstatus","upcoming_milestones":"Kommende milepæle",
+        "milestones":"MilepÃ¦le","risks":"Risici","project_status":"Projektstatus","upcoming_milestones":"Kommende milepÃ¦le",
         "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Tidsregistrering",
-        "documents":"Dokumenter","meetings":"Møder","reports":"Rapporter","settings":"Indstillinger",
-        "users":"Brugere","system":"System","open":"Åbn","save":"Gem","cancel":"Annuller",
-        "login":"Log ind","username":"Brugernavn","display_name":"Visningsnavn","current_password":"Nuværende adgangskode",
+        "documents":"Dokumenter","meetings":"MÃ¸der","reports":"Rapporter","settings":"Indstillinger",
+        "users":"Brugere","system":"System","open":"Ã…bn","save":"Gem","cancel":"Annuller",
+        "login":"Log ind","username":"Brugernavn","display_name":"Visningsnavn","current_password":"NuvÃ¦rende adgangskode",
         "new_password":"Ny adgangskode","change_password":"Skift adgangskode","project_portfolio":"Mine projekter",
         "only_assigned":"Du ser kun projekter, hvor du er medlem.","admin_all_projects":"Administratorvisning: alle projekter.",
-        "brand_tagline":"PLANLÆG · UDFØR · LYKKES"
+        "brand_tagline":"PLANLÃ†G Â· UDFÃ˜R Â· LYKKES"
     },
     "fi": {
-        "dashboard":"Kojelauta","admin":"Ylläpito","password":"Salasana","logout":"Kirjaudu ulos","api":"API",
-        "notifications":"Ilmoitukset","pmo":"PMO","resources":"Resurssit","my_work":"Omat tehtävät",
+        "dashboard":"Kojelauta","admin":"YllÃ¤pito","password":"Salasana","logout":"Kirjaudu ulos","api":"API",
+        "notifications":"Ilmoitukset","pmo":"PMO","resources":"Resurssit","my_work":"Omat tehtÃ¤vÃ¤t",
         "language":"Kieli","projects":"Projektit","new_project":"Uusi projekti","search":"Haku",
-        "welcome":"Tervetuloa takaisin!","active_projects":"Aktiiviset projektit","activities":"Tehtävät",
-        "milestones":"Välitavoitteet","risks":"Riskit","project_status":"Projektin tila","upcoming_milestones":"Tulevat välitavoitteet",
-        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalenteri","time_reporting":"Työajanseuranta",
+        "welcome":"Tervetuloa takaisin!","active_projects":"Aktiiviset projektit","activities":"TehtÃ¤vÃ¤t",
+        "milestones":"VÃ¤litavoitteet","risks":"Riskit","project_status":"Projektin tila","upcoming_milestones":"Tulevat vÃ¤litavoitteet",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalenteri","time_reporting":"TyÃ¶ajanseuranta",
         "documents":"Dokumentit","meetings":"Kokoukset","reports":"Raportit","settings":"Asetukset",
-        "users":"Käyttäjät","system":"Järjestelmä","open":"Avaa","save":"Tallenna","cancel":"Peruuta",
-        "login":"Kirjaudu sisään","username":"Käyttäjänimi","display_name":"Näyttönimi","current_password":"Nykyinen salasana",
+        "users":"KÃ¤yttÃ¤jÃ¤t","system":"JÃ¤rjestelmÃ¤","open":"Avaa","save":"Tallenna","cancel":"Peruuta",
+        "login":"Kirjaudu sisÃ¤Ã¤n","username":"KÃ¤yttÃ¤jÃ¤nimi","display_name":"NÃ¤yttÃ¶nimi","current_password":"Nykyinen salasana",
         "new_password":"Uusi salasana","change_password":"Vaihda salasana","project_portfolio":"Omat projektit",
-        "only_assigned":"Näet vain projektit, joissa olet jäsenenä.","admin_all_projects":"Ylläpitäjän näkymä: kaikki projektit.",
-        "brand_tagline":"SUUNNITTELE · TOTEUTA · ONNISTU"
+        "only_assigned":"NÃ¤et vain projektit, joissa olet jÃ¤senenÃ¤.","admin_all_projects":"YllÃ¤pitÃ¤jÃ¤n nÃ¤kymÃ¤: kaikki projektit.",
+        "brand_tagline":"SUUNNITTELE Â· TOTEUTA Â· ONNISTU"
     },
 }
 
@@ -251,7 +251,7 @@ def init_db():
             impact INTEGER DEFAULT 3,
             owner TEXT DEFAULT '',
             action TEXT DEFAULT '',
-            status TEXT DEFAULT 'Öppen',
+            status TEXT DEFAULT 'Ã–ppen',
             due_date TEXT DEFAULT '',
             created_at TEXT NOT NULL,
             FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -1008,22 +1008,22 @@ CREATE TABLE IF NOT EXISTS project_benefits(id INTEGER PRIMARY KEY AUTOINCREMENT
         templates = {
             "Standardprojekt":[
                 {"wbs":"1","title":"Initiering","milestone":0},
-                {"wbs":"1.1","title":"Projektmål och scope","milestone":0},
+                {"wbs":"1.1","title":"ProjektmÃ¥l och scope","milestone":0},
                 {"wbs":"1.2","title":"Kickoff","milestone":1},
                 {"wbs":"2","title":"Planering","milestone":0},
                 {"wbs":"2.1","title":"Detaljplan","milestone":0},
                 {"wbs":"2.2","title":"Riskworkshop","milestone":0},
-                {"wbs":"3","title":"Genomförande","milestone":0},
+                {"wbs":"3","title":"GenomfÃ¶rande","milestone":0},
                 {"wbs":"4","title":"Verifiering och acceptans","milestone":0},
-                {"wbs":"5","title":"Överlämning","milestone":1}
+                {"wbs":"5","title":"Ã–verlÃ¤mning","milestone":1}
             ],
             "IT-/integrationsprojekt":[
-                {"wbs":"1","title":"Förstudie och krav","milestone":0},
+                {"wbs":"1","title":"FÃ¶rstudie och krav","milestone":0},
                 {"wbs":"2","title":"Arkitektur och design","milestone":1},
                 {"wbs":"3","title":"Utveckling/konfiguration","milestone":0},
                 {"wbs":"4","title":"Integrationstest","milestone":0},
                 {"wbs":"5","title":"UAT","milestone":1},
-                {"wbs":"6","title":"Driftsättning","milestone":1},
+                {"wbs":"6","title":"DriftsÃ¤ttning","milestone":1},
                 {"wbs":"7","title":"Hypercare och avslut","milestone":0}
             ],
             "LIMS-projekt":[
@@ -1167,13 +1167,13 @@ def derived_status(task):
     if task["status"]=="Klar" or int(task["progress"] or 0)>=100:return "Klar"
     today=date.today(); end=parse_date(task["end_date"]); start=parse_date(task["start_date"])
     if task["status"]=="Blockerad":return "Blockerad"
-    if end and end<today:return "Försenad"
+    if end and end<today:return "FÃ¶rsenad"
     if start and start>today:return "Kommande"
-    if int(task["progress"] or 0)>0 or (start and start<=today):return "Pågår"
+    if int(task["progress"] or 0)>0 or (start and start<=today):return "PÃ¥gÃ¥r"
     return task["status"] or "Ej startad"
 
 def task_health(task):
-    return {"Försenad":"danger","Blockerad":"warning","Klar":"success","Pågår":"info"}.get(derived_status(task),"muted")
+    return {"FÃ¶rsenad":"danger","Blockerad":"warning","Klar":"success","PÃ¥gÃ¥r":"info"}.get(derived_status(task),"muted")
 
 @app.route("/setup",methods=["GET","POST"])
 def setup():
@@ -1182,14 +1182,14 @@ def setup():
         username=request.form["username"].strip()
         password=request.form["password"]
         if len(password)<10:
-            flash("Lösenordet måste vara minst 10 tecken.","danger")
+            flash("LÃ¶senordet mÃ¥ste vara minst 10 tecken.","danger")
             return render_template("setup.html")
         with db() as conn:
             conn.execute("""INSERT INTO users(username,display_name,password_hash,role,active,force_password_change,created_at)
                             VALUES(?,?,?,?,1,0,?)""",
                          (username,request.form.get("display_name","").strip() or username,
                           generate_password_hash(password),"admin",datetime.now().isoformat(timespec="seconds")))
-        flash("Administratör skapad. Logga in.","success")
+        flash("AdministratÃ¶r skapad. Logga in.","success")
         return redirect(url_for("login"))
     return render_template("setup.html")
 
@@ -1206,9 +1206,9 @@ def login():
                     try: locked_until=datetime.fromisoformat(u["locked_until"])
                     except: pass
                 if not u["active"]:
-                    flash("Kontot är inaktiverat.","danger"); return render_template("login.html")
+                    flash("Kontot Ã¤r inaktiverat.","danger"); return render_template("login.html")
                 if locked_until and locked_until>datetime.now():
-                    flash(f"Kontot är tillfälligt låst till {locked_until:%H:%M}.","danger")
+                    flash(f"Kontot Ã¤r tillfÃ¤lligt lÃ¥st till {locked_until:%H:%M}.","danger")
                     return render_template("login.html")
                 if check_password_hash(u["password_hash"],request.form["password"]):
                     conn.execute("UPDATE users SET failed_logins=0,locked_until='',last_login=? WHERE id=?",
@@ -1222,7 +1222,7 @@ def login():
                     lock_until=(datetime.now()+timedelta(minutes=int(setting("lockout_minutes","15")))).isoformat(timespec="seconds")
                     attempts=0
                 conn.execute("UPDATE users SET failed_logins=?,locked_until=? WHERE id=?",(attempts,lock_until,u["id"]))
-        flash("Fel användarnamn eller lösenord.","danger")
+        flash("Fel anvÃ¤ndarnamn eller lÃ¶senord.","danger")
     return render_template("login.html")
 
 @app.get("/logout")
@@ -1237,16 +1237,16 @@ def change_password():
     if request.method=="POST":
         new=request.form["new_password"]
         if len(new)<10:
-            flash("Det nya lösenordet måste vara minst 10 tecken.","danger")
+            flash("Det nya lÃ¶senordet mÃ¥ste vara minst 10 tecken.","danger")
         else:
             with db() as conn:
                 dbu=conn.execute("SELECT * FROM users WHERE id=?",(u["id"],)).fetchone()
                 if not check_password_hash(dbu["password_hash"],request.form["current_password"]):
-                    flash("Nuvarande lösenord är fel.","danger")
+                    flash("Nuvarande lÃ¶senord Ã¤r fel.","danger")
                 else:
                     conn.execute("UPDATE users SET password_hash=?,force_password_change=0 WHERE id=?",
                                  (generate_password_hash(new),u["id"]))
-                    flash("Lösenordet är ändrat.","success")
+                    flash("LÃ¶senordet Ã¤r Ã¤ndrat.","success")
                     return redirect(url_for("ultimate_home_v140"))
     return render_template("change_password.html")
 
@@ -1274,7 +1274,7 @@ def index():
                 WHERE t.end_date<>'' AND t.progress<100 AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
                 ORDER BY t.end_date LIMIT 50""").fetchall()
             open_risks=conn.execute("""SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id
-                WHERE r.status<>'Stängd' AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                WHERE r.status<>'StÃ¤ngd' AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
                 ORDER BY (r.probability*r.impact) DESC LIMIT 20""").fetchall()
         else:
             project_rows=conn.execute("""SELECT p.*,COUNT(t.id) task_count,COALESCE(ROUND(AVG(t.progress)),0) avg_progress,
@@ -1290,7 +1290,7 @@ def index():
                 ORDER BY t.end_date LIMIT 50""",(u["id"],)).fetchall()
             open_risks=conn.execute("""SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id
                 JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-                WHERE r.status<>'Stängd' AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                WHERE r.status<>'StÃ¤ngd' AND COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
                 ORDER BY (r.probability*r.impact) DESC LIMIT 20""",(u["id"],)).fetchall()
 
     today=date.today()
@@ -1380,7 +1380,7 @@ def project(project_id):
                            project_role=project_role,statuses=STATUSES,priorities=PRIORITIES,risk_statuses=RISK_STATUSES,
                            avg=avg,done=sum(1 for t in all_tasks if derived_status(t)=="Klar"),
                            blocked=sum(1 for t in all_tasks if derived_status(t)=="Blockerad"),
-                           overdue=sum(1 for t in all_tasks if derived_status(t)=="Försenad"),
+                           overdue=sum(1 for t in all_tasks if derived_status(t)=="FÃ¶rsenad"),
                            upcoming=sum(1 for t in all_tasks if parse_date(t["end_date"]) and date.today()<=parse_date(t["end_date"])<=date.today()+timedelta(days=7) and int(t["progress"] or 0)<100))
 
 @app.route("/projects/<int:project_id>/edit",methods=["GET","POST"])
@@ -1428,7 +1428,7 @@ def remove_project_member(project_id,user_id):
     project_or_404(project_id,manager=True)
     u=current_user()
     if u["id"]==user_id and u["role"]!="admin":
-        flash("Du kan inte ta bort dig själv som projektledare.","danger")
+        flash("Du kan inte ta bort dig sjÃ¤lv som projektledare.","danger")
     else:
         with db() as conn:
             conn.execute("DELETE FROM project_members WHERE project_id=? AND user_id=?",(project_id,user_id))
@@ -1500,7 +1500,7 @@ def new_risk(project_id):
                             VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
                          (project_id,request.form.get("kind","Risk"),request.form["title"].strip(),request.form.get("description","").strip(),
                           int(request.form.get("probability","3")),int(request.form.get("impact","3")),request.form.get("owner","").strip(),
-                          request.form.get("action","").strip(),request.form.get("status","Öppen"),request.form.get("due_date",""),
+                          request.form.get("action","").strip(),request.form.get("status","Ã–ppen"),request.form.get("due_date",""),
                           datetime.now().isoformat(timespec="seconds")))
         rid=cur.lastrowid
     audit(project_id,"risk",rid,"created",request.form["title"].strip())
@@ -1640,8 +1640,8 @@ def excel_text(value):
 
 def excel_add_validation(ws,column,values,start=2,end=2000):
     dv=DataValidation(type="list",formula1='"'+",".join(values)+'"',allow_blank=True)
-    dv.error="Välj ett värde från listan."
-    dv.errorTitle="Ogiltigt värde"
+    dv.error="VÃ¤lj ett vÃ¤rde frÃ¥n listan."
+    dv.errorTitle="Ogiltigt vÃ¤rde"
     ws.add_data_validation(dv)
     dv.add(f"{column}{start}:{column}{end}")
 
@@ -1743,10 +1743,10 @@ def build_roundtrip_workbook(project,data,scope="all"):
     # Project information
     info=wb.create_sheet("Projektinformation")
     info.sheet_view.showGridLines=False
-    info["A1"]="Project Planer – Excel Round-trip"
+    info["A1"]="Project Planer â€“ Excel Round-trip"
     info["A1"].font=Font(size=18,bold=True,color="0F4C81")
     info.merge_cells("A1:B1")
-    info["A3"]="Fält"; info["B3"]="Värde"; style_header(info,3)
+    info["A3"]="FÃ¤lt"; info["B3"]="VÃ¤rde"; style_header(info,3)
     labels=[
         ("Projektnamn","name"),("Kund","customer"),("Projektledare","project_manager"),
         ("Beskrivning","description"),("Plan start","start_date"),("Plan slut","end_date")
@@ -1755,7 +1755,7 @@ def build_roundtrip_workbook(project,data,scope="all"):
     for label,key in labels:
         info.append([label,ps[key]])
     info["A11"]="Instruktion"
-    info["B11"]="Redigera värden i kolumn B. Importen visar alltid en förhandsgranskning innan något skrivs tillbaka."
+    info["B11"]="Redigera vÃ¤rden i kolumn B. Importen visar alltid en fÃ¶rhandsgranskning innan nÃ¥got skrivs tillbaka."
     info["B11"].alignment=Alignment(wrap_text=True,vertical="top")
     info.column_dimensions["A"].width=24
     info.column_dimensions["B"].width=70
@@ -1785,7 +1785,7 @@ def build_roundtrip_workbook(project,data,scope="all"):
         autosize(ms)
 
         dep=wb.create_sheet("Beroenden")
-        excel_prepare_sheet(dep,["Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar","_ID","_Hash"])
+        excel_prepare_sheet(dep,["FÃ¶regÃ¥ende WBS","EfterfÃ¶ljande WBS","Typ","FÃ¶rskjutning dagar","_ID","_Hash"])
         task_by_id={int(t["id"]):t for t in data["tasks"]}
         for l in data["links"]:
             pred=task_by_id.get(int(l["predecessor_id"]))
@@ -1797,7 +1797,7 @@ def build_roundtrip_workbook(project,data,scope="all"):
 
     if scope in ("all","risk"):
         rw=wb.create_sheet("Risker")
-        excel_prepare_sheet(rw,["Typ","Titel","Beskrivning","Sannolikhet","Konsekvens","Ansvarig","Åtgärd","Status","Förfallodatum","_ID","_Hash"])
+        excel_prepare_sheet(rw,["Typ","Titel","Beskrivning","Sannolikhet","Konsekvens","Ansvarig","Ã…tgÃ¤rd","Status","FÃ¶rfallodatum","_ID","_Hash"])
         for r in data["risks"]:
             snap=excel_risk_snapshot(r)
             rw.append([snap["kind"],snap["title"],snap["description"],snap["probability"],snap["impact"],snap["owner"],snap["action"],snap["status"],snap["due_date"],r["id"],excel_row_hash(snap)])
@@ -1805,8 +1805,8 @@ def build_roundtrip_workbook(project,data,scope="all"):
         excel_add_validation(rw,"H",RISK_STATUSES)
         excel_hide_meta_columns(rw); autosize(rw); rw.column_dimensions["C"].width=38; rw.column_dimensions["G"].width=38
 
-        cw=wb.create_sheet("Ändringsärenden")
-        excel_prepare_sheet(cw,["Rubrik","Beskrivning","Omfattningspåverkan","Dagar","Kostnad","Status","_ID","_Hash"])
+        cw=wb.create_sheet("Ã„ndringsÃ¤renden")
+        excel_prepare_sheet(cw,["Rubrik","Beskrivning","OmfattningspÃ¥verkan","Dagar","Kostnad","Status","_ID","_Hash"])
         for c in data["changes"]:
             snap=excel_change_snapshot(c)
             cw.append([snap["title"],snap["description"],snap["impact_scope"],snap["impact_days"],snap["impact_cost"],snap["status"],c["id"],excel_row_hash(snap)])
@@ -1837,7 +1837,7 @@ def build_roundtrip_workbook(project,data,scope="all"):
         excel_hide_meta_columns(co); autosize(co); co.column_dimensions["B"].width=40
 
         be=wb.create_sheet("Nyttor")
-        excel_prepare_sheet(be,["Titel","Enhet","Baslinje","Mål","Utfall","Mätdatum","Ansvarig","Status","_ID","_Hash"])
+        excel_prepare_sheet(be,["Titel","Enhet","Baslinje","MÃ¥l","Utfall","MÃ¤tdatum","Ansvarig","Status","_ID","_Hash"])
         for b in data["benefits"]:
             snap=excel_benefit_snapshot(b)
             be.append([snap["title"],snap["unit"],snap["baseline_value"],snap["target_value"],snap["actual_value"],snap["measurement_date"],snap["owner"],snap["status"],b["id"],excel_row_hash(snap)])
@@ -1845,15 +1845,15 @@ def build_roundtrip_workbook(project,data,scope="all"):
         excel_hide_meta_columns(be); autosize(be)
 
     if scope=="all":
-        mw=wb.create_sheet("Möten")
+        mw=wb.create_sheet("MÃ¶ten")
         excel_prepare_sheet(mw,["Titel","Datum","Deltagare","Anteckningar","_ID","_Hash"])
         for m in data["meetings"]:
             snap=excel_meeting_snapshot(m)
             mw.append([snap["title"],snap["meeting_date"],snap["attendees"],snap["notes"],m["id"],excel_row_hash(snap)])
         excel_hide_meta_columns(mw); autosize(mw); mw.column_dimensions["D"].width=45
 
-        aw=wb.create_sheet("Åtgärder")
-        excel_prepare_sheet(aw,["Titel","Ansvarig","Förfallodatum","Status","_ID","_Hash"])
+        aw=wb.create_sheet("Ã…tgÃ¤rder")
+        excel_prepare_sheet(aw,["Titel","Ansvarig","FÃ¶rfallodatum","Status","_ID","_Hash"])
         for a in data["actions"]:
             snap=excel_action_snapshot(a)
             aw.append([snap["title"],snap["owner"],snap["due_date"],snap["status"],a["id"],excel_row_hash(snap)])
@@ -1912,7 +1912,7 @@ def excel_page_setup(ws,landscape=True):
     ws.page_setup.orientation="landscape" if landscape else "portrait"
     ws.page_setup.paperSize=ws.PAPERSIZE_A4
     ws.page_setup.fitToWidth=1; ws.page_setup.fitToHeight=0
-    ws.oddFooter.center.text=f"Project Planer v{APP_VERSION} · {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws.oddFooter.center.text=f"Project Planer v{APP_VERSION} Â· {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     ws.oddFooter.center.size=8
 
 def excel_to_date(v):
@@ -1924,8 +1924,8 @@ def excel_pro_style_sheet(ws,editable_headers=None,readonly=False,table_name=Non
     editable_headers=set(editable_headers or [])
     ws.freeze_panes="A2"; ws.sheet_view.showGridLines=False; style_header(ws,1)
     headers={c.column:excel_text(c.value) for c in ws[1]}
-    date_headers={"Plan start","Plan slut","Faktisk start","Faktiskt slut","Förfallodatum","Datum","Vecka","Beslutsdatum","Mätdatum","Slutdatum"}
-    money_headers={"Kostnad","Planerat","Utfall","Baslinje","Mål"}
+    date_headers={"Plan start","Plan slut","Faktisk start","Faktiskt slut","FÃ¶rfallodatum","Datum","Vecka","Beslutsdatum","MÃ¤tdatum","Slutdatum"}
+    money_headers={"Kostnad","Planerat","Utfall","Baslinje","MÃ¥l"}
     for col,header in headers.items():
         letter=get_column_letter(col)
         if header.startswith("_"):
@@ -1933,7 +1933,7 @@ def excel_pro_style_sheet(ws,editable_headers=None,readonly=False,table_name=Non
         fill=EXCEL_PRO_READONLY if readonly or header not in editable_headers else EXCEL_PRO_INPUT
         for row in range(2,ws.max_row+1):
             cell=ws.cell(row,col); cell.fill=PatternFill("solid",fgColor=fill)
-            cell.alignment=Alignment(vertical="top",wrap_text=header in {"Aktivitet","Kommentar","Beskrivning","Åtgärd","Beslut","Anteckningar"})
+            cell.alignment=Alignment(vertical="top",wrap_text=header in {"Aktivitet","Kommentar","Beskrivning","Ã…tgÃ¤rd","Beslut","Anteckningar"})
             if header in date_headers:
                 cell.value=excel_to_date(cell.value); cell.number_format="yyyy-mm-dd"
             elif header in money_headers: cell.number_format='#,##0.00'
@@ -1943,21 +1943,21 @@ def excel_pro_style_sheet(ws,editable_headers=None,readonly=False,table_name=Non
     if "Status" in [c.value for c in ws[1]] and ws.max_row>=2:
         col=[c.column for c in ws[1] if c.value=="Status"][0]; letter=get_column_letter(col); rng=f"{letter}2:{letter}{ws.max_row}"
         ws.conditional_formatting.add(rng,FormulaRule(formula=[f'OR(${letter}2="Blockerad",${letter}2="Blocked")'],fill=PatternFill("solid",fgColor=EXCEL_PRO_RED)))
-        ws.conditional_formatting.add(rng,FormulaRule(formula=[f'OR(${letter}2="Klar",${letter}2="Done",${letter}2="Closed",${letter}2="Stängd")'],fill=PatternFill("solid",fgColor=EXCEL_PRO_GREEN)))
+        ws.conditional_formatting.add(rng,FormulaRule(formula=[f'OR(${letter}2="Klar",${letter}2="Done",${letter}2="Closed",${letter}2="StÃ¤ngd")'],fill=PatternFill("solid",fgColor=EXCEL_PRO_GREEN)))
     autosize(ws)
     for c in ws[1]:
         h=excel_text(c.value); letter=get_column_letter(c.column)
         if h in {"Aktivitet","Titel","Rubrik","Milstolpe"}: ws.column_dimensions[letter].width=34
-        elif h in {"Kommentar","Beskrivning","Åtgärd","Beslut","Anteckningar"}: ws.column_dimensions[letter].width=42
+        elif h in {"Kommentar","Beskrivning","Ã…tgÃ¤rd","Beslut","Anteckningar"}: ws.column_dimensions[letter].width=42
     if table_name: excel_add_table(ws,table_name)
     excel_page_setup(ws,True)
 
 def excel_pro_overview(wb,project,data):
-    ws=wb.create_sheet("Översikt",0); ws.sheet_view.showGridLines=False
+    ws=wb.create_sheet("Ã–versikt",0); ws.sheet_view.showGridLines=False
     ws["A1"]="Project Planer"; ws["A1"].font=Font(size=11,bold=True,color="FFFFFF"); ws["A1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER)
-    ws["B1"]=f"Excel Pro · v{APP_VERSION}"; ws["B1"].font=Font(size=11,color="FFFFFF"); ws["B1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.merge_cells("B1:F1")
+    ws["B1"]=f"Excel Pro Â· v{APP_VERSION}"; ws["B1"].font=Font(size=11,color="FFFFFF"); ws["B1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.merge_cells("B1:F1")
     ws["A3"]=project["name"]; ws["A3"].font=Font(size=22,bold=True,color=EXCEL_PRO_HEADER); ws.merge_cells("A3:F3")
-    ws["A4"]=f"{project['customer'] or 'Ingen kund angiven'} · Projektledare: {project['project_manager'] or 'Ej satt'}"; ws["A4"].font=Font(color="667085"); ws.merge_cells("A4:F4")
+    ws["A4"]=f"{project['customer'] or 'Ingen kund angiven'} Â· Projektledare: {project['project_manager'] or 'Ej satt'}"; ws["A4"].font=Font(color="667085"); ws.merge_cells("A4:F4")
     tasks=data.get("tasks",[]); risks=data.get("risks",[]); costs=data.get("costs",[])
     milestones=[t for t in tasks if excel_int(t["milestone"])]
     overdue=[t for t in tasks if t["end_date"] and excel_int(t["progress"])<100 and str(t["end_date"])<date.today().isoformat()]
@@ -1965,18 +1965,18 @@ def excel_pro_overview(wb,project,data):
     high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]
     progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0
     planned=sum(excel_float(c["planned"]) for c in costs); actual=sum(excel_float(c["actual"]) for c in costs)
-    rag="RÖD" if len(overdue)>=3 or len(high)>=2 else ("GUL" if overdue or high or blocked else "GRÖN")
-    kpis=[("RAG",rag),("Framdrift",f"{progress}%"),("Försenade",len(overdue)),("Blockerade",len(blocked)),("Höga risker",len(high)),("Milstolpar",len(milestones)),("Planerad kostnad",planned),("Utfall",actual)]
+    rag="RÃ–D" if len(overdue)>=3 or len(high)>=2 else ("GUL" if overdue or high or blocked else "GRÃ–N")
+    kpis=[("RAG",rag),("Framdrift",f"{progress}%"),("FÃ¶rsenade",len(overdue)),("Blockerade",len(blocked)),("HÃ¶ga risker",len(high)),("Milstolpar",len(milestones)),("Planerad kostnad",planned),("Utfall",actual)]
     for i,(label,val) in enumerate(kpis):
         col=1+(i%4)*2; row=6+(i//4)*3
         ws.cell(row,col,label).font=Font(size=9,color="667085",bold=True); ws.cell(row+1,col,val).font=Font(size=16,bold=True,color=EXCEL_PRO_HEADER)
         ws.merge_cells(start_row=row,start_column=col,end_row=row,end_column=col+1); ws.merge_cells(start_row=row+1,start_column=col,end_row=row+1,end_column=col+1)
         for rr in (row,row+1):
             for cc in (col,col+1): ws.cell(rr,cc).fill=PatternFill("solid",fgColor="F8FAFC")
-    fill={"RÖD":EXCEL_PRO_RED,"GUL":EXCEL_PRO_AMBER,"GRÖN":EXCEL_PRO_GREEN}[rag]
+    fill={"RÃ–D":EXCEL_PRO_RED,"GUL":EXCEL_PRO_AMBER,"GRÃ–N":EXCEL_PRO_GREEN}[rag]
     ws["A7"].fill=PatternFill("solid",fgColor=fill); ws["B7"].fill=PatternFill("solid",fgColor=fill)
     ws["A13"]="Ledningsbild"; ws["A13"].font=Font(size=14,bold=True,color=EXCEL_PRO_HEADER); ws.merge_cells("A13:F13")
-    ws["A14"]=f"Projektet är {progress}% klart. {len(overdue)} aktiviteter är försenade, {len(blocked)} blockerade och {len(high)} höga risker är öppna. Planerat slutdatum är {project['end_date'] or 'inte satt'}."; ws.merge_cells("A14:F16"); ws["A14"].alignment=Alignment(wrap_text=True,vertical="top"); ws["A14"].fill=PatternFill("solid",fgColor="F8FAFC")
+    ws["A14"]=f"Projektet Ã¤r {progress}% klart. {len(overdue)} aktiviteter Ã¤r fÃ¶rsenade, {len(blocked)} blockerade och {len(high)} hÃ¶ga risker Ã¤r Ã¶ppna. Planerat slutdatum Ã¤r {project['end_date'] or 'inte satt'}."; ws.merge_cells("A14:F16"); ws["A14"].alignment=Alignment(wrap_text=True,vertical="top"); ws["A14"].fill=PatternFill("solid",fgColor="F8FAFC")
     ws["A18"]="Kommande milstolpar"; ws["A18"].font=Font(size=13,bold=True,color=EXCEL_PRO_HEADER)
     for c,v in enumerate(["Datum","Milstolpe","Status","Progress"],1): ws.cell(19,c,v); ws.cell(19,c).fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.cell(19,c).font=Font(color="FFFFFF",bold=True)
     for i,m in enumerate(sorted(milestones,key=lambda x:(x["end_date"] or "9999",x["id"]))[:8],20):
@@ -1995,37 +1995,37 @@ def excel_pro_overview(wb,project,data):
     excel_page_setup(ws,True); ws.print_area=f"A1:H{max(42,ws.max_row)}"
 
 def excel_pro_finalize_workbook(wb,project,data,scope="all"):
-    wb.properties.title=f"{project['name']} – Project Planer"; wb.properties.subject="Excel Pro / Round-trip"; wb.properties.creator="Project Planer"
-    wb.properties.description=f"Project Planer v{APP_VERSION} · {datetime.now().isoformat(timespec='seconds')}"
-    if "Översikt" not in wb.sheetnames: excel_pro_overview(wb,project,data)
+    wb.properties.title=f"{project['name']} â€“ Project Planer"; wb.properties.subject="Excel Pro / Round-trip"; wb.properties.creator="Project Planer"
+    wb.properties.description=f"Project Planer v{APP_VERSION} Â· {datetime.now().isoformat(timespec='seconds')}"
+    if "Ã–versikt" not in wb.sheetnames: excel_pro_overview(wb,project,data)
     specs={
       "Uppgifter":({"WBS","Aktivitet","Ansvarig","Plan start","Plan slut","Faktisk start","Faktiskt slut","Status","Prioritet","Progress %","Milstolpe","Kommentar"},False,"TasksTable"),
       "Milstolpar":(set(),True,"MilestonesView"),
-      "Risker":({"Typ","Titel","Beskrivning","Sannolikhet","Konsekvens","Ansvarig","Åtgärd","Status","Förfallodatum"},False,"RisksTable"),
-      "Ändringsärenden":({"Rubrik","Beskrivning","Omfattningspåverkan","Dagar","Kostnad","Status"},False,"ChangesTable"),
+      "Risker":({"Typ","Titel","Beskrivning","Sannolikhet","Konsekvens","Ansvarig","Ã…tgÃ¤rd","Status","FÃ¶rfallodatum"},False,"RisksTable"),
+      "Ã„ndringsÃ¤renden":({"Rubrik","Beskrivning","OmfattningspÃ¥verkan","Dagar","Kostnad","Status"},False,"ChangesTable"),
       "Resurser":({"Resurs","Vecka","Allokering %","Planerade timmar"},False,"ResourcesTable"),
       "Kostnader":({"Kategori","Beskrivning","Planerat","Utfall","Datum"},False,"CostsTable"),
-      "Beroenden":({"Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"},False,"DependenciesTable"),
+      "Beroenden":({"FÃ¶regÃ¥ende WBS","EfterfÃ¶ljande WBS","Typ","FÃ¶rskjutning dagar"},False,"DependenciesTable"),
       "Beslut":({"Titel","Beslut","Beslutat av","Beslutsdatum","Ansvarig"},False,"DecisionsTable"),
-      "Möten":({"Titel","Datum","Deltagare","Anteckningar"},False,"MeetingsTable"),
-      "Åtgärder":({"Titel","Ansvarig","Förfallodatum","Status"},False,"ActionsTable"),
-      "Nyttor":({"Titel","Enhet","Baslinje","Mål","Utfall","Mätdatum","Ansvarig","Status"},False,"BenefitsTable")}
+      "MÃ¶ten":({"Titel","Datum","Deltagare","Anteckningar"},False,"MeetingsTable"),
+      "Ã…tgÃ¤rder":({"Titel","Ansvarig","FÃ¶rfallodatum","Status"},False,"ActionsTable"),
+      "Nyttor":({"Titel","Enhet","Baslinje","MÃ¥l","Utfall","MÃ¤tdatum","Ansvarig","Status"},False,"BenefitsTable")}
     for name,(editable,readonly,table) in specs.items():
         if name in wb.sheetnames: excel_pro_style_sheet(wb[name],editable,readonly,table)
     if "Projektinformation" in wb.sheetnames:
         info=wb["Projektinformation"]; info.sheet_view.showGridLines=False
         for row in range(4,10): info.cell(row,2).fill=PatternFill("solid",fgColor=EXCEL_PRO_INPUT)
-        info["A12"]="Färgförklaring"; info["B12"]="Grönt = redigerbart. Grått/blått = rapport eller beräknat. Dolda tekniska kolumner används för säker round-trip."; info["B12"].alignment=Alignment(wrap_text=True); excel_page_setup(info,False)
+        info["A12"]="FÃ¤rgfÃ¶rklaring"; info["B12"]="GrÃ¶nt = redigerbart. GrÃ¥tt/blÃ¥tt = rapport eller berÃ¤knat. Dolda tekniska kolumner anvÃ¤nds fÃ¶r sÃ¤ker round-trip."; info["B12"].alignment=Alignment(wrap_text=True); excel_page_setup(info,False)
     if "_Metadata" in wb.sheetnames: wb["_Metadata"].sheet_state="veryHidden"
     return wb
 
 def excel_pro_report_finalize_v902(wb,payload):
     ws=wb["Projektstatus"]; ws.sheet_view.showGridLines=False; ws.freeze_panes="A3"; ws["D3"]="Excel Pro"; ws["D3"].font=Font(bold=True,color=EXCEL_PRO_ACCENT); ws["D4"]=f"v{APP_VERSION}"; ws["D5"]=datetime.now().strftime("%Y-%m-%d %H:%M")
-    ws["A18"]="Användning"; ws["B18"]="Rapportexport. För redigering och återimport används Excel Round-trip."; ws["B18"].alignment=Alignment(wrap_text=True); excel_page_setup(ws,False)
-    for name in ["Milstolpar","Höga risker","Försenade","Ändringar","Beslut"]:
+    ws["A18"]="AnvÃ¤ndning"; ws["B18"]="Rapportexport. FÃ¶r redigering och Ã¥terimport anvÃ¤nds Excel Round-trip."; ws["B18"].alignment=Alignment(wrap_text=True); excel_page_setup(ws,False)
+    for name in ["Milstolpar","HÃ¶ga risker","FÃ¶rsenade","Ã„ndringar","Beslut"]:
         if name in wb.sheetnames: excel_pro_style_sheet(wb[name],set(),True,f"Report_{name}")
-    dash=wb.create_sheet("Dashboard",0); dash.sheet_view.showGridLines=False; dash["A1"]="Project Planer – Statusdashboard"; dash["A1"].font=Font(size=20,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells("A1:F1"); dash["A3"]=payload["project"]["name"]; dash["A3"].font=Font(size=16,bold=True); dash.merge_cells("A3:F3")
-    metrics=[("RAG",payload["rag"].upper()),("Framdrift",f"{payload['progress']}%"),("Försenade",len(payload["overdue"])),("Höga risker",len(payload["high"])),("Planerat slut",payload["project"]["end_date"] or "–"),("Prognos slut",payload["forecast"]["forecast_end"] or "–")]
+    dash=wb.create_sheet("Dashboard",0); dash.sheet_view.showGridLines=False; dash["A1"]="Project Planer â€“ Statusdashboard"; dash["A1"].font=Font(size=20,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells("A1:F1"); dash["A3"]=payload["project"]["name"]; dash["A3"].font=Font(size=16,bold=True); dash.merge_cells("A3:F3")
+    metrics=[("RAG",payload["rag"].upper()),("Framdrift",f"{payload['progress']}%"),("FÃ¶rsenade",len(payload["overdue"])),("HÃ¶ga risker",len(payload["high"])),("Planerat slut",payload["project"]["end_date"] or "â€“"),("Prognos slut",payload["forecast"]["forecast_end"] or "â€“")]
     for i,(label,val) in enumerate(metrics):
         row=5+(i//3)*3; col=1+(i%3)*2; dash.cell(row,col,label).font=Font(color="667085",bold=True); dash.cell(row+1,col,val).font=Font(size=16,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells(start_row=row,start_column=col,end_row=row,end_column=col+1); dash.merge_cells(start_row=row+1,start_column=col,end_row=row+1,end_column=col+1)
     planned=float(payload["costs"]["planned"] or 0); actual=float(payload["costs"]["actual"] or 0); dash["H2"]="Ekonomi"; dash["I2"]="Belopp"; dash["H3"]="Planerat"; dash["I3"]=planned; dash["H4"]="Utfall"; dash["I4"]=actual
@@ -2034,24 +2034,24 @@ def excel_pro_report_finalize_v902(wb,payload):
 
 def build_portfolio_excel_v902(projects):
     wb=Workbook(); ws=wb.active; ws.title="Portfolio"; ws.sheet_view.showGridLines=False
-    ws["A1"]="Project Planer – Portfolio Excel"; ws["A1"].font=Font(size=20,bold=True,color="FFFFFF"); ws["A1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.merge_cells("A1:L1"); ws["A2"]=f"Exporterad {datetime.now().strftime('%Y-%m-%d %H:%M')} · v{APP_VERSION}"; ws.merge_cells("A2:L2")
-    headers=["Projekt","Kund","Projektledare","RAG","Framdrift %","Planerat slut","Prognos slut","Försenade","Blockerade","Höga risker","Planerad kostnad","Utfall"]
+    ws["A1"]="Project Planer â€“ Portfolio Excel"; ws["A1"].font=Font(size=20,bold=True,color="FFFFFF"); ws["A1"].fill=PatternFill("solid",fgColor=EXCEL_PRO_HEADER); ws.merge_cells("A1:L1"); ws["A2"]=f"Exporterad {datetime.now().strftime('%Y-%m-%d %H:%M')} Â· v{APP_VERSION}"; ws.merge_cells("A2:L2")
+    headers=["Projekt","Kund","Projektledare","RAG","Framdrift %","Planerat slut","Prognos slut","FÃ¶rsenade","Blockerade","HÃ¶ga risker","Planerad kostnad","Utfall"]
     ws.append([]); ws.append(headers); style_header(ws,4)
     for p in projects:
         pid=p["id"]; f=forecast_project_v850(pid)
         with db() as conn:
-            tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall(); risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd')",(pid,)).fetchall(); costs=conn.execute("SELECT COALESCE(SUM(planned),0) p,COALESCE(SUM(actual),0) a FROM project_costs WHERE project_id=?",(pid,)).fetchone()
-        overdue=[t for t in tasks if t["end_date"] and excel_int(t["progress"])<100 and t["end_date"]<date.today().isoformat()]; blocked=[t for t in tasks if (t["status"] or "").lower() in ("blocked","blockerad")]; high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]; progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0; rag="Röd" if len(overdue)>=3 or len(high)>=2 else ("Gul" if overdue or high or blocked else "Grön")
+            tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall(); risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','StÃ¤ngd')",(pid,)).fetchall(); costs=conn.execute("SELECT COALESCE(SUM(planned),0) p,COALESCE(SUM(actual),0) a FROM project_costs WHERE project_id=?",(pid,)).fetchone()
+        overdue=[t for t in tasks if t["end_date"] and excel_int(t["progress"])<100 and t["end_date"]<date.today().isoformat()]; blocked=[t for t in tasks if (t["status"] or "").lower() in ("blocked","blockerad")]; high=[r for r in risks if excel_int(r["probability"])*excel_int(r["impact"])>=15]; progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0; rag="RÃ¶d" if len(overdue)>=3 or len(high)>=2 else ("Gul" if overdue or high or blocked else "GrÃ¶n")
         ws.append([p["name"],p["customer"],p["project_manager"],rag,progress,excel_to_date(p["end_date"]),excel_to_date(f["forecast_end"]),len(overdue),len(blocked),len(high),float(costs["p"] or 0),float(costs["a"] or 0)])
     if ws.max_row>=5:
-        excel_add_table(ws,"PortfolioTable"); ws.conditional_formatting.add(f"E5:E{ws.max_row}",DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color=EXCEL_PRO_ACCENT)); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Röd"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_RED))); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Gul"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_AMBER))); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Grön"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_GREEN)))
+        excel_add_table(ws,"PortfolioTable"); ws.conditional_formatting.add(f"E5:E{ws.max_row}",DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color=EXCEL_PRO_ACCENT)); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="RÃ¶d"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_RED))); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="Gul"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_AMBER))); ws.conditional_formatting.add(f"D5:D{ws.max_row}",FormulaRule(formula=['$D5="GrÃ¶n"'],fill=PatternFill("solid",fgColor=EXCEL_PRO_GREEN)))
         for row in range(5,ws.max_row+1): ws.cell(row,6).number_format="yyyy-mm-dd"; ws.cell(row,7).number_format="yyyy-mm-dd"; ws.cell(row,11).number_format='#,##0.00'; ws.cell(row,12).number_format='#,##0.00'
     ws.freeze_panes="A5"; autosize(ws); ws.column_dimensions["A"].width=30; ws.column_dimensions["B"].width=24; ws.column_dimensions["C"].width=24; excel_page_setup(ws,True)
-    dash=wb.create_sheet("Översikt",0); dash.sheet_view.showGridLines=False; dash["A1"]="Portfolioöversikt"; dash["A1"].font=Font(size=22,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells("A1:F1")
-    total=len(projects); vals=list(ws.iter_rows(min_row=5,values_only=True)) if ws.max_row>=5 else []; red=sum(1 for r in vals if r[3]=="Röd"); amber=sum(1 for r in vals if r[3]=="Gul"); green=sum(1 for r in vals if r[3]=="Grön")
-    for i,(label,val) in enumerate([("Projekt",total),("Röda",red),("Gula",amber),("Gröna",green)]): col=1+i*2; dash.cell(3,col,label).font=Font(color="667085",bold=True); dash.cell(4,col,val).font=Font(size=18,bold=True,color=EXCEL_PRO_HEADER)
+    dash=wb.create_sheet("Ã–versikt",0); dash.sheet_view.showGridLines=False; dash["A1"]="PortfolioÃ¶versikt"; dash["A1"].font=Font(size=22,bold=True,color=EXCEL_PRO_HEADER); dash.merge_cells("A1:F1")
+    total=len(projects); vals=list(ws.iter_rows(min_row=5,values_only=True)) if ws.max_row>=5 else []; red=sum(1 for r in vals if r[3]=="RÃ¶d"); amber=sum(1 for r in vals if r[3]=="Gul"); green=sum(1 for r in vals if r[3]=="GrÃ¶n")
+    for i,(label,val) in enumerate([("Projekt",total),("RÃ¶da",red),("Gula",amber),("GrÃ¶na",green)]): col=1+i*2; dash.cell(3,col,label).font=Font(color="667085",bold=True); dash.cell(4,col,val).font=Font(size=18,bold=True,color=EXCEL_PRO_HEADER)
     dash["H2"]="RAG"; dash["I2"]="Antal"
-    for rr,(label,val) in enumerate([("Röd",red),("Gul",amber),("Grön",green)],3): dash.cell(rr,8,label); dash.cell(rr,9,val)
+    for rr,(label,val) in enumerate([("RÃ¶d",red),("Gul",amber),("GrÃ¶n",green)],3): dash.cell(rr,8,label); dash.cell(rr,9,val)
     if total:
         ch=DoughnutChart(); ch.title="Portfolio RAG"; ch.add_data(Reference(dash,min_col=9,min_row=2,max_row=5),titles_from_data=True); ch.set_categories(Reference(dash,min_col=8,min_row=3,max_row=5)); ch.height=8; ch.width=12; ch.dataLabels=DataLabelList(); ch.dataLabels.showPercent=True; dash.add_chart(ch,"A7")
     dash.column_dimensions["H"].hidden=True; dash.column_dimensions["I"].hidden=True; excel_page_setup(dash,True)
@@ -2107,13 +2107,13 @@ EXCEL_SPECS={
     },
     "Risker":{
         "entity":"Risk","table":"risks","required":"title",
-        "headers":{"Typ":"kind","Titel":"title","Beskrivning":"description","Sannolikhet":"probability","Konsekvens":"impact","Ansvarig":"owner","Åtgärd":"action","Status":"status","Förfallodatum":"due_date"},
+        "headers":{"Typ":"kind","Titel":"title","Beskrivning":"description","Sannolikhet":"probability","Konsekvens":"impact","Ansvarig":"owner","Ã…tgÃ¤rd":"action","Status":"status","FÃ¶rfallodatum":"due_date"},
         "snapshot":excel_risk_snapshot,
         "converters":{"probability":lambda v:max(1,min(5,excel_int(v,3))),"impact":lambda v:max(1,min(5,excel_int(v,3))),"due_date":excel_date},
     },
-    "Ändringsärenden":{
-        "entity":"Ändringsärende","table":"change_requests","required":"title",
-        "headers":{"Rubrik":"title","Beskrivning":"description","Omfattningspåverkan":"impact_scope","Dagar":"impact_days","Kostnad":"impact_cost","Status":"status"},
+    "Ã„ndringsÃ¤renden":{
+        "entity":"Ã„ndringsÃ¤rende","table":"change_requests","required":"title",
+        "headers":{"Rubrik":"title","Beskrivning":"description","OmfattningspÃ¥verkan":"impact_scope","Dagar":"impact_days","Kostnad":"impact_cost","Status":"status"},
         "snapshot":excel_change_snapshot,
         "converters":{"impact_days":excel_int,"impact_cost":excel_float},
     },
@@ -2135,21 +2135,21 @@ EXCEL_SPECS={
         "snapshot":excel_decision_snapshot,
         "converters":{"decision_date":excel_date},
     },
-    "Möten":{
-        "entity":"Möte","table":"meetings","required":"title",
+    "MÃ¶ten":{
+        "entity":"MÃ¶te","table":"meetings","required":"title",
         "headers":{"Titel":"title","Datum":"meeting_date","Deltagare":"attendees","Anteckningar":"notes"},
         "snapshot":excel_meeting_snapshot,
         "converters":{"meeting_date":excel_date},
     },
-    "Åtgärder":{
-        "entity":"Åtgärd","table":"action_items","required":"title",
-        "headers":{"Titel":"title","Ansvarig":"owner","Förfallodatum":"due_date","Status":"status"},
+    "Ã…tgÃ¤rder":{
+        "entity":"Ã…tgÃ¤rd","table":"action_items","required":"title",
+        "headers":{"Titel":"title","Ansvarig":"owner","FÃ¶rfallodatum":"due_date","Status":"status"},
         "snapshot":excel_action_snapshot,
         "converters":{"due_date":excel_date},
     },
     "Nyttor":{
         "entity":"Nytta","table":"project_benefits","required":"title",
-        "headers":{"Titel":"title","Enhet":"unit","Baslinje":"baseline_value","Mål":"target_value","Utfall":"actual_value","Mätdatum":"measurement_date","Ansvarig":"owner","Status":"status"},
+        "headers":{"Titel":"title","Enhet":"unit","Baslinje":"baseline_value","MÃ¥l":"target_value","Utfall":"actual_value","MÃ¤tdatum":"measurement_date","Ansvarig":"owner","Status":"status"},
         "snapshot":excel_benefit_snapshot,
         "converters":{"baseline_value":excel_float,"target_value":excel_float,"actual_value":lambda v:None if v in (None,"") else excel_float(v),"measurement_date":excel_date},
     },
@@ -2184,22 +2184,22 @@ def excel_diff(old,new):
 
 def excel_import_preview(project_id,file_storage):
     if not file_storage or not file_storage.filename:
-        raise ValueError("Välj en Excel-fil.")
+        raise ValueError("VÃ¤lj en Excel-fil.")
     if not file_storage.filename.lower().endswith(".xlsx"):
-        raise ValueError("Endast .xlsx stöds.")
+        raise ValueError("Endast .xlsx stÃ¶ds.")
     payload=file_storage.read()
     if len(payload)>15*1024*1024:
-        raise ValueError("Excel-filen är större än 15 MB.")
+        raise ValueError("Excel-filen Ã¤r stÃ¶rre Ã¤n 15 MB.")
     try:
         wb=load_workbook(BytesIO(payload),data_only=False)
     except Exception as ex:
-        raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
+        raise ValueError(f"Kunde inte lÃ¤sa Excel-filen: {ex}")
 
     meta=excel_parse_metadata(wb)
     if meta.get("schema_version")!=EXCEL_SCHEMA_VERSION:
-        raise ValueError("Filen är inte en kompatibel Project Planer Excel Round-trip-fil.")
+        raise ValueError("Filen Ã¤r inte en kompatibel Project Planer Excel Round-trip-fil.")
     if excel_int(meta.get("project_id"))!=project_id:
-        raise ValueError("Excel-filen tillhör ett annat projekt.")
+        raise ValueError("Excel-filen tillhÃ¶r ett annat projekt.")
 
     preview={"project_id":project_id,"exported_at":meta.get("exported_at",""),"app_version":meta.get("app_version",""),"items":[],"errors":[],"counts":{"create":0,"update":0,"conflict":0,"error":0,"unchanged":0}}
 
@@ -2256,7 +2256,7 @@ def excel_import_preview(project_id,file_storage):
                     continue
                 current_row=current_rows.get(row_id)
                 if not current_row:
-                    preview["items"].append({"sheet":sheet_name,"entity":spec["entity"],"kind":"error","id":row_id,"row":row_no,"title":required,"changes":{},"data":data,"message":"ID finns inte längre i appen."})
+                    preview["items"].append({"sheet":sheet_name,"entity":spec["entity"],"kind":"error","id":row_id,"row":row_no,"title":required,"changes":{},"data":data,"message":"ID finns inte lÃ¤ngre i appen."})
                     preview["counts"]["error"]+=1
                     continue
                 current=spec["snapshot"](current_row)
@@ -2276,31 +2276,31 @@ def excel_import_preview(project_id,file_storage):
         # Task dependencies need WBS mapping.
         if "Beroenden" in wb.sheetnames:
             ws=wb["Beroenden"]; hdr=excel_headers(ws)
-            needed=["Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"]
+            needed=["FÃ¶regÃ¥ende WBS","EfterfÃ¶ljande WBS","Typ","FÃ¶rskjutning dagar"]
             if all(x in hdr for x in needed):
                 tasks=conn.execute("SELECT id,wbs FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchall()
                 id_by_wbs={excel_text(t["wbs"]):int(t["id"]) for t in tasks if excel_text(t["wbs"])}
                 links={int(r["id"]):r for r in conn.execute("SELECT * FROM task_links WHERE project_id=?",(project_id,)).fetchall()}
                 id_col=hdr.get("_ID"); hash_col=hdr.get("_Hash")
                 for row_no in range(2,ws.max_row+1):
-                    pred=excel_text(ws.cell(row_no,hdr["Föregående WBS"]).value)
-                    succ=excel_text(ws.cell(row_no,hdr["Efterföljande WBS"]).value)
+                    pred=excel_text(ws.cell(row_no,hdr["FÃ¶regÃ¥ende WBS"]).value)
+                    succ=excel_text(ws.cell(row_no,hdr["EfterfÃ¶ljande WBS"]).value)
                     typ=excel_text(ws.cell(row_no,hdr["Typ"]).value) or "FS"
-                    lag=excel_int(ws.cell(row_no,hdr["Förskjutning dagar"]).value)
+                    lag=excel_int(ws.cell(row_no,hdr["FÃ¶rskjutning dagar"]).value)
                     row_id=excel_int(ws.cell(row_no,id_col).value) if id_col else 0
                     exported_hash=excel_text(ws.cell(row_no,hash_col).value) if hash_col else ""
                     if not pred and not succ and not row_id: continue
                     if pred not in id_by_wbs or succ not in id_by_wbs:
-                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"error","id":row_id or None,"row":row_no,"title":f"{pred} → {succ}","changes":{},"data":{},"message":"WBS finns inte bland projektets uppgifter."})
+                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"error","id":row_id or None,"row":row_no,"title":f"{pred} â†’ {succ}","changes":{},"data":{},"message":"WBS finns inte bland projektets uppgifter."})
                         preview["counts"]["error"]+=1; continue
                     data={"predecessor_wbs":pred,"successor_wbs":succ,"link_type":typ,"lag_days":lag,"predecessor_id":id_by_wbs[pred],"successor_id":id_by_wbs[succ]}
                     visible={"predecessor_wbs":pred,"successor_wbs":succ,"link_type":typ,"lag_days":lag}
                     if not row_id:
-                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"create","id":None,"row":row_no,"title":f"{pred} → {succ}","changes":{},"data":data})
+                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"create","id":None,"row":row_no,"title":f"{pred} â†’ {succ}","changes":{},"data":data})
                         preview["counts"]["create"]+=1; continue
                     cur=links.get(row_id)
                     if not cur:
-                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"error","id":row_id,"row":row_no,"title":f"{pred} → {succ}","changes":{},"data":data,"message":"Beroendet finns inte längre."})
+                        preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":"error","id":row_id,"row":row_no,"title":f"{pred} â†’ {succ}","changes":{},"data":data,"message":"Beroendet finns inte lÃ¤ngre."})
                         preview["counts"]["error"]+=1; continue
                     pred_cur=next((k for k,v in id_by_wbs.items() if v==int(cur["predecessor_id"])),"")
                     succ_cur=next((k for k,v in id_by_wbs.items() if v==int(cur["successor_id"])),"")
@@ -2309,7 +2309,7 @@ def excel_import_preview(project_id,file_storage):
                     if excel_hash==exported_hash or excel_hash==current_hash:
                         preview["counts"]["unchanged"]+=1; continue
                     kind="conflict" if exported_hash and current_hash!=exported_hash else "update"
-                    preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":kind,"id":row_id,"row":row_no,"title":f"{pred} → {succ}","changes":excel_diff(current,visible),"data":data})
+                    preview["items"].append({"sheet":"Beroenden","entity":"Beroende","kind":kind,"id":row_id,"row":row_no,"title":f"{pred} â†’ {succ}","changes":excel_diff(current,visible),"data":data})
                     preview["counts"][kind]+=1
             else:
                 preview["errors"].append("Beroenden: obligatoriska kolumner saknas.")
@@ -2354,7 +2354,7 @@ def excel_insert(conn,table,project_id,data):
         vals=[project_id,data["wbs"],data["title"],data["owner"],data["start_date"],data["end_date"],data["actual_start"],data["actual_end"],data["status"] or "Ej startad",data["priority"] or "Normal",data["progress"],data["milestone"],data["notes"],999999]
     elif table=="risks":
         cols=["project_id","kind","title","description","probability","impact","owner","action","status","due_date","created_at"]
-        vals=[project_id,data["kind"] or "Risk",data["title"],data["description"],data["probability"],data["impact"],data["owner"],data["action"],data["status"] or "Öppen",data["due_date"],now]
+        vals=[project_id,data["kind"] or "Risk",data["title"],data["description"],data["probability"],data["impact"],data["owner"],data["action"],data["status"] or "Ã–ppen",data["due_date"],now]
     elif table=="change_requests":
         cols=["project_id","title","description","impact_scope","impact_days","impact_cost","status","created_at"]
         vals=[project_id,data["title"],data["description"],data["impact_scope"],data["impact_days"],data["impact_cost"],data["status"] or "Proposed",now]
@@ -2411,7 +2411,7 @@ def excel_import_commit_v810(project_id,token):
     if policy not in ("app","excel"):
         policy="app"
     if preview.get("counts",{}).get("error",0):
-        flash("Importen innehåller fel. Rätta Excel-filen och förhandsgranska igen.","error")
+        flash("Importen innehÃ¥ller fel. RÃ¤tta Excel-filen och fÃ¶rhandsgranska igen.","error")
         return render_template("excel_import_preview_v810.html",project=p,preview=preview,token=token)
 
     backup_name=excel_backup_before_import()
@@ -2463,7 +2463,7 @@ def excel_import_commit_v810(project_id,token):
         path.unlink()
     except OSError:
         pass
-    flash(f"Excel-import klar: {applied} ändringar genomförda ({created} nya, {updated} uppdaterade). Backup: {backup_name}.","success")
+    flash(f"Excel-import klar: {applied} Ã¤ndringar genomfÃ¶rda ({created} nya, {updated} uppdaterade). Backup: {backup_name}.","success")
     return redirect(url_for("project_workspace",project_id=project_id,tab="overview"))
 
 @app.get("/projects/<int:project_id>/workspace-pro")
@@ -2528,7 +2528,7 @@ def gantt_pro_v840(project_id):
         if request.form.get("apply")=="1":
             with db() as conn:
                 conn.execute("UPDATE tasks SET end_date=? WHERE id=? AND project_id=?",(new_end,task_id,project_id)); conn.commit()
-            flash("Planändringen är tillämpad.","success")
+            flash("PlanÃ¤ndringen Ã¤r tillÃ¤mpad.","success")
             return redirect(url_for("gantt_pro_v840",project_id=project_id))
     with db() as conn:
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY start_date,wbs,id",(project_id,)).fetchall()
@@ -2539,7 +2539,7 @@ def forecast_project_v850(project_id):
     with db() as conn:
         p=conn.execute("SELECT * FROM projects WHERE id=?",(project_id,)).fetchone()
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd')",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','StÃ¤ngd')",(project_id,)).fetchall()
         costs=conn.execute("SELECT COALESCE(SUM(planned),0) p,COALESCE(SUM(actual),0) a FROM project_costs WHERE project_id=?",(project_id,)).fetchone()
         alloc=conn.execute("SELECT COALESCE(MAX(allocation_pct),0) m FROM resource_allocations WHERE project_id=?",(project_id,)).fetchone()
     today=date.today(); overdue=[t for t in tasks if t["end_date"] and t["progress"]<100 and t["end_date"]<today.isoformat()]
@@ -2553,8 +2553,8 @@ def forecast_project_v850(project_id):
     budget=float(costs["p"] or 0); actual=float(costs["a"] or 0)
     forecast_cost=max(actual,budget*(1+min(.30,(len(overdue)+len(high))*.025)))
     reasons=[]
-    if overdue: reasons.append(f"{len(overdue)} försenade aktiviteter")
-    if high: reasons.append(f"{len(high)} höga risker")
+    if overdue: reasons.append(f"{len(overdue)} fÃ¶rsenade aktiviteter")
+    if high: reasons.append(f"{len(high)} hÃ¶ga risker")
     if alloc["m"]>120: reasons.append(f"resursallokering {alloc['m']}%")
     return {"planned_end":planned_end,"forecast_end":forecast_end,"slip":slip,"budget":budget,"actual":actual,"forecast_cost":forecast_cost,"reasons":reasons,"overdue":overdue[:5],"high":high[:5]}
 
@@ -2606,9 +2606,9 @@ def stakeholder_public_v870(token):
 
 TEMPLATE_PRO_PRESETS={
  "LIMS Implementation":[
-  ("1","Kickoff",1),("2","Krav & processkartläggning",0),("3","Konfiguration",0),("4","Integrationer",0),("5","Validering",0),("6","Utbildning",0),("7","Go-live",1)],
- "System Integration":[("1","Kickoff",1),("2","Interface design",0),("3","Utveckling",0),("4","SIT",0),("5","UAT",0),("6","Driftsättning",1)],
- "Upgrade":[("1","Planering",0),("2","Teknisk analys",0),("3","Uppgradering test",0),("4","Regressionstest",0),("5","Produktionssättning",1)]
+  ("1","Kickoff",1),("2","Krav & processkartlÃ¤ggning",0),("3","Konfiguration",0),("4","Integrationer",0),("5","Validering",0),("6","Utbildning",0),("7","Go-live",1)],
+ "System Integration":[("1","Kickoff",1),("2","Interface design",0),("3","Utveckling",0),("4","SIT",0),("5","UAT",0),("6","DriftsÃ¤ttning",1)],
+ "Upgrade":[("1","Planering",0),("2","Teknisk analys",0),("3","Uppgradering test",0),("4","Regressionstest",0),("5","ProduktionssÃ¤ttning",1)]
 }
 @app.route("/projects/<int:project_id>/template-pro",methods=["GET","POST"])
 @login_required
@@ -2636,16 +2636,16 @@ def pm_assistant_answer_v890(project_id,question):
     with db() as conn:
         p=conn.execute("SELECT * FROM projects WHERE id=?",(project_id,)).fetchone()
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd')",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','StÃ¤ngd')",(project_id,)).fetchall()
     overdue=[t for t in tasks if t["end_date"] and t["progress"]<100 and t["end_date"]<date.today().isoformat()]
     milestones=[t for t in tasks if t["milestone"] and t["progress"]<100]
     if "status" in q or "styrgrupp" in q:
-        return f"{p['name']}: prognostiserat slut {f['forecast_end'] or 'saknas'}. {len(overdue)} försenade aktiviteter, {len([r for r in risks if excel_int(r['probability'])*excel_int(r['impact'])>=15])} höga risker. Kostnadsprognos {f['forecast_cost']:.0f}."
+        return f"{p['name']}: prognostiserat slut {f['forecast_end'] or 'saknas'}. {len(overdue)} fÃ¶rsenade aktiviteter, {len([r for r in risks if excel_int(r['probability'])*excel_int(r['impact'])>=15])} hÃ¶ga risker. Kostnadsprognos {f['forecast_cost']:.0f}."
     if "milstolp" in q:
-        return "Kommande öppna milstolpar: "+("; ".join(f"{t['title']} ({t['end_date']})" for t in milestones[:8]) or "inga öppna milstolpar")
+        return "Kommande Ã¶ppna milstolpar: "+("; ".join(f"{t['title']} ({t['end_date']})" for t in milestones[:8]) or "inga Ã¶ppna milstolpar")
     if "idag" in q or "fokus" in q:
-        return "Fokusera på: "+("; ".join(t["title"] for t in overdue[:5]) or "inga försenade aktiviteter")+". "+("Orsaker: "+", ".join(f["reasons"]) if f["reasons"] else "Projektet saknar tydliga varningssignaler.")
-    return f"Projektet har {len(tasks)} aktiviteter. Prognos: {f['forecast_end'] or 'okänd'}. Fråga gärna om fokus idag, milstolpar eller status inför styrgruppen."
+        return "Fokusera pÃ¥: "+("; ".join(t["title"] for t in overdue[:5]) or "inga fÃ¶rsenade aktiviteter")+". "+("Orsaker: "+", ".join(f["reasons"]) if f["reasons"] else "Projektet saknar tydliga varningssignaler.")
+    return f"Projektet har {len(tasks)} aktiviteter. Prognos: {f['forecast_end'] or 'okÃ¤nd'}. FrÃ¥ga gÃ¤rna om fokus idag, milstolpar eller status infÃ¶r styrgruppen."
 
 @app.route("/projects/<int:project_id>/pm-assistant-2",methods=["GET","POST"])
 @login_required
@@ -2666,14 +2666,14 @@ def project_next_v900(project_id):
     f=forecast_project_v850(project_id)
     with db() as conn:
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,wbs,id",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd') ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','StÃ¤ngd') ORDER BY probability*impact DESC",(project_id,)).fetchall()
         changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? AND status IN ('Proposed','Submitted','Pending') ORDER BY id DESC",(project_id,)).fetchall()
     attention=[]
     for t in tasks:
-        if t["end_date"] and t["progress"]<100 and t["end_date"]<date.today().isoformat(): attention.append(("Försenad aktivitet",t["title"],t["end_date"]))
+        if t["end_date"] and t["progress"]<100 and t["end_date"]<date.today().isoformat(): attention.append(("FÃ¶rsenad aktivitet",t["title"],t["end_date"]))
     for r in risks:
-        if excel_int(r["probability"])*excel_int(r["impact"])>=15: attention.append(("Hög risk",r["title"],f"Riskpoäng {excel_int(r['probability'])*excel_int(r['impact'])}"))
-    for c in changes[:5]: attention.append(("Ändringsärende",c["title"],c["status"]))
+        if excel_int(r["probability"])*excel_int(r["impact"])>=15: attention.append(("HÃ¶g risk",r["title"],f"RiskpoÃ¤ng {excel_int(r['probability'])*excel_int(r['impact'])}"))
+    for c in changes[:5]: attention.append(("Ã„ndringsÃ¤rende",c["title"],c["status"]))
     return render_template("project_next_v900.html",project=p,f=f,tasks=tasks,attention=attention[:8])
 
 def report_studio_payload_v901(project_id):
@@ -2681,7 +2681,7 @@ def report_studio_payload_v901(project_id):
     f=forecast_project_v850(project_id)
     with db() as conn:
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,wbs,id",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd') ORDER BY probability*impact DESC,id",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','StÃ¤ngd') ORDER BY probability*impact DESC,id",(project_id,)).fetchall()
         changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 12",(project_id,)).fetchall()
         decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decision_date DESC,id DESC LIMIT 12",(project_id,)).fetchall()
         costs=conn.execute("SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?",(project_id,)).fetchone()
@@ -2693,9 +2693,9 @@ def report_studio_payload_v901(project_id):
     progress=round(sum(excel_int(t["progress"]) for t in tasks)/len(tasks)) if tasks else 0
     rag="red" if len(overdue)>=3 or len(high)>=2 else ("amber" if overdue or high or blocked else "green")
     summary=(
-        f"{p['name']} är {progress}% klart. "
-        f"{len(overdue)} aktiviteter är försenade, {len(blocked)} blockerade och {len(high)} höga risker är öppna. "
-        f"Prognostiserat slut är {f['forecast_end'] or p['end_date'] or 'inte satt'}."
+        f"{p['name']} Ã¤r {progress}% klart. "
+        f"{len(overdue)} aktiviteter Ã¤r fÃ¶rsenade, {len(blocked)} blockerade och {len(high)} hÃ¶ga risker Ã¤r Ã¶ppna. "
+        f"Prognostiserat slut Ã¤r {f['forecast_end'] or p['end_date'] or 'inte satt'}."
     )
     if latest_status and latest_status["summary"]:
         summary=latest_status["summary"]
@@ -2719,7 +2719,7 @@ def build_report_excel_v901(payload):
     ws=wb.active
     ws.title="Projektstatus"
     ws.sheet_view.showGridLines=False
-    ws["A1"]="Project Planer – Projektstatus"
+    ws["A1"]="Project Planer â€“ Projektstatus"
     ws["A1"].font=Font(size=18,bold=True,color="0F4C81")
     ws.merge_cells("A1:D1")
     project=payload["project"]
@@ -2727,8 +2727,8 @@ def build_report_excel_v901(payload):
         ("Projekt",project["name"]),("Kund",project["customer"]),("Projektledare",project["project_manager"]),
         ("RAG",payload["rag"].upper()),("Framdrift %",payload["progress"]),
         ("Planerat slut",project["end_date"]),("Prognostiserat slut",payload["forecast"]["forecast_end"]),
-        ("Försenade aktiviteter",len(payload["overdue"])),("Blockerade aktiviteter",len(payload["blocked"])),
-        ("Höga risker",len(payload["high"])),("Planerad kostnad",float(payload["costs"]["planned"] or 0)),
+        ("FÃ¶rsenade aktiviteter",len(payload["overdue"])),("Blockerade aktiviteter",len(payload["blocked"])),
+        ("HÃ¶ga risker",len(payload["high"])),("Planerad kostnad",float(payload["costs"]["planned"] or 0)),
         ("Utfall",float(payload["costs"]["actual"] or 0))
     ]
     ws.append([])
@@ -2740,11 +2740,11 @@ def build_report_excel_v901(payload):
     for title, headers, source, mapper in [
         ("Milstolpar",["WBS","Milstolpe","Slutdatum","Status","Progress %"],payload["milestones"],
          lambda x:[x["wbs"],x["title"],x["end_date"],x["status"],x["progress"]]),
-        ("Höga risker",["Risk","Sannolikhet","Konsekvens","Poäng","Ansvarig","Status"],payload["high"],
+        ("HÃ¶ga risker",["Risk","Sannolikhet","Konsekvens","PoÃ¤ng","Ansvarig","Status"],payload["high"],
          lambda x:[x["title"],x["probability"],x["impact"],excel_int(x["probability"])*excel_int(x["impact"]),x["owner"],x["status"]]),
-        ("Försenade",["WBS","Aktivitet","Ansvarig","Slutdatum","Progress %"],payload["overdue"],
+        ("FÃ¶rsenade",["WBS","Aktivitet","Ansvarig","Slutdatum","Progress %"],payload["overdue"],
          lambda x:[x["wbs"],x["title"],x["owner"],x["end_date"],x["progress"]]),
-        ("Ändringar",["Rubrik","Status","Dagar","Kostnad","Beskrivning"],payload["changes"],
+        ("Ã„ndringar",["Rubrik","Status","Dagar","Kostnad","Beskrivning"],payload["changes"],
          lambda x:[x["title"],x["status"],x["impact_days"],x["impact_cost"],x["description"]]),
         ("Beslut",["Titel","Beslut","Datum","Beslutat av"],payload["decisions"],
          lambda x:[x["title"],x["decision"],x["decision_date"],x["decided_by"]]),
@@ -2764,7 +2764,7 @@ def build_report_pdf_v901(payload):
     c.setFillColor(HexColor("#0F4C81")); c.rect(0,h-92,w,92,fill=1,stroke=0)
     c.setFillColor(HexColor("#FFFFFF")); c.setFont("Helvetica-Bold",18)
     c.drawString(42,h-52,payload["project"]["name"][:58])
-    c.setFont("Helvetica",9); c.drawString(42,h-72,f"Projektstatus · {date.today().isoformat()} · Project Planer v{APP_VERSION}")
+    c.setFont("Helvetica",9); c.drawString(42,h-72,f"Projektstatus Â· {date.today().isoformat()} Â· Project Planer v{APP_VERSION}")
     y=h-122
     c.setFillColor(HexColor("#111827")); c.setFont("Helvetica-Bold",13); c.drawString(42,y,"Ledningssammanfattning"); y-=20
     c.setFont("Helvetica",10)
@@ -2776,10 +2776,10 @@ def build_report_pdf_v901(payload):
     metrics=[
         f"RAG: {payload['rag'].upper()}",
         f"Framdrift: {payload['progress']}%",
-        f"Försenade: {len(payload['overdue'])}",
+        f"FÃ¶rsenade: {len(payload['overdue'])}",
         f"Blockerade: {len(payload['blocked'])}",
-        f"Höga risker: {len(payload['high'])}",
-        f"Prognos slut: {payload['forecast']['forecast_end'] or '–'}"
+        f"HÃ¶ga risker: {len(payload['high'])}",
+        f"Prognos slut: {payload['forecast']['forecast_end'] or 'â€“'}"
     ]
     for i,m in enumerate(metrics):
         col=i%2; row=i//2
@@ -2798,10 +2798,10 @@ def build_report_pdf_v901(payload):
             c.drawString(52,y,line[:100]); y-=14
         y-=8
 
-    section("Milstolpar",[f"{m['end_date'] or '–'}  {m['title']}  ({m['progress']}%)" for m in payload["milestones"]])
-    section("Höga risker",[f"{r['title']} · poäng {excel_int(r['probability'])*excel_int(r['impact'])} · {r['owner'] or 'utan ansvarig'}" for r in payload["high"]])
-    section("Behöver uppmärksamhet",[f"{t['title']} · slut {t['end_date']}" for t in payload["overdue"]])
-    section("Senaste beslut",[f"{d['decision_date'] or '–'} · {d['title']}: {d['decision']}" for d in payload["decisions"]])
+    section("Milstolpar",[f"{m['end_date'] or 'â€“'}  {m['title']}  ({m['progress']}%)" for m in payload["milestones"]])
+    section("HÃ¶ga risker",[f"{r['title']} Â· poÃ¤ng {excel_int(r['probability'])*excel_int(r['impact'])} Â· {r['owner'] or 'utan ansvarig'}" for r in payload["high"]])
+    section("BehÃ¶ver uppmÃ¤rksamhet",[f"{t['title']} Â· slut {t['end_date']}" for t in payload["overdue"]])
+    section("Senaste beslut",[f"{d['decision_date'] or 'â€“'} Â· {d['title']}: {d['decision']}" for d in payload["decisions"]])
     c.save(); b.seek(0); return b
 
 def build_report_pptx_v901(payload):
@@ -2811,24 +2811,24 @@ def build_report_pptx_v901(payload):
     prs.slide_width=Inches(13.333); prs.slide_height=Inches(7.5)
     slide=prs.slides.add_slide(prs.slide_layouts[0])
     slide.shapes.title.text=payload["project"]["name"]
-    slide.placeholders[1].text=f"Projektstatus · {date.today().isoformat()} · Project Planer v{APP_VERSION}"
+    slide.placeholders[1].text=f"Projektstatus Â· {date.today().isoformat()} Â· Project Planer v{APP_VERSION}"
 
     slide=prs.slides.add_slide(prs.slide_layouts[1])
     slide.shapes.title.text="Ledningssammanfattning"
     slide.placeholders[1].text=payload["summary"]+"\n\n"+(
         f"RAG: {payload['rag'].upper()}   |   Framdrift: {payload['progress']}%   |   "
-        f"Försenade: {len(payload['overdue'])}   |   Höga risker: {len(payload['high'])}\n"
-        f"Planerat slut: {payload['project']['end_date'] or '–'}   |   Prognos: {payload['forecast']['forecast_end'] or '–'}"
+        f"FÃ¶rsenade: {len(payload['overdue'])}   |   HÃ¶ga risker: {len(payload['high'])}\n"
+        f"Planerat slut: {payload['project']['end_date'] or 'â€“'}   |   Prognos: {payload['forecast']['forecast_end'] or 'â€“'}"
     )
 
     slide=prs.slides.add_slide(prs.slide_layouts[1])
     slide.shapes.title.text="Milstolpar"
-    slide.placeholders[1].text="\n".join(f"• {m['end_date'] or '–'} · {m['title']} · {m['progress']}%" for m in payload["milestones"][:10]) or "Inga milstolpar"
+    slide.placeholders[1].text="\n".join(f"â€¢ {m['end_date'] or 'â€“'} Â· {m['title']} Â· {m['progress']}%" for m in payload["milestones"][:10]) or "Inga milstolpar"
 
     slide=prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text="Risk & uppmärksamhet"
-    lines=[f"• RISK: {r['title']} · poäng {excel_int(r['probability'])*excel_int(r['impact'])}" for r in payload["high"][:6]]
-    lines += [f"• FÖRSENAD: {t['title']} · {t['end_date']}" for t in payload["overdue"][:6]]
+    slide.shapes.title.text="Risk & uppmÃ¤rksamhet"
+    lines=[f"â€¢ RISK: {r['title']} Â· poÃ¤ng {excel_int(r['probability'])*excel_int(r['impact'])}" for r in payload["high"][:6]]
+    lines += [f"â€¢ FÃ–RSENAD: {t['title']} Â· {t['end_date']}" for t in payload["overdue"][:6]]
     slide.placeholders[1].text="\n".join(lines) or "Inga kritiska signaler"
 
     slide=prs.slides.add_slide(prs.slide_layouts[1])
@@ -2837,14 +2837,14 @@ def build_report_pptx_v901(payload):
     slide.placeholders[1].text=(
         f"Planerat: {planned:,.0f}\nUtfall: {actual:,.0f}\n"
         f"Kostnadsprognos: {payload['forecast']['forecast_cost']:,.0f}\n"
-        f"Prognostiserat slut: {payload['forecast']['forecast_end'] or '–'}"
+        f"Prognostiserat slut: {payload['forecast']['forecast_end'] or 'â€“'}"
     )
 
     slide=prs.slides.add_slide(prs.slide_layouts[1])
-    slide.shapes.title.text="Beslut & nästa steg"
-    decisions="\n".join(f"• {d['title']}: {d['decision']}" for d in payload["decisions"][:6]) or "Inga beslut registrerade"
-    next_steps="\n".join(f"• {x}" for x in payload["forecast"]["reasons"]) or "• Fortsätt följa milstolpar, risker och resursbelastning."
-    slide.placeholders[1].text=decisions+"\n\nNästa fokus:\n"+next_steps
+    slide.shapes.title.text="Beslut & nÃ¤sta steg"
+    decisions="\n".join(f"â€¢ {d['title']}: {d['decision']}" for d in payload["decisions"][:6]) or "Inga beslut registrerade"
+    next_steps="\n".join(f"â€¢ {x}" for x in payload["forecast"]["reasons"]) or "â€¢ FortsÃ¤tt fÃ¶lja milstolpar, risker och resursbelastning."
+    slide.placeholders[1].text=decisions+"\n\nNÃ¤sta fokus:\n"+next_steps
     b=BytesIO(); prs.save(b); b.seek(0); return b
 
 @app.get("/projects/<int:project_id>/report-studio")
@@ -3035,7 +3035,7 @@ def azure_devops_v1010():
             project=(request.form.get("project_name") or "").strip()
             pat=(request.form.get("pat_secret") or "").strip()
             if not name or not org or not project:
-                flash("Namn, organisation och DevOps-projekt krävs.","error")
+                flash("Namn, organisation och DevOps-projekt krÃ¤vs.","error")
             elif not (org.startswith("https://dev.azure.com/") or org.startswith("https://") and "visualstudio.com" in org):
                 flash("Ange en giltig Azure DevOps organisationsadress.","error")
             else:
@@ -3043,7 +3043,7 @@ def azure_devops_v1010():
                   (name,organization_url,project_name,auth_mode,pat_secret,created_by)
                   VALUES(?,?,?,?,?,?)""",(name,org,project,"PAT",pat or None,session.get("user_id")))
                 conn.commit()
-                flash("Azure DevOps-anslutningen har sparats. PAT visas inte i gränssnittet.","success")
+                flash("Azure DevOps-anslutningen har sparats. PAT visas inte i grÃ¤nssnittet.","success")
         connections=conn.execute("""SELECT id,name,organization_url,project_name,auth_mode,enabled,created_at,updated_at
           FROM azure_devops_connections ORDER BY id DESC""").fetchall()
         syncs=conn.execute("""SELECT s.*,c.name connection_name FROM azure_devops_sync_log s
@@ -3135,7 +3135,7 @@ def project_home_v1110(project_id):
         project = conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
         if not project: abort(404)
         tasks = conn.execute("""SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,sort_order LIMIT 200""",(project_id,)).fetchall()
-        risks = conn.execute("""SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd') ORDER BY probability*impact DESC LIMIT 20""",(project_id,)).fetchall()
+        risks = conn.execute("""SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','StÃ¤ngd') ORDER BY probability*impact DESC LIMIT 20""",(project_id,)).fetchall()
         costs = conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?""",(project_id,)).fetchone()
     active=[t for t in tasks if not t["milestone"] and (t["status"] or "").lower() not in ("done","completed","closed","klar")]
     overdue=[t for t in active if t["end_date"] and t["end_date"] < datetime.utcnow().date().isoformat()]
@@ -3148,16 +3148,66 @@ def project_home_v1110(project_id):
 @app.get("/my-work-2")
 @login_required
 def my_work_v1120():
-    uid=session.get("user_id")
+    u=current_user()
+    uid=u["id"]
+    today=date.today()
+    projects=visible_projects_for_user()
+    ids=[p["id"] for p in projects]
+    tasks=[]; actions=[]; notifications=[]; approvals=[]; changes=[]
     with db() as conn:
-        tasks=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
-          WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND t.owner_user_id=? AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
-          ORDER BY CASE WHEN t.end_date IS NULL THEN 1 ELSE 0 END,t.end_date LIMIT 100""",(uid,)).fetchall()
-        notifications=conn.execute("""SELECT * FROM notifications WHERE user_id=? AND is_read=0 ORDER BY created_at DESC LIMIT 30""",(uid,)).fetchall()
-        actions=conn.execute("""SELECT a.*,p.name project_name FROM action_items a JOIN projects p ON p.id=a.project_id
-          WHERE LOWER(COALESCE(a.status,'')) NOT IN ('done','closed','klar') ORDER BY a.due_date LIMIT 50""").fetchall()
-    mine=[a for a in actions if not a["owner"] or str(a["owner"]).lower() in (str(session.get("username","")).lower(),str(uid))]
-    return render_template("my_work_v1120.html",tasks=tasks,notifications=notifications,actions=mine[:30])
+        notifications=conn.execute("""SELECT * FROM notifications WHERE user_id=? AND is_read=0
+                                      ORDER BY created_at DESC LIMIT 30""",(uid,)).fetchall()
+        if ids:
+            marks=",".join("?" for _ in ids)
+            tasks=conn.execute(f"""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+              WHERE t.project_id IN ({marks}) AND COALESCE(t.deleted_at,'')=''
+                AND (t.owner_user_id=? OR LOWER(COALESCE(t.owner,'')) IN (LOWER(?),LOWER(?)))
+                AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
+              ORDER BY CASE WHEN t.end_date<>'' AND t.end_date<date('now') THEN 0 ELSE 1 END,
+                       CASE WHEN LOWER(COALESCE(t.priority,'')) IN ('critical','kritisk','high','hÃ¶g') THEN 0 ELSE 1 END,
+                       CASE WHEN t.end_date IS NULL OR t.end_date='' THEN 1 ELSE 0 END,t.end_date LIMIT 150""",
+              ids+[uid,u["display_name"],u["username"]]).fetchall()
+            actions=conn.execute(f"""SELECT a.*,p.name project_name FROM action_items a JOIN projects p ON p.id=a.project_id
+              WHERE a.project_id IN ({marks})
+                AND LOWER(COALESCE(a.status,'')) NOT IN ('done','closed','klar')
+                AND (a.owner='' OR LOWER(a.owner) IN (LOWER(?),LOWER(?)))
+              ORDER BY CASE WHEN a.due_date<>'' AND a.due_date<date('now') THEN 0 ELSE 1 END,a.due_date LIMIT 80""",
+              ids+[u["display_name"],u["username"]]).fetchall()
+            try:
+                changes=conn.execute(f"""SELECT c.*,p.name project_name FROM change_requests c JOIN projects p ON p.id=c.project_id
+                  WHERE c.project_id IN ({marks}) AND LOWER(COALESCE(c.status,'')) IN ('proposed','submitted','pending')
+                  ORDER BY c.id DESC LIMIT 40""",ids).fetchall()
+            except Exception:
+                changes=[]
+    def decorate(row, field):
+        d=_v15_date(row[field])
+        return bool(d and d<today), bool(d and today<=d<=today+timedelta(days=7))
+    task_rows=[]
+    for r in tasks:
+        d=dict(r); d["is_overdue"],d["is_week"]=decorate(d,"end_date"); task_rows.append(d)
+    action_rows=[]
+    for r in actions:
+        d=dict(r); d["is_overdue"],d["is_week"]=decorate(d,"due_date"); action_rows.append(d)
+    return render_template("my_work_v1500.html",tasks=task_rows,actions=action_rows,notifications=notifications,
+                           changes=changes,user=u,today=today)
+
+@app.post("/work/action")
+@login_required
+def work_action_v1500():
+    kind=(request.form.get("kind") or "").strip()
+    item_id=request.form.get("id",type=int)
+    next_url=request.form.get("next") or url_for("my_work_v1120")
+    if not item_id:
+        return redirect(next_url)
+    with db() as conn:
+        if kind=="task":
+            conn.execute("UPDATE tasks SET progress=100,status='Done' WHERE id=?",(item_id,))
+        elif kind=="action":
+            conn.execute("UPDATE action_items SET status='Done' WHERE id=?",(item_id,))
+        elif kind=="notification":
+            conn.execute("UPDATE notifications SET is_read=1 WHERE id=? AND user_id=?",(item_id,session.get("user_id")))
+        conn.commit()
+    return redirect(next_url)
 
 @app.get("/projects/<int:project_id>/planning-pro-ux")
 @login_required
@@ -3273,16 +3323,41 @@ def resource_planner_v1160():
 @login_required
 def portfolio_cockpit_v1170():
     with db() as conn:
-        projects=conn.execute("""SELECT p.*,
-          COALESCE((SELECT AVG(COALESCE(t.progress,0)) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL),0) progress,
-          COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL AND t.end_date<date('now')
+        projects=[dict(r) for r in conn.execute("""SELECT p.*,
+          COALESCE((SELECT AVG(COALESCE(t.progress,0)) FROM tasks t WHERE t.project_id=p.id AND COALESCE(t.deleted_at,'')=''),0) progress,
+          COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND COALESCE(t.deleted_at,'')='' AND t.end_date<date('now')
                     AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')),0) overdue,
+          COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND COALESCE(t.deleted_at,'')=''
+                    AND LOWER(COALESCE(t.status,'')) IN ('blocked','blockerad')),0) blocked,
           COALESCE((SELECT COUNT(*) FROM risks r WHERE r.project_id=p.id AND COALESCE(r.probability,0)*COALESCE(r.impact,0)>=12
-                    AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd')),0) high_risks,
+                    AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stÃ¤ngd')),0) high_risks,
           COALESCE((SELECT SUM(planned) FROM project_costs c WHERE c.project_id=p.id),0) planned_cost,
           COALESCE((SELECT SUM(actual) FROM project_costs c WHERE c.project_id=p.id),0) actual_cost
-          FROM projects p WHERE p.deleted_at IS NULL AND p.archived_at IS NULL ORDER BY p.name""").fetchall()
-    return render_template("portfolio_cockpit_v1170.html",projects=projects)
+          FROM projects p WHERE COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')='' ORDER BY p.name""").fetchall()]
+        try:
+            resource_rows=conn.execute("""SELECT week_start,
+                  SUM(CASE WHEN allocation_pct>100 THEN 1 ELSE 0 END) overload_rows
+                  FROM resource_allocations
+                  WHERE week_start>=date('now','-7 day')
+                  GROUP BY week_start ORDER BY week_start LIMIT 8""").fetchall()
+        except Exception:
+            resource_rows=[]
+
+    total_planned=total_actual=0
+    red=amber=green=0
+    for p in projects:
+        h=_v15_health(p["progress"],p["overdue"],p["high_risks"],p["blocked"],p["planned_cost"],p["actual_cost"],p.get("end_date"))
+        p["health"]=h
+        total_planned+=_v15_money(p["planned_cost"])
+        total_actual+=_v15_money(p["actual_cost"])
+        if h["rag"]=="red": red+=1
+        elif h["rag"]=="amber": amber+=1
+        else: green+=1
+    projects.sort(key=lambda p:({"red":0,"amber":1,"green":2}[p["health"]["rag"]],p["name"].lower()))
+    portfolio_progress=round(sum(float(p["progress"] or 0) for p in projects)/len(projects)) if projects else 0
+    return render_template("portfolio_v1500.html",projects=projects,red=red,amber=amber,green=green,
+                           total_planned=total_planned,total_actual=total_actual,
+                           portfolio_progress=portfolio_progress,resource_rows=resource_rows)
 
 def ensure_collaboration_v1180(conn):
     conn.executescript("""
@@ -3312,7 +3387,7 @@ def collaboration_ux_v1180(project_id):
                 conn.execute("INSERT OR IGNORE INTO project_watchers(project_id,user_id) VALUES(?,?)",(project_id,session.get("user_id"))); conn.commit()
             elif action=="unwatch":
                 conn.execute("DELETE FROM project_watchers WHERE project_id=? AND user_id=?",(project_id,session.get("user_id"))); conn.commit()
-        comments=conn.execute("""SELECT c.*,COALESCE(u.display_name,u.username,'Användare') author FROM project_comments c
+        comments=conn.execute("""SELECT c.*,COALESCE(u.display_name,u.username,'AnvÃ¤ndare') author FROM project_comments c
           LEFT JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.id DESC LIMIT 100""",(project_id,)).fetchall()
         watching=conn.execute("SELECT 1 FROM project_watchers WHERE project_id=? AND user_id=?",(project_id,session.get("user_id"))).fetchone() is not None
     return render_template("collaboration_ux_v1180.html",project=project,comments=comments,watching=watching)
@@ -3337,14 +3412,14 @@ def automation_runtime_v1190():
             for t in rows:
                 if t["owner_user_id"]:
                     exists=conn.execute("""SELECT 1 FROM notifications WHERE user_id=? AND project_id=? AND message=? AND is_read=0""",
-                      (t["owner_user_id"],t["project_id"],f"Försenad aktivitet: {t['title']}")).fetchone()
+                      (t["owner_user_id"],t["project_id"],f"FÃ¶rsenad aktivitet: {t['title']}")).fetchone()
                     if not exists:
                         conn.execute("""INSERT INTO notifications(user_id,project_id,message,link,is_read,created_at)
-                          VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)""",(t["owner_user_id"],t["project_id"],f"Försenad aktivitet: {t['title']}",f"/projects/{t['project_id']}/workspace/tasks"))
+                          VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)""",(t["owner_user_id"],t["project_id"],f"FÃ¶rsenad aktivitet: {t['title']}",f"/projects/{t['project_id']}/workspace/tasks"))
                         affected+=1
             conn.execute("""INSERT INTO automation_runtime_log(rule_name,status,affected,message)
               VALUES('Overdue task notification','Success',?,'Created notifications for overdue assigned tasks')""",(affected,))
-            conn.commit(); flash(f"Automation körd. {affected} nya notifieringar skapades.","success")
+            conn.commit(); flash(f"Automation kÃ¶rd. {affected} nya notifieringar skapades.","success")
         logs=conn.execute("SELECT * FROM automation_runtime_log ORDER BY id DESC LIMIT 50").fetchall()
     return render_template("automation_runtime_v1190.html",logs=logs)
 
@@ -3359,7 +3434,7 @@ def intelligent_pm_v1200():
           COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL AND t.end_date<date('now')
             AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')),0) overdue,
           COALESCE((SELECT COUNT(*) FROM risks r WHERE r.project_id=p.id AND COALESCE(r.probability,0)*COALESCE(r.impact,0)>=12
-            AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd')),0) risks
+            AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stÃ¤ngd')),0) risks
           FROM projects p WHERE p.deleted_at IS NULL AND p.archived_at IS NULL ORDER BY p.name""").fetchall()
         my_tasks=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
           WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND t.owner_user_id=? AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
@@ -3391,7 +3466,7 @@ def workspace_v1220(project_id):
         p=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
         if not p: abort(404)
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,sort_order LIMIT 200",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND LOWER(COALESCE(status,'')) NOT IN ('closed','stängd') ORDER BY probability*impact DESC LIMIT 20",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND LOWER(COALESCE(status,'')) NOT IN ('closed','stÃ¤ngd') ORDER BY probability*impact DESC LIMIT 20",(project_id,)).fetchall()
     overdue=[t for t in tasks if t["end_date"] and t["end_date"]<datetime.utcnow().date().isoformat() and (t["status"] or "").lower() not in ("done","completed","closed","klar")]
     progress=round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
     return render_template("workspace_v1220.html",project=p,tasks=tasks,risks=risks,overdue=overdue,progress=progress)
@@ -3490,7 +3565,7 @@ def guided_setup_v1280():
         start=(request.form.get("start_date") or "").strip() or None
         end=(request.form.get("end_date") or "").strip() or None
         if not name:
-            flash("Projektnamn krävs.","error")
+            flash("Projektnamn krÃ¤vs.","error")
         else:
             with db() as conn:
                 cur=conn.execute("""INSERT INTO projects(name,customer,project_manager,description,start_date,end_date,created_by,created_at)
@@ -3540,11 +3615,62 @@ def project_planer_simple_v1300():
     attention=sum(1 for p in projects if p["overdue"])
     return render_template("project_planer_simple_v1300.html",projects=projects,mine=mine,unread=unread,attention=attention)
 
+
+def _v15_is_closed(value):
+    return (value or "").strip().lower() in ("done","completed","closed","klar","stÃ¤ngd")
+
+def _v15_date(value):
+    try:
+        return date.fromisoformat((value or "")[:10])
+    except Exception:
+        return None
+
+def _v15_money(value):
+    try:
+        return float(value or 0)
+    except Exception:
+        return 0.0
+
+def _v15_health(progress=0, overdue=0, high_risks=0, blocked=0, planned=0, actual=0, end_date=None):
+    score = 0
+    score += min(40, int(overdue or 0) * 8)
+    score += min(25, int(high_risks or 0) * 8)
+    score += min(20, int(blocked or 0) * 10)
+    if planned and actual > planned:
+        score += 20
+    end = _v15_date(end_date)
+    if end and end < date.today() and float(progress or 0) < 100:
+        score += 20
+    score = min(100, score)
+    rag = "green" if score < 20 else "amber" if score < 50 else "red"
+    return {"score": score, "rag": rag}
+
+def _v15_forecast(project, tasks):
+    open_tasks = [t for t in tasks if not _v15_is_closed(t["status"])]
+    overdue = [t for t in open_tasks if _v15_date(t["end_date"]) and _v15_date(t["end_date"]) < date.today()]
+    if not overdue:
+        return {"days": 0, "label": "Enligt plan", "projected_end": project["end_date"] or ""}
+    max_delay = max((date.today() - _v15_date(t["end_date"])).days for t in overdue)
+    end = _v15_date(project["end_date"])
+    projected = end + timedelta(days=max_delay) if end else None
+    return {
+        "days": max_delay,
+        "label": f"+{max_delay} dagar" if max_delay else "Enligt plan",
+        "projected_end": projected.isoformat() if projected else (project["end_date"] or "")
+    }
+
+def _v15_project_access_sql():
+    return """SELECT p.* FROM projects p
+              LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
+              WHERE COALESCE(p.deleted_at,'')='' AND COALESCE(p.archived_at,'')=''
+                AND (?='admin' OR p.created_by=? OR pm.user_id IS NOT NULL)
+              GROUP BY p.id"""
+
 def _ultimate_health_v140(project, tasks, risks, costs):
     open_tasks=[t for t in tasks if (t["status"] or "").lower() not in ("done","completed","closed","klar")]
     overdue=[t for t in open_tasks if t["end_date"] and t["end_date"] < date.today().isoformat()]
     blocked=[t for t in open_tasks if (t["status"] or "").lower() in ("blocked","blockerad")]
-    high_risks=[r for r in risks if (r["probability"] or 0)*(r["impact"] or 0) >= 12 and (r["status"] or "").lower() not in ("closed","stängd")]
+    high_risks=[r for r in risks if (r["probability"] or 0)*(r["impact"] or 0) >= 12 and (r["status"] or "").lower() not in ("closed","stÃ¤ngd")]
     planned=float(costs["planned"] or 0) if costs else 0
     actual=float(costs["actual"] or 0) if costs else 0
     budget_over=planned>0 and actual>planned
@@ -3561,45 +3687,163 @@ def _ultimate_health_v140(project, tasks, risks, costs):
 @login_required
 def ultimate_home_v140():
     u=current_user()
-    projects=visible_projects_for_user()
-    project_ids=[p["id"] for p in projects]
-    cards=[]
+    today=date.today().isoformat()
     with db() as conn:
-        for p in projects[:60]:
-            tasks=conn.execute("""SELECT id,title,status,progress,end_date,milestone,owner_user_id
-                                  FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''""",(p["id"],)).fetchall()
-            risks=conn.execute("""SELECT id,title,probability,impact,status FROM risks WHERE project_id=?""",(p["id"],)).fetchall()
-            costs=conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual
-                                  FROM project_costs WHERE project_id=?""",(p["id"],)).fetchone()
-            health=_ultimate_health_v140(p,tasks,risks,costs)
-            progress=round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
-            upcoming=[t for t in tasks if t["milestone"] and t["end_date"] and t["end_date"]>=date.today().isoformat()]
-            upcoming=sorted(upcoming,key=lambda x:x["end_date"])[:3]
-            cards.append({"project":p,"progress":progress,"health":health,"upcoming":upcoming})
-        my_tasks=conn.execute("""SELECT t.id,t.project_id,t.title,t.status,t.priority,t.end_date,t.progress,p.name project_name
-          FROM tasks t JOIN projects p ON p.id=t.project_id
-          LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-          WHERE COALESCE(t.deleted_at,'')='' AND COALESCE(p.deleted_at,'')=''
-            AND (t.owner_user_id=? OR t.owner IN (?,?))
-            AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
-            AND (?='admin' OR pm.user_id IS NOT NULL)
-          ORDER BY CASE WHEN t.end_date IS NULL THEN 1 ELSE 0 END,t.end_date LIMIT 20""",
-          (u["id"],u["id"],u["display_name"],u["username"],u["role"])).fetchall()
+        projects=[dict(r) for r in visible_projects_for_user()]
+        ids=[p["id"] for p in projects]
+        cards=[]
+        attention_items=[]
+        my_tasks=[]
         unread=conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0",(u["id"],)).fetchone()[0]
+        failed_sync=0
+        overloaded_people=0
+
+        if ids:
+            marks=",".join("?" for _ in ids)
+            task_stats={r["project_id"]:dict(r) for r in conn.execute(f"""
+                SELECT project_id,
+                       COUNT(*) total,
+                       COALESCE(AVG(COALESCE(progress,0)),0) progress,
+                       SUM(CASE WHEN COALESCE(milestone,0)=0 AND LOWER(COALESCE(status,'')) NOT IN ('done','completed','closed','klar')
+                                THEN 1 ELSE 0 END) open_count,
+                       SUM(CASE WHEN end_date<>'' AND end_date<date('now')
+                                 AND LOWER(COALESCE(status,'')) NOT IN ('done','completed','closed','klar')
+                                THEN 1 ELSE 0 END) overdue,
+                       SUM(CASE WHEN LOWER(COALESCE(status,'')) IN ('blocked','blockerad') THEN 1 ELSE 0 END) blocked
+                FROM tasks
+                WHERE project_id IN ({marks}) AND COALESCE(deleted_at,'')=''
+                GROUP BY project_id
+            """, ids).fetchall()}
+
+            risk_stats={r["project_id"]:dict(r) for r in conn.execute(f"""
+                SELECT project_id,
+                       SUM(CASE WHEN COALESCE(probability,0)*COALESCE(impact,0)>=12
+                                 AND LOWER(COALESCE(status,'')) NOT IN ('closed','stÃ¤ngd')
+                                THEN 1 ELSE 0 END) high_risks
+                FROM risks WHERE project_id IN ({marks})
+                GROUP BY project_id
+            """, ids).fetchall()}
+
+            cost_stats={r["project_id"]:dict(r) for r in conn.execute(f"""
+                SELECT project_id,COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual
+                FROM project_costs WHERE project_id IN ({marks}) GROUP BY project_id
+            """, ids).fetchall()}
+
+            milestone_rows=conn.execute(f"""
+                SELECT id,project_id,title,end_date,status
+                FROM tasks
+                WHERE project_id IN ({marks}) AND COALESCE(deleted_at,'')='' AND COALESCE(milestone,0)=1
+                  AND end_date>=date('now')
+                ORDER BY end_date LIMIT 120
+            """, ids).fetchall()
+            milestones_by={}
+            for m in milestone_rows:
+                milestones_by.setdefault(m["project_id"],[]).append(m)
+
+            for p in projects:
+                ts=task_stats.get(p["id"],{})
+                rs=risk_stats.get(p["id"],{})
+                cs=cost_stats.get(p["id"],{})
+                progress=round(float(ts.get("progress") or 0))
+                health=_v15_health(progress,ts.get("overdue",0),rs.get("high_risks",0),ts.get("blocked",0),
+                                   _v15_money(cs.get("planned")),_v15_money(cs.get("actual")),p.get("end_date"))
+                cards.append({
+                    "project":p,
+                    "progress":progress,
+                    "open_count":int(ts.get("open_count") or 0),
+                    "overdue":int(ts.get("overdue") or 0),
+                    "blocked":int(ts.get("blocked") or 0),
+                    "high_risks":int(rs.get("high_risks") or 0),
+                    "planned":_v15_money(cs.get("planned")),
+                    "actual":_v15_money(cs.get("actual")),
+                    "health":health,
+                    "upcoming":milestones_by.get(p["id"],[])[:2]
+                })
+
+            my_tasks=conn.execute(f"""
+                SELECT t.id,t.project_id,t.title,t.status,t.priority,t.end_date,t.progress,p.name project_name
+                FROM tasks t JOIN projects p ON p.id=t.project_id
+                WHERE t.project_id IN ({marks}) AND COALESCE(t.deleted_at,'')=''
+                  AND (t.owner_user_id=? OR LOWER(COALESCE(t.owner,'')) IN (LOWER(?),LOWER(?)))
+                  AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
+                ORDER BY
+                  CASE WHEN t.end_date<>'' AND t.end_date<date('now') THEN 0 ELSE 1 END,
+                  CASE WHEN LOWER(COALESCE(t.priority,'')) IN ('high','hÃ¶g','critical','kritisk') THEN 0 ELSE 1 END,
+                  CASE WHEN t.end_date IS NULL OR t.end_date='' THEN 1 ELSE 0 END,
+                  t.end_date
+                LIMIT 40
+            """, ids+[u["id"],u["display_name"],u["username"]]).fetchall()
+
+            overdue_rows=conn.execute(f"""
+                SELECT t.id,t.project_id,t.title,t.end_date,p.name project_name
+                FROM tasks t JOIN projects p ON p.id=t.project_id
+                WHERE t.project_id IN ({marks}) AND COALESCE(t.deleted_at,'')=''
+                  AND t.end_date<>'' AND t.end_date<date('now')
+                  AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
+                ORDER BY t.end_date LIMIT 8
+            """, ids).fetchall()
+            for r in overdue_rows:
+                days=(date.today()-_v15_date(r["end_date"])).days if _v15_date(r["end_date"]) else 0
+                attention_items.append({"severity":"red","kind":"FÃ¶rsenad aktivitet","title":r["title"],
+                                        "detail":f"{r['project_name']} Â· {days} dagar sen",
+                                        "url":f"/projects/{r['project_id']}/ultimate"})
+
+            risk_rows=conn.execute(f"""
+                SELECT r.id,r.project_id,r.title,r.probability,r.impact,p.name project_name
+                FROM risks r JOIN projects p ON p.id=r.project_id
+                WHERE r.project_id IN ({marks})
+                  AND COALESCE(r.probability,0)*COALESCE(r.impact,0)>=12
+                  AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stÃ¤ngd')
+                ORDER BY COALESCE(r.probability,0)*COALESCE(r.impact,0) DESC LIMIT 6
+            """, ids).fetchall()
+            for r in risk_rows:
+                attention_items.append({"severity":"amber","kind":"HÃ¶g risk","title":r["title"],
+                                        "detail":f"{r['project_name']} Â· score {(r['probability'] or 0)*(r['impact'] or 0)}",
+                                        "url":f"/projects/{r['project_id']}/ultimate"})
+
+            try:
+                change_rows=conn.execute(f"""
+                    SELECT c.id,c.project_id,c.title,c.status,p.name project_name
+                    FROM change_requests c JOIN projects p ON p.id=c.project_id
+                    WHERE c.project_id IN ({marks})
+                      AND LOWER(COALESCE(c.status,'')) IN ('proposed','submitted','pending')
+                    ORDER BY c.id DESC LIMIT 6
+                """, ids).fetchall()
+                for c in change_rows:
+                    attention_items.append({"severity":"amber","kind":"Ã„ndringsbegÃ¤ran","title":c["title"],
+                                            "detail":f"{c['project_name']} Â· vÃ¤ntar pÃ¥ hantering",
+                                            "url":"/control-center"})
+            except Exception:
+                pass
+
+            try:
+                overload=conn.execute(f"""
+                    SELECT COALESCE(NULLIF(resource_name,''),u.display_name,u.username,'Resurs') resource,
+                           week_start,SUM(COALESCE(allocation_pct,0)) allocation_pct
+                    FROM resource_allocations ra LEFT JOIN users u ON u.id=ra.user_id
+                    WHERE ra.project_id IN ({marks}) AND week_start>=date('now','-7 day')
+                    GROUP BY resource,week_start HAVING SUM(COALESCE(allocation_pct,0))>100
+                    ORDER BY allocation_pct DESC LIMIT 10
+                """, ids).fetchall()
+                overloaded_people=len(overload)
+                for r in overload[:3]:
+                    attention_items.append({"severity":"amber","kind":"Ã–verbelagd resurs","title":r["resource"],
+                                            "detail":f"{r['allocation_pct']:.0f}% Â· vecka {r['week_start']}",
+                                            "url":"/resource-planner-2"})
+            except Exception:
+                pass
+
         try:
-            favs={r["project_id"] for r in conn.execute("SELECT project_id FROM user_favorites WHERE user_id=?",(u["id"],)).fetchall()}
-        except Exception:
-            favs=set()
-        try:
-            failed_sync=conn.execute("SELECT COUNT(*) FROM azure_devops_sync_log WHERE status='Failed'").fetchone()[0]
+            failed_sync=conn.execute("SELECT COUNT(*) FROM azure_devops_sync_log WHERE LOWER(status)='failed'").fetchone()[0]
         except Exception:
             failed_sync=0
-    cards.sort(key=lambda c:(c["project"]["id"] not in favs,
-                             {"red":0,"amber":1,"green":2}.get(c["health"]["rag"],3),
-                             c["project"]["name"].lower()))
+
+    cards.sort(key=lambda c:({"red":0,"amber":1,"green":2}.get(c["health"]["rag"],3),c["project"]["name"].lower()))
+    attention_items.sort(key=lambda x:{"red":0,"amber":1,"green":2}.get(x["severity"],3))
     attention=sum(1 for c in cards if c["health"]["rag"]!="green")
-    return render_template("ultimate_home_v140.html",cards=cards,my_tasks=my_tasks,unread=unread,
-                           attention=attention,failed_sync=failed_sync,user=u)
+    return render_template("home_v1500.html",cards=cards,my_tasks=my_tasks,unread=unread,attention=attention,
+                           attention_items=attention_items[:12],failed_sync=failed_sync,
+                           overloaded_people=overloaded_people,user=u,today=today)
 
 @app.get("/projects/<int:project_id>/ultimate")
 @login_required
@@ -3607,37 +3851,105 @@ def ultimate_project_v140(project_id):
     project=project_or_404(project_id)
     with db() as conn:
         tasks=conn.execute("""SELECT * FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''
-                              ORDER BY CASE WHEN end_date IS NULL THEN 1 ELSE 0 END,end_date,sort_order,id""",(project_id,)).fetchall()
+                              ORDER BY CASE WHEN end_date IS NULL OR end_date='' THEN 1 ELSE 0 END,end_date,sort_order,id""",(project_id,)).fetchall()
         risks=conn.execute("""SELECT * FROM risks WHERE project_id=? ORDER BY COALESCE(probability,0)*COALESCE(impact,0) DESC,id DESC""",(project_id,)).fetchall()
         costs=conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?""",(project_id,)).fetchone()
         members=conn.execute("""SELECT pm.*,COALESCE(u.display_name,u.username) display_name
              FROM project_members pm JOIN users u ON u.id=pm.user_id WHERE pm.project_id=? ORDER BY display_name""",(project_id,)).fetchall()
+        actions=conn.execute("""SELECT * FROM action_items WHERE project_id=? AND LOWER(COALESCE(status,'')) NOT IN ('done','closed','klar')
+                                ORDER BY CASE WHEN due_date='' THEN 1 ELSE 0 END,due_date LIMIT 12""",(project_id,)).fetchall()
+        try:
+            changes=conn.execute("""SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 8""",(project_id,)).fetchall()
+        except Exception:
+            changes=[]
+        try:
+            decisions=conn.execute("""SELECT * FROM decisions WHERE project_id=? ORDER BY id DESC LIMIT 8""",(project_id,)).fetchall()
+        except Exception:
+            decisions=[]
         try:
             devops=conn.execute("""SELECT state,COUNT(*) c FROM azure_devops_work_item_links
                WHERE project_id=? GROUP BY state ORDER BY c DESC""",(project_id,)).fetchall()
         except Exception:
             devops=[]
         try:
-            comments=conn.execute("""SELECT c.*,COALESCE(u.display_name,u.username,'Användare') author
+            comments=conn.execute("""SELECT c.*,COALESCE(u.display_name,u.username,'AnvÃ¤ndare') author
                FROM project_comments c LEFT JOIN users u ON u.id=c.user_id
                WHERE c.project_id=? ORDER BY c.id DESC LIMIT 6""",(project_id,)).fetchall()
         except Exception:
             comments=[]
+        try:
+            status_report=conn.execute("""SELECT * FROM status_reports WHERE project_id=? ORDER BY report_date DESC,id DESC LIMIT 1""",(project_id,)).fetchone()
+        except Exception:
+            status_report=None
+
     health=_ultimate_health_v140(project,tasks,risks,costs)
     progress=round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
-    milestones=[t for t in tasks if t["milestone"] and t["end_date"]]
-    milestones=sorted(milestones,key=lambda x:x["end_date"])[:8]
-    open_tasks=[t for t in tasks if (t["status"] or "").lower() not in ("done","completed","closed","klar")]
+    milestones=sorted([t for t in tasks if t["milestone"] and t["end_date"]],key=lambda x:x["end_date"])[:10]
+    open_tasks=[t for t in tasks if not _v15_is_closed(t["status"])]
+    forecast=_v15_forecast(project,tasks)
+
     next_actions=[]
     for t in health["overdue"][:4]:
-        next_actions.append({"type":"Försenad","title":t["title"],"detail":t["end_date"],"url":f"/projects/{project_id}/workspace-pro"})
+        days=(date.today()-_v15_date(t["end_date"])).days if _v15_date(t["end_date"]) else 0
+        next_actions.append({"severity":"red","type":"FÃ¶rsenad","title":t["title"],"detail":f"{days} dagar sen","url":f"/projects/{project_id}/workspace-pro"})
+    for t in health["blocked"][:3]:
+        next_actions.append({"severity":"red","type":"Blockerad","title":t["title"],"detail":t["owner"] or "Ej tilldelad","url":f"/projects/{project_id}/workspace-pro"})
     for r in health["high_risks"][:3]:
-        next_actions.append({"type":"Hög risk","title":r["title"],"detail":f"P{r['probability']} × I{r['impact']}","url":f"/projects/{project_id}/risk-center"})
+        next_actions.append({"severity":"amber","type":"HÃ¶g risk","title":r["title"],"detail":f"P{r['probability']} Ã— I{r['impact']}","url":f"/projects/{project_id}/risk-center"})
+    for a in actions[:3]:
+        due=_v15_date(a["due_date"])
+        sev="red" if due and due < date.today() else "amber"
+        next_actions.append({"severity":sev,"type":"Ã…tgÃ¤rd","title":a["title"],"detail":a["due_date"] or "Utan datum","url":"/my-work-2"})
     if health["budget_over"]:
-        next_actions.append({"type":"Budget","title":"Utfall över planerad kostnad","detail":f"{health['actual']-health['planned']:.0f} över plan","url":"/finance-control"})
-    return render_template("ultimate_project_v140.html",project=project,tasks=tasks,open_tasks=open_tasks,
+        next_actions.append({"severity":"red","type":"Budget","title":"Utfall Ã¶ver planerad kostnad",
+                             "detail":f"{health['actual']-health['planned']:.0f} Ã¶ver plan","url":"/finance-control"})
+    next_actions.sort(key=lambda x:{"red":0,"amber":1}.get(x["severity"],2))
+
+    return render_template("project_cockpit_v1500.html",project=project,tasks=tasks,open_tasks=open_tasks,
                            risks=risks,costs=costs,members=members,devops=devops,comments=comments,
-                           health=health,progress=progress,milestones=milestones,next_actions=next_actions)
+                           health=health,progress=progress,milestones=milestones,next_actions=next_actions,
+                           actions=actions,changes=changes,decisions=decisions,status_report=status_report,
+                           forecast=forecast)
+
+@app.get("/projects/<int:project_id>/impact")
+@login_required
+def project_impact_v1500(project_id):
+    project=project_or_404(project_id)
+    shift=max(0,min(180,request.args.get("shift",7,type=int)))
+    start_task=request.args.get("task_id",type=int)
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("""SELECT id,title,start_date,end_date,status,progress
+                                                FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''
+                                                ORDER BY sort_order,id""",(project_id,)).fetchall()]
+        links=[dict(r) for r in conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days
+                                                FROM task_links WHERE project_id=?""",(project_id,)).fetchall()]
+    by_id={t["id"]:t for t in tasks}
+    graph={}
+    for l in links:
+        graph.setdefault(l["predecessor_id"],[]).append(l["successor_id"])
+    if not start_task and tasks:
+        open_dated=[t for t in tasks if not _v15_is_closed(t["status"]) and _v15_date(t["end_date"])]
+        start_task=(open_dated[0]["id"] if open_dated else tasks[0]["id"])
+    affected=[]
+    seen=set()
+    queue=[start_task] if start_task else []
+    while queue:
+        tid=queue.pop(0)
+        if tid in seen: continue
+        seen.add(tid)
+        t=by_id.get(tid)
+        if t:
+            ns=_v15_date(t["start_date"]); ne=_v15_date(t["end_date"])
+            affected.append({
+                **t,
+                "new_start":(ns+timedelta(days=shift)).isoformat() if ns else "",
+                "new_end":(ne+timedelta(days=shift)).isoformat() if ne else ""
+            })
+        queue.extend(graph.get(tid,[]))
+    old_end=_v15_date(project["end_date"])
+    projected=(old_end+timedelta(days=shift)).isoformat() if old_end and affected else (project["end_date"] or "")
+    return render_template("impact_v1500.html",project=project,tasks=tasks,affected=affected,
+                           shift=shift,start_task=start_task,projected_end=projected)
 
 @app.get("/ultimate/compare")
 @login_required
@@ -3645,14 +3957,14 @@ def ultimate_capabilities_v140():
     return render_template("ultimate_capabilities_v140.html")
 
 _UI_SV_V1401 = {
-    "Not started": "Ej påbörjad", "Not Started": "Ej påbörjad",
-    "In progress": "Pågår", "In Progress": "Pågår",
-    "Done": "Klar", "Completed": "Klar", "Closed": "Stängd",
-    "Blocked": "Blockerad", "Open": "Öppen",
-    "High": "Hög", "Normal": "Normal", "Low": "Låg",
+    "Not started": "Ej pÃ¥bÃ¶rjad", "Not Started": "Ej pÃ¥bÃ¶rjad",
+    "In progress": "PÃ¥gÃ¥r", "In Progress": "PÃ¥gÃ¥r",
+    "Done": "Klar", "Completed": "Klar", "Closed": "StÃ¤ngd",
+    "Blocked": "Blockerad", "Open": "Ã–ppen",
+    "High": "HÃ¶g", "Normal": "Normal", "Low": "LÃ¥g",
     "Success": "Lyckades", "Failed": "Misslyckades",
     "Risk": "Risk", "Issue": "Problem",
-    "Green": "Grön", "Amber": "Gul", "Red": "Röd"
+    "Green": "GrÃ¶n", "Amber": "Gul", "Red": "RÃ¶d"
 }
 
 @app.template_filter("sv")
@@ -3685,16 +3997,16 @@ def admin_users():
         username=request.form["username"].strip(); password=request.form["password"]; role=request.form.get("role","member")
         if role not in ROLES:role="member"
         if len(password)<10:
-            flash("Lösenord måste vara minst 10 tecken.","danger"); return redirect(url_for("admin_users"))
+            flash("LÃ¶senord mÃ¥ste vara minst 10 tecken.","danger"); return redirect(url_for("admin_users"))
         try:
             with db() as conn:
                 conn.execute("""INSERT INTO users(username,display_name,password_hash,role,active,force_password_change,created_at)
                                 VALUES(?,?,?,?,1,1,?)""",
                              (username,request.form.get("display_name","").strip() or username,
                               generate_password_hash(password),role,datetime.now().isoformat(timespec="seconds")))
-            flash("Användaren skapades och måste byta lösenord vid första login.","success")
+            flash("AnvÃ¤ndaren skapades och mÃ¥ste byta lÃ¶senord vid fÃ¶rsta login.","success")
         except sqlite3.IntegrityError:
-            flash("Användarnamnet finns redan.","danger")
+            flash("AnvÃ¤ndarnamnet finns redan.","danger")
         return redirect(url_for("admin_users"))
     with db() as conn: users=conn.execute("SELECT * FROM users ORDER BY username").fetchall()
     return render_template("users.html",users=users,roles=ROLES)
@@ -3718,12 +4030,12 @@ def toggle_user(user_id):
 def admin_reset_password(user_id):
     new=request.form["password"]
     if len(new)<10:
-        flash("Lösenord måste vara minst 10 tecken.","danger")
+        flash("LÃ¶senord mÃ¥ste vara minst 10 tecken.","danger")
     else:
         with db() as conn:
             conn.execute("UPDATE users SET password_hash=?,force_password_change=1,failed_logins=0,locked_until='' WHERE id=?",
                          (generate_password_hash(new),user_id))
-        flash("Lösenordet är återställt. Användaren måste byta det vid nästa login.","success")
+        flash("LÃ¶senordet Ã¤r Ã¥terstÃ¤llt. AnvÃ¤ndaren mÃ¥ste byta det vid nÃ¤sta login.","success")
     return redirect(url_for("admin_users"))
 
 @app.post("/admin/users/<int:user_id>/role")
@@ -3749,7 +4061,7 @@ def admin_projects():
 @role_required("admin")
 def admin_delete_project(project_id):
     with db() as conn:conn.execute("DELETE FROM projects WHERE id=?",(project_id,))
-    flash("Projektet är borttaget.","success")
+    flash("Projektet Ã¤r borttaget.","success")
     return redirect(url_for("admin_projects"))
 
 @app.route("/admin/settings",methods=["GET","POST"])
@@ -3764,16 +4076,16 @@ def admin_settings():
         with db() as conn:
             for k,v in updates.items():
                 conn.execute("INSERT OR REPLACE INTO system_settings(key,value) VALUES(?,?)",(k,v))
-        flash("Systeminställningar sparade.","success")
+        flash("SysteminstÃ¤llningar sparade.","success")
         return redirect(url_for("admin_settings"))
     return render_template("admin_settings.html",
                            lockout_attempts=setting("lockout_attempts","5"),
                            lockout_minutes=setting("lockout_minutes","15"))
 
 @app.errorhandler(400)
-def bad_request(e):return render_template("error.html",code=400,message=getattr(e,"description","Ogiltig begäran.")),400
+def bad_request(e):return render_template("error.html",code=400,message=getattr(e,"description","Ogiltig begÃ¤ran.")),400
 @app.errorhandler(403)
-def forbidden(e):return render_template("error.html",code=403,message="Du saknar behörighet för den här åtgärden."),403
+def forbidden(e):return render_template("error.html",code=403,message="Du saknar behÃ¶righet fÃ¶r den hÃ¤r Ã¥tgÃ¤rden."),403
 @app.errorhandler(404)
 def not_found(e):return render_template("error.html",code=404,message="Sidan kunde inte hittas."),404
 
@@ -3781,7 +4093,7 @@ def not_found(e):return render_template("error.html",code=404,message="Sidan kun
 def internal_error(e):
     request_id=secrets.token_hex(4)
     app.logger.exception("Unhandled error request_id=%s path=%s",request_id,request.path)
-    return render_template("error.html",code=500,message=f"Ett internt fel inträffade. Referens: {request_id}"),500
+    return render_template("error.html",code=500,message=f"Ett internt fel intrÃ¤ffade. Referens: {request_id}"),500
 
 
 
@@ -4344,7 +4656,7 @@ def project_cockpit(project_id):
     today=date.today()
     with db() as conn:
         tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,))]
-        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC",(project_id,))]
         actions=[dict(r) for r in conn.execute("SELECT * FROM action_items WHERE project_id=? AND status<>'Done' ORDER BY due_date,id",(project_id,))]
         recent=conn.execute("""SELECT a.*,u.display_name FROM audit_log a LEFT JOIN users u ON u.id=a.user_id
                               WHERE a.project_id=? ORDER BY a.id DESC LIMIT 10""",(project_id,)).fetchall()
@@ -4356,9 +4668,9 @@ def project_cockpit(project_id):
     avg=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
     rag="red" if overdue or len(high_risks)>=2 or len(blocked)>=2 else ("amber" if high_risks or blocked else "green")
     attention=[]
-    for t in overdue[:5]: attention.append(("Försenad",t["title"],t.get("end_date") or "","danger"))
+    for t in overdue[:5]: attention.append(("FÃ¶rsenad",t["title"],t.get("end_date") or "","danger"))
     for t in blocked[:5]: attention.append(("Blockerad",t["title"],t.get("owner") or "","warning"))
-    for r in high_risks[:5]: attention.append(("Hög risk",r["title"],f"Score {int(r.get('probability') or 0)*int(r.get('impact') or 0)}","danger"))
+    for r in high_risks[:5]: attention.append(("HÃ¶g risk",r["title"],f"Score {int(r.get('probability') or 0)*int(r.get('impact') or 0)}","danger"))
     return render_template("cockpit.html",project=p,tasks=tasks,risks=risks,actions=actions,recent=recent,
                            overdue=overdue,blocked=blocked,high_risks=high_risks,milestones=milestones[:8],
                            avg=avg,rag=rag,attention=attention)
@@ -4376,14 +4688,14 @@ def project_wbs(project_id):
 def task_quick_update(project_id,task_id):
     project_or_404(project_id,write=True)
     progress=max(0,min(100,int(request.form.get("progress","0") or 0)))
-    status=request.form.get("status","Pågår")
+    status=request.form.get("status","PÃ¥gÃ¥r")
     if progress==100: status="Klar"
     with db() as conn:
         conn.execute("UPDATE tasks SET progress=?,status=? WHERE id=? AND project_id=?",(progress,status,task_id,project_id))
     audit(project_id,"task",task_id,"quick_updated",f"{status} {progress}%")
     return redirect(request.referrer or url_for("project_wbs",project_id=project_id))
 
-@app.get("/my-work-2")
+@app.get("/my-work-legacy")
 @login_required
 def my_work_2():
     u=current_user(); today=date.today()
@@ -4536,7 +4848,7 @@ def executive_pmo():
         programs=conn.execute("SELECT * FROM programs ORDER BY name").fetchall()
         for p in projects:
             tasks=[dict(x) for x in conn.execute("SELECT * FROM tasks WHERE project_id=?",(p["id"],))]
-            risks=[dict(x) for x in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd'",(p["id"],))]
+            risks=[dict(x) for x in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd'",(p["id"],))]
             overdue=sum(1 for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t.get("end_date"))<today)
             high=sum(1 for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=12)
             progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
@@ -4578,7 +4890,7 @@ def create_mention(project_id):
     with db() as conn:
         user=conn.execute("SELECT * FROM users WHERE username=? AND active=1",(username,)).fetchone()
         if not user:
-            flash("Användaren hittades inte.","error")
+            flash("AnvÃ¤ndaren hittades inte.","error")
         else:
             conn.execute("""INSERT INTO mentions(project_id,mentioned_user_id,source_type,message,created_at)
                             VALUES(?,?,?,?,?)""",(project_id,user["id"],request.form.get("source_type","message"),
@@ -4607,19 +4919,19 @@ def project_assistant_summary(project_id):
     today=date.today()
     with db() as conn:
         tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
-        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd'",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd'",(project_id,))]
         changes=[dict(r) for r in conn.execute("SELECT * FROM change_requests WHERE project_id=? AND status='Submitted'",(project_id,))]
         actions=[dict(r) for r in conn.execute("SELECT * FROM action_items WHERE project_id=? AND status<>'Done'",(project_id,))]
     overdue=[t for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t.get("end_date"))<today]
     blocked=[t for t in tasks if t.get("status")=="Blockerad"]
     high=[r for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=12]
     progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
-    lines=[f"{p['name']} är {progress}% färdigt."]
-    if overdue: lines.append(f"{len(overdue)} aktivitet(er) är försenade.")
-    if blocked: lines.append(f"{len(blocked)} aktivitet(er) är blockerade.")
-    if high: lines.append(f"{len(high)} höga risker behöver uppmärksamhet.")
-    if changes: lines.append(f"{len(changes)} change request(s) väntar på beslut.")
-    if actions: lines.append(f"{len(actions)} öppna actions finns.")
+    lines=[f"{p['name']} Ã¤r {progress}% fÃ¤rdigt."]
+    if overdue: lines.append(f"{len(overdue)} aktivitet(er) Ã¤r fÃ¶rsenade.")
+    if blocked: lines.append(f"{len(blocked)} aktivitet(er) Ã¤r blockerade.")
+    if high: lines.append(f"{len(high)} hÃ¶ga risker behÃ¶ver uppmÃ¤rksamhet.")
+    if changes: lines.append(f"{len(changes)} change request(s) vÃ¤ntar pÃ¥ beslut.")
+    if actions: lines.append(f"{len(actions)} Ã¶ppna actions finns.")
     if not any((overdue,blocked,high,changes)): lines.append("Inga kritiska avvikelser identifierades av regelmotorn.")
     return {"project":p,"progress":progress,"overdue":overdue,"blocked":blocked,"high":high,"changes":changes,"actions":actions,"text":" ".join(lines)}
 
@@ -4675,7 +4987,7 @@ def admin_integrations():
             conn.execute("UPDATE oidc_settings SET enabled=?,issuer=?,client_id=?,scopes=? WHERE id=1",
                          (1 if request.form.get("enabled")=="on" else 0,request.form.get("issuer","").strip(),
                           request.form.get("client_id","").strip(),request.form.get("scopes","openid profile email").strip()))
-            flash("OIDC-konfiguration sparad. Aktivering kräver IdP/client secret i servermiljön.","success")
+            flash("OIDC-konfiguration sparad. Aktivering krÃ¤ver IdP/client secret i servermiljÃ¶n.","success")
             return redirect(url_for("admin_integrations"))
         oidc=conn.execute("SELECT * FROM oidc_settings WHERE id=1").fetchone()
         webhooks=conn.execute("SELECT * FROM webhooks ORDER BY id DESC").fetchall()
@@ -4719,7 +5031,7 @@ def global_search():
             if ids:
                 ph=",".join("?" for _ in ids)
                 rows=conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({ph}) AND (t.title LIKE ? OR t.wbs LIKE ?) LIMIT 50",(*ids,like,like)).fetchall()
-                for t in rows: results.append({"type":"Aktivitet","label":t["title"],"detail":f"{t['project_name']} · {t['wbs']}","url":url_for("edit_task",project_id=t["project_id"],task_id=t["id"])})
+                for t in rows: results.append({"type":"Aktivitet","label":t["title"],"detail":f"{t['project_name']} Â· {t['wbs']}","url":url_for("edit_task",project_id=t["project_id"],task_id=t["id"])})
     return render_template("global_search.html",q=q,results=results)
 
 @app.post("/favorites/toggle")
@@ -4812,7 +5124,7 @@ def advanced_planning(project_id):
 @login_required
 def advanced_dependency_new(project_id):
     project_or_404(project_id,write=True); a=int(request.form["predecessor_id"]); b=int(request.form["successor_id"])
-    if a==b: abort(400,"En aktivitet kan inte bero på sig själv")
+    if a==b: abort(400,"En aktivitet kan inte bero pÃ¥ sig sjÃ¤lv")
     with db() as conn:
         conn.execute("INSERT INTO task_links(project_id,predecessor_id,successor_id,link_type,lag_days) VALUES(?,?,?,?,?)",(project_id,a,b,request.form.get("link_type","FS"),int(request.form.get("lag_days","0") or 0)))
     audit(project_id,"dependency",None,"created",f"{a}->{b}")
@@ -4854,7 +5166,7 @@ def evaluate_automation_rule(rule):
             for t in conn.execute("SELECT * FROM tasks WHERE project_id=? AND progress<100 AND end_date<>''",(pid,)).fetchall():
                 if parse_date(t["end_date"]) and parse_date(t["end_date"])<date.today(): matched.append(dict(t))
         elif trigger=="risk.high" and pid:
-            matched=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND probability*impact>=? AND status<>'Stängd'",(pid,int(cfg.get("score",12)))).fetchall()]
+            matched=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND probability*impact>=? AND status<>'StÃ¤ngd'",(pid,int(cfg.get("score",12)))).fetchall()]
         elif trigger=="milestone.due" and pid:
             days=int(cfg.get("days",7)); until=date.today()+timedelta(days=days)
             for t in conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 AND progress<100",(pid,)).fetchall():
@@ -4896,7 +5208,7 @@ def automation_center():
 @login_required
 @role_required("admin","pm")
 def automation_run_now():
-    results=run_automation_rules(); flash(f"Automation körd: {len(results)} regel/regler.","success"); return redirect(url_for("automation_center"))
+    results=run_automation_rules(); flash(f"Automation kÃ¶rd: {len(results)} regel/regler.","success"); return redirect(url_for("automation_center"))
 
 @app.post("/internal/automation/run")
 def automation_internal_run():
@@ -4921,8 +5233,8 @@ def project_report_pdf(project_id):
     from reportlab.lib.pagesizes import A4
     from reportlab.pdfgen import canvas
     b=BytesIO(); c=canvas.Canvas(b,pagesize=A4); w,h=A4; y=h-55
-    c.setFont("Helvetica-Bold",18); c.drawString(45,y,f"Project Status – {payload['project']['name']}"); y-=30
-    c.setFont("Helvetica",10); c.drawString(45,y,f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')} · Project Planer {APP_VERSION}"); y-=28
+    c.setFont("Helvetica-Bold",18); c.drawString(45,y,f"Project Status â€“ {payload['project']['name']}"); y-=30
+    c.setFont("Helvetica",10); c.drawString(45,y,f"Generated {datetime.now().strftime('%Y-%m-%d %H:%M')} Â· Project Planer {APP_VERSION}"); y-=28
     text=c.beginText(45,y); text.setFont("Helvetica",11)
     for line in [payload["summary"]["text"],f"Progress: {payload['summary']['progress']}%",f"Overdue: {len(payload['summary']['overdue'])}",f"High risks: {len(payload['summary']['high'])}"]:
         for part in [line[i:i+95] for i in range(0,len(line),95)]: text.textLine(part)
@@ -4935,9 +5247,9 @@ def project_report_pdf(project_id):
 @login_required
 def project_report_pptx(project_id):
     payload=project_report_payload(project_id); from pptx import Presentation
-    prs=Presentation(); slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text=payload["project"]["name"]+" – Project Status"; slide.placeholders[1].text=payload["summary"]["text"]
+    prs=Presentation(); slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text=payload["project"]["name"]+" â€“ Project Status"; slide.placeholders[1].text=payload["summary"]["text"]
     slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text="Key metrics"; slide.placeholders[1].text=f"Progress: {payload['summary']['progress']}%\nOverdue: {len(payload['summary']['overdue'])}\nBlocked: {len(payload['summary']['blocked'])}\nHigh risks: {len(payload['summary']['high'])}"
-    slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text="Milestones"; slide.placeholders[1].text="\n".join(f"{m.get('end_date','')} – {m.get('title','')} ({m.get('progress',0)}%)" for m in payload["milestones"][:12]) or "No milestones"
+    slide=prs.slides.add_slide(prs.slide_layouts[1]); slide.shapes.title.text="Milestones"; slide.placeholders[1].text="\n".join(f"{m.get('end_date','')} â€“ {m.get('title','')} ({m.get('progress',0)}%)" for m in payload["milestones"][:12]) or "No milestones"
     b=BytesIO(); prs.save(b); b.seek(0); return send_file(b,mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",as_attachment=True,download_name=f"{secure_filename(payload['project']['name'])}-status.pptx")
 
 @app.get("/executive-reporting")
@@ -5103,17 +5415,17 @@ def health_snapshot(project_id):
 
 def assistant_answer(project_id,question):
     q=question.lower(); h=health_snapshot(project_id); s=h["summary"]; p=s["project"]
-    if any(x in q for x in ["sen","försen","late","delay"]):
-        items=s["overdue"]; return (f"{len(items)} aktivitet(er) är försenade: "+", ".join(x["title"] for x in items[:10])) if items else "Inga försenade aktiviteter hittades."
+    if any(x in q for x in ["sen","fÃ¶rsen","late","delay"]):
+        items=s["overdue"]; return (f"{len(items)} aktivitet(er) Ã¤r fÃ¶rsenade: "+", ".join(x["title"] for x in items[:10])) if items else "Inga fÃ¶rsenade aktiviteter hittades."
     if any(x in q for x in ["block","go-live","golive"]):
-        items=s["blocked"]+s["overdue"]; return ("De viktigaste blockerarna är: "+", ".join(dict.fromkeys(x["title"] for x in items[:10]))) if items else "Inga direkta blockerare identifierades."
+        items=s["blocked"]+s["overdue"]; return ("De viktigaste blockerarna Ã¤r: "+", ".join(dict.fromkeys(x["title"] for x in items[:10]))) if items else "Inga direkta blockerare identifierades."
     if "risk" in q:
-        items=s["high"]; return (f"{len(items)} höga risker: "+", ".join(x["title"] for x in items[:10])) if items else "Inga höga risker identifierades."
-    if any(x in q for x in ["ändrat","changed","förra veckan","last week"]):
+        items=s["high"]; return (f"{len(items)} hÃ¶ga risker: "+", ".join(x["title"] for x in items[:10])) if items else "Inga hÃ¶ga risker identifierades."
+    if any(x in q for x in ["Ã¤ndrat","changed","fÃ¶rra veckan","last week"]):
         with db() as conn: changes=conn.execute("SELECT * FROM audit_log WHERE project_id=? AND created_at>=? ORDER BY id DESC LIMIT 30",(project_id,(datetime.now()-timedelta(days=7)).isoformat(timespec="seconds"))).fetchall()
-        return f"{len(changes)} ändringar senaste 7 dagarna. "+"; ".join(f"{x['entity_type']} {x['action']}" for x in changes[:12])
-    if any(x in q for x in ["hälsa","status","health"]): return f"{p['name']} har health score {h['score']}/100 och progress {h['progress']}%. {s['text']}"
-    return s["text"]+" Fråga gärna om risker, förseningar, blockerare, status eller vad som ändrats senaste veckan."
+        return f"{len(changes)} Ã¤ndringar senaste 7 dagarna. "+"; ".join(f"{x['entity_type']} {x['action']}" for x in changes[:12])
+    if any(x in q for x in ["hÃ¤lsa","status","health"]): return f"{p['name']} har health score {h['score']}/100 och progress {h['progress']}%. {s['text']}"
+    return s["text"]+" FrÃ¥ga gÃ¤rna om risker, fÃ¶rseningar, blockerare, status eller vad som Ã¤ndrats senaste veckan."
 
 @app.route("/intelligence",methods=["GET","POST"])
 @login_required
@@ -5157,7 +5469,7 @@ def meeting_to_actions(project_id):
             elif raw.upper().startswith("DECISION:"):
                 body=raw.split(":",1)[1].strip()
                 if body: conn.execute("INSERT INTO decisions(project_id,title,decision,decided_by,decision_date,owner,decided_at) VALUES(?,?,?,?,?,?,?)",(project_id,body,body,current_user()["display_name"],date.today().isoformat(),current_user()["display_name"],datetime.now().isoformat(timespec="seconds"))); created+=1
-    flash(f"Skapade {created} actions/beslut från mötesanteckningar.","success"); return redirect(url_for("collaboration",project_id=project_id))
+    flash(f"Skapade {created} actions/beslut frÃ¥n mÃ¶tesanteckningar.","success"); return redirect(url_for("collaboration",project_id=project_id))
 
 
 def stability_snapshot():
@@ -5210,7 +5522,7 @@ def home_v41():
             ph=",".join("?" for _ in ids)
             tasks=[dict(r) for r in conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({ph}) AND t.progress<100 ORDER BY t.end_date LIMIT 30",ids)]
             approvals=conn.execute(f"SELECT COUNT(*) c FROM approvals WHERE project_id IN ({ph}) AND status='Pending'",ids).fetchone()["c"]
-            high=conn.execute(f"SELECT COUNT(*) c FROM risks WHERE project_id IN ({ph}) AND status<>'Stängd' AND probability*impact>=12",ids).fetchone()["c"]
+            high=conn.execute(f"SELECT COUNT(*) c FROM risks WHERE project_id IN ({ph}) AND status<>'StÃ¤ngd' AND probability*impact>=12",ids).fetchone()["c"]
         else: tasks=[]; approvals=0; high=0
     overdue=[t for t in tasks if parse_date(t.get("end_date")) and parse_date(t["end_date"])<today]
     dueweek=[t for t in tasks if parse_date(t.get("end_date")) and today<=parse_date(t["end_date"])<=today+timedelta(days=7)]
@@ -5259,7 +5571,7 @@ def project_workspace(project_id,tab="overview"):
 
         risks=conn.execute("""
             SELECT * FROM risks
-            WHERE project_id=? AND status<>'Stängd'
+            WHERE project_id=? AND status<>'StÃ¤ngd'
             ORDER BY probability*impact DESC,id DESC
         """,(project_id,)).fetchall()
 
@@ -5285,7 +5597,7 @@ def project_workspace(project_id,tab="overview"):
         actions=conn.execute("""
             SELECT * FROM action_items
             WHERE project_id=?
-            ORDER BY CASE WHEN status IN ('Done','Closed','Stängd') THEN 1 ELSE 0 END,
+            ORDER BY CASE WHEN status IN ('Done','Closed','StÃ¤ngd') THEN 1 ELSE 0 END,
                      CASE WHEN due_date='' THEN 1 ELSE 0 END,due_date,id
         """,(project_id,)).fetchall()
 
@@ -5377,7 +5689,7 @@ def project_workspace(project_id,tab="overview"):
             "severity":"red" if (today-parse_date(t["end_date"])).days>=7 else "amber",
             "kind":"Task",
             "title":t["title"],
-            "detail":f"Försenad sedan {t['end_date']}",
+            "detail":f"FÃ¶rsenad sedan {t['end_date']}",
             "url":url_for("project_workspace",project_id=project_id,tab="tasks")
         })
     for t in blocked_tasks[:5]:
@@ -5402,22 +5714,22 @@ def project_workspace(project_id,tab="overview"):
     if budget and actual>budget:
         attention.append({
             "severity":"amber" if actual <= budget*1.10 else "red",
-            "kind":"Budget","title":"Budget över plan",
-            "detail":f"{variance:,.0f} över budget",
+            "kind":"Budget","title":"Budget Ã¶ver plan",
+            "detail":f"{variance:,.0f} Ã¶ver budget",
             "url":url_for("project_workspace",project_id=project_id,tab="finance")
         })
     for r in resource_summary:
         if r["peak"]>120:
             attention.append({
                 "severity":"red","kind":"Resource",
-                "title":f"{r['name']} är överallokerad",
+                "title":f"{r['name']} Ã¤r Ã¶verallokerad",
                 "detail":f"Peak {r['peak']}%",
                 "url":url_for("project_workspace",project_id=project_id,tab="resources")
             })
         elif r["peak"]>100:
             attention.append({
                 "severity":"amber","kind":"Resource",
-                "title":f"{r['name']} har hög belastning",
+                "title":f"{r['name']} har hÃ¶g belastning",
                 "detail":f"Peak {r['peak']}%",
                 "url":url_for("project_workspace",project_id=project_id,tab="resources")
             })
@@ -5517,7 +5829,7 @@ def status_report_payload(project_id):
     p=project_or_404(project_id)
     with db() as conn:
         tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
-        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC",(project_id,))]
         changes=[dict(r) for r in conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 8",(project_id,))]
     progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
     overdue=[t for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t["end_date"])<date.today()]
@@ -5531,7 +5843,7 @@ def executive_pdf_v45(project_id):
     import io
     p,tasks,risks,changes,progress,overdue=status_report_payload(project_id)
     buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=A4); w,h=A4; y=h-55
-    c.setFont("Helvetica-Bold",18); c.drawString(45,y,f"Project Status – {p['name']}"); y-=30
+    c.setFont("Helvetica-Bold",18); c.drawString(45,y,f"Project Status â€“ {p['name']}"); y-=30
     c.setFont("Helvetica",10); c.drawString(45,y,f"Progress: {progress}%   Overdue: {len(overdue)}   Open risks: {len(risks)}"); y-=30
     c.setFont("Helvetica-Bold",12); c.drawString(45,y,"Top risks"); y-=18; c.setFont("Helvetica",9)
     for r in risks[:8]:
@@ -5539,7 +5851,7 @@ def executive_pdf_v45(project_id):
         if y<70: c.showPage(); y=h-55
     c.setFont("Helvetica-Bold",12); c.drawString(45,y,"Overdue activities"); y-=18; c.setFont("Helvetica",9)
     for t in overdue[:12]:
-        c.drawString(55,y,f"{t.get('wbs','')} {t['title']} – {t.get('end_date','')}"); y-=15
+        c.drawString(55,y,f"{t.get('wbs','')} {t['title']} â€“ {t.get('end_date','')}"); y-=15
         if y<70: c.showPage(); y=h-55
     c.save(); buf.seek(0)
     return send_file(buf,mimetype="application/pdf",as_attachment=True,download_name=f"{p['name']}-status.pdf")
@@ -5552,10 +5864,10 @@ def executive_pptx_v45(project_id):
     import io
     p,tasks,risks,changes,progress,overdue=status_report_payload(project_id)
     prs=Presentation()
-    s=prs.slides.add_slide(prs.slide_layouts[0]); s.shapes.title.text=p["name"]; s.placeholders[1].text=f"Executive Project Status · {date.today().isoformat()}"
+    s=prs.slides.add_slide(prs.slide_layouts[0]); s.shapes.title.text=p["name"]; s.placeholders[1].text=f"Executive Project Status Â· {date.today().isoformat()}"
     s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Project health"; s.placeholders[1].text=f"Progress: {progress}%\nOverdue activities: {len(overdue)}\nOpen risks: {len(risks)}\nRecent change requests: {len(changes)}"
-    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Top risks"; s.placeholders[1].text="\n".join(f"• {r['title']} – score {int(r['probability'] or 0)*int(r['impact'] or 0)}" for r in risks[:8]) or "No open risks"
-    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Needs attention"; s.placeholders[1].text="\n".join(f"• {t['title']} – due {t.get('end_date','')}" for t in overdue[:10]) or "No overdue activities"
+    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Top risks"; s.placeholders[1].text="\n".join(f"â€¢ {r['title']} â€“ score {int(r['probability'] or 0)*int(r['impact'] or 0)}" for r in risks[:8]) or "No open risks"
+    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Needs attention"; s.placeholders[1].text="\n".join(f"â€¢ {t['title']} â€“ due {t.get('end_date','')}" for t in overdue[:10]) or "No overdue activities"
     buf=io.BytesIO(); prs.save(buf); buf.seek(0)
     return send_file(buf,mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",as_attachment=True,download_name=f"{p['name']}-status.pptx")
 
@@ -5572,7 +5884,7 @@ def automation_watch_v46():
         projects=conn.execute("SELECT * FROM projects WHERE COALESCE(archived_at,'')='' AND COALESCE(deleted_at,'')=''").fetchall() if table_has_column(conn,"projects","archived") else conn.execute("SELECT * FROM projects").fetchall()
         for p in projects:
             overdue=conn.execute("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND progress<100 AND end_date<>'' AND end_date<?",(p["id"],today.isoformat())).fetchone()["c"]
-            high=conn.execute("SELECT COUNT(*) c FROM risks WHERE project_id=? AND status<>'Stängd' AND probability*impact>=15",(p["id"],)).fetchone()["c"]
+            high=conn.execute("SELECT COUNT(*) c FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' AND probability*impact>=15",(p["id"],)).fetchone()["c"]
             if overdue or high:
                 exists=conn.execute("SELECT id FROM automation_queue_v46 WHERE project_id=? AND status='Queued' AND created_at LIKE ?",(p["id"],today.isoformat()+"%")).fetchone()
                 if not exists:
@@ -5593,7 +5905,7 @@ def automation_ops_v46():
 @login_required
 def automation_run_v46():
     if current_user()["role"] not in ("admin","pm"): abort(403)
-    n=automation_watch_v46(); flash(f"Automation scan klar: {n} nya köposter.","success")
+    n=automation_watch_v46(); flash(f"Automation scan klar: {n} nya kÃ¶poster.","success")
     return redirect(url_for("automation_ops_v46"))
 
 @app.post("/automation-ops/process")
@@ -5607,7 +5919,7 @@ def automation_process_v46():
             members=conn.execute("SELECT user_id FROM project_members WHERE project_id=?",(r["project_id"],)).fetchall()
             for m in members:
                 conn.execute("INSERT INTO notifications(user_id,project_id,message,link,is_read,created_at) VALUES(?,?,?,?,0,?)",
-                             (m["user_id"],r["project_id"],f"Project attention needed · Overdue: {payload.get('overdue',0)} · High risks: {payload.get('high_risks',0)}",url_for("project_cockpit",project_id=r["project_id"]),datetime.now().isoformat(timespec="seconds")))
+                             (m["user_id"],r["project_id"],f"Project attention needed Â· Overdue: {payload.get('overdue',0)} Â· High risks: {payload.get('high_risks',0)}",url_for("project_cockpit",project_id=r["project_id"]),datetime.now().isoformat(timespec="seconds")))
             conn.execute("UPDATE automation_queue_v46 SET status='Done',attempts=attempts+1,processed_at=? WHERE id=?",(datetime.now().isoformat(timespec="seconds"),r["id"]))
     return redirect(url_for("automation_ops_v46"))
 
@@ -5662,24 +5974,24 @@ def intelligence_answer_v50(project_id,question):
     high=[r for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=15]
     if "go-live" in q or "golive" in q or "block" in q:
         items=blocked+overdue
-        return "Följande kan påverka go-live: " + (", ".join(x["title"] for x in items[:10]) if items else "inga uppenbara blockerare eller försenade aktiviteter.")
+        return "FÃ¶ljande kan pÃ¥verka go-live: " + (", ".join(x["title"] for x in items[:10]) if items else "inga uppenbara blockerare eller fÃ¶rsenade aktiviteter.")
     if "risk" in q:
-        return "Högsta riskerna: " + (", ".join(f"{r['title']} ({int(r.get('probability') or 0)*int(r.get('impact') or 0)})" for r in high[:8]) if high else "inga risker med score ≥15.")
-    if "ändrat" in q or "changed" in q or "vecka" in q:
+        return "HÃ¶gsta riskerna: " + (", ".join(f"{r['title']} ({int(r.get('probability') or 0)*int(r.get('impact') or 0)})" for r in high[:8]) if high else "inga risker med score â‰¥15.")
+    if "Ã¤ndrat" in q or "changed" in q or "vecka" in q:
         cutoff=(datetime.now()-timedelta(days=7)).isoformat(timespec="seconds")
         with db() as conn:
             rows=conn.execute("SELECT * FROM audit_log WHERE project_id=? AND created_at>=? ORDER BY id DESC LIMIT 20",(project_id,cutoff)).fetchall()
-        return f"{len(rows)} ändringar registrerade senaste sju dagarna. " + " ".join(f"{r['action']} {r['entity_type']}." for r in rows[:8])
+        return f"{len(rows)} Ã¤ndringar registrerade senaste sju dagarna. " + " ".join(f"{r['action']} {r['entity_type']}." for r in rows[:8])
     if "milestone" in q or "milstolp" in q:
-        return "Öppna milstolpar: " + (", ".join(f"{t['title']} ({t.get('end_date','')})" for t in milestones[:10]) if milestones else "inga öppna milstolpar.")
-    return f"{p['name']} är {progress}% färdigt. {len(overdue)} aktiviteter är försenade, {len(blocked)} blockerade och {len(high)} höga risker finns."
+        return "Ã–ppna milstolpar: " + (", ".join(f"{t['title']} ({t.get('end_date','')})" for t in milestones[:10]) if milestones else "inga Ã¶ppna milstolpar.")
+    return f"{p['name']} Ã¤r {progress}% fÃ¤rdigt. {len(overdue)} aktiviteter Ã¤r fÃ¶rsenade, {len(blocked)} blockerade och {len(high)} hÃ¶ga risker finns."
 
 def extract_meeting_actions_v50(text):
     actions=[]; decisions=[]
     for raw in (text or "").splitlines():
         line=raw.strip()
         low=line.lower()
-        if low.startswith(("action:","åtgärd:","todo:")):
+        if low.startswith(("action:","Ã¥tgÃ¤rd:","todo:")):
             actions.append(line.split(":",1)[1].strip())
         elif low.startswith(("decision:","beslut:")):
             decisions.append(line.split(":",1)[1].strip())
@@ -5721,7 +6033,7 @@ def project_visual_health(project_id):
     today=date.today()
     with db() as conn:
         tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
-        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd'",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd'",(project_id,))]
         changes=[dict(r) for r in conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 25",(project_id,))]
         milestones=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date",(project_id,))]
     progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
@@ -5739,18 +6051,18 @@ def project_visual_health(project_id):
     score -= min(15, len(pending_changes)*3)
     score=max(0,score)
     if high or blocked or len(overdue)>=3 or score<60:
-        rag="red"; label="Röd"
+        rag="red"; label="RÃ¶d"
     elif amber or overdue or pending_changes or score<80:
         rag="amber"; label="Orange"
     else:
-        rag="green"; label="Grön"
+        rag="green"; label="GrÃ¶n"
     trend="down" if (len(overdue)>=3 or len(high)>=2) else ("up" if (not overdue and not high and progress>=50) else "stable")
 
     reasons=[]
     if blocked: reasons.append(f"{len(blocked)} blockerad")
-    if high: reasons.append(f"{len(high)} hög risk")
-    if overdue: reasons.append(f"{len(overdue)} försenad")
-    if pending_changes: reasons.append(f"{len(pending_changes)} väntande CR")
+    if high: reasons.append(f"{len(high)} hÃ¶g risk")
+    if overdue: reasons.append(f"{len(overdue)} fÃ¶rsenad")
+    if pending_changes: reasons.append(f"{len(pending_changes)} vÃ¤ntande CR")
     if not reasons: reasons.append("Inga kritiska signaler")
     return {
         "score":score,"rag":rag,"label":label,"trend":trend,"progress":progress,
@@ -5833,7 +6145,7 @@ def quick_add_v51():
         owner=(request.form.get("owner") or "").strip()
         due=(request.form.get("due_date") or "").strip()
         if not title:
-            flash("Titel krävs.","error"); return redirect(url_for("quick_add_v51"))
+            flash("Titel krÃ¤vs.","error"); return redirect(url_for("quick_add_v51"))
         with db() as conn:
             if kind=="risk":
                 conn.execute("INSERT INTO risks(project_id,kind,title,owner,due_date,created_at) VALUES(?,?,?,?,?,?)",(project_id,"Risk",title,owner,due,datetime.now().isoformat(timespec="seconds")))
@@ -5865,7 +6177,7 @@ def workspace_2_v52(project_id):
     p=project_or_404(project_id); h=project_visual_health(project_id)
     with db() as conn:
         tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY end_date,id",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
         changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 10",(project_id,)).fetchall()
     return render_template("workspace_2_v52.html",project=p,health=h,tasks=tasks,risks=risks,changes=changes)
 
@@ -5875,15 +6187,15 @@ def workspace_2_v52(project_id):
 def board_v53(project_id):
     p=project_or_404(project_id)
     with db() as conn: tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY sort_order,id",(project_id,)).fetchall()
-    columns=["Ej startad","Pågår","Blockerad","Klar"]
+    columns=["Ej startad","PÃ¥gÃ¥r","Blockerad","Klar"]
     return render_template("board_v53.html",project=p,tasks=tasks,columns=columns)
 
 @app.post("/projects/<int:project_id>/tasks/<int:task_id>/move")
 @login_required
 def board_move_v53(project_id,task_id):
     project_or_404(project_id,write=True); status=request.form.get("status") or "Ej startad"
-    if status not in ("Ej startad","Pågår","Blockerad","Klar"): abort(400)
-    progress=100 if status=="Klar" else (50 if status=="Pågår" else 0)
+    if status not in ("Ej startad","PÃ¥gÃ¥r","Blockerad","Klar"): abort(400)
+    progress=100 if status=="Klar" else (50 if status=="PÃ¥gÃ¥r" else 0)
     with db() as conn:
         conn.execute("UPDATE tasks SET status=?,progress=CASE WHEN ?='Klar' THEN 100 WHEN progress=100 THEN ? ELSE progress END WHERE id=? AND project_id=?",(status,status,progress,task_id,project_id)); conn.commit()
     return redirect(url_for("board_v53",project_id=project_id))
@@ -5901,7 +6213,7 @@ def timeline_v53(project_id):
 def action_center_v54(project_id):
     p=project_or_404(project_id); h=project_visual_health(project_id)
     with db() as conn:
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
         changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? AND status IN ('Proposed','Submitted','Pending') ORDER BY id DESC",(project_id,)).fetchall()
     matrix={(prob,impact):[] for prob in range(1,6) for impact in range(1,6)}
     for r in risks: matrix[(int(r["probability"]),int(r["impact"]))].append(r)
@@ -5949,7 +6261,7 @@ def focus_v56():
 def status_report_v57(project_id):
     p=project_or_404(project_id,write=(request.method=="POST")); h=project_visual_health(project_id)
     with db() as conn:
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
         milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date LIMIT 8",(project_id,)).fetchall()
         changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 5",(project_id,)).fetchall()
         if request.method=="POST":
@@ -5957,7 +6269,7 @@ def status_report_v57(project_id):
             conn.execute("""INSERT INTO status_reports(project_id,report_date,overall_rag,scope_rag,schedule_rag,budget_rag,resources_rag,summary,achievements,next_steps,created_by,created_at)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",(project_id,date.today().isoformat(),rag,rag,rag,"Green","Green",request.form.get("summary",""),request.form.get("achievements",""),request.form.get("next_steps",""),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
             conn.commit(); flash("Statusrapport sparad.","success")
-    suggested=f"Projektet är {h['label'].lower()} med health score {h['score']}/100 och {h['progress']}% progress. {h['overdue_count']} aktiviteter är försenade och {h['high_risk_count']} höga risker är öppna."
+    suggested=f"Projektet Ã¤r {h['label'].lower()} med health score {h['score']}/100 och {h['progress']}% progress. {h['overdue_count']} aktiviteter Ã¤r fÃ¶rsenade och {h['high_risk_count']} hÃ¶ga risker Ã¤r Ã¶ppna."
     return render_template("status_report_v57.html",project=p,health=h,risks=risks,milestones=milestones,changes=changes,suggested=suggested)
 
 
@@ -5974,7 +6286,7 @@ def project_wizard_v58():
     }
     if request.method=="POST":
         name=(request.form.get("name") or "").strip(); template=request.form.get("template") or "General Project"
-        if not name: flash("Projektnamn krävs.","error"); return redirect(url_for("project_wizard_v58"))
+        if not name: flash("Projektnamn krÃ¤vs.","error"); return redirect(url_for("project_wizard_v58"))
         start=request.form.get("start_date") or date.today().isoformat(); end=request.form.get("end_date") or ""
         with db() as conn:
             cur=conn.execute("INSERT INTO projects(name,customer,project_manager,description,start_date,end_date,template_name,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
@@ -5984,7 +6296,7 @@ def project_wizard_v58():
             for i,title in enumerate(presets.get(template,presets["General Project"]),1):
                 conn.execute("INSERT INTO tasks(project_id,wbs,title,status,priority,progress,sort_order,milestone) VALUES(?,?,?,?,?,?,?,?)",(pid,str(i),title,"Ej startad","Normal",0,i,1 if title in ("Go-live","Handover") else 0))
             conn.commit()
-        flash("Projektet skapades från template.","success"); return redirect(url_for("workspace_2_v52",project_id=pid))
+        flash("Projektet skapades frÃ¥n template.","success"); return redirect(url_for("workspace_2_v52",project_id=pid))
     return render_template("project_wizard_v58.html",presets=presets)
 
 
@@ -5997,23 +6309,23 @@ def pm_copilot_v60():
         project_id=int(request.form.get("project_id") or 0)
         selected=project_or_404(project_id); h=project_visual_health(project_id)
         with db() as conn:
-            risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 3",(project_id,)).fetchall()
+            risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC LIMIT 3",(project_id,)).fetchall()
             milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 AND progress<100 ORDER BY end_date LIMIT 3",(project_id,)).fetchall()
-        lines=[f"{selected['name']}: {h['label']} · health {h['score']}/100 · progress {h['progress']}%."]
+        lines=[f"{selected['name']}: {h['label']} Â· health {h['score']}/100 Â· progress {h['progress']}%."]
         q=question.lower()
         if "fokus" in q or "focus" in q or "idag" in q:
             if h["blocked"]: lines.append(f"1. Hantera blockerad aktivitet: {h['blocked'][0]['title']}.")
-            if h["overdue"]: lines.append(f"2. Uppdatera försenad aktivitet: {h['overdue'][0]['title']} ({h['overdue'][0]['end_date']}).")
-            if risks: lines.append(f"3. Följ upp risk: {risks[0]['title']} (score {risks[0]['probability']*risks[0]['impact']}).")
+            if h["overdue"]: lines.append(f"2. Uppdatera fÃ¶rsenad aktivitet: {h['overdue'][0]['title']} ({h['overdue'][0]['end_date']}).")
+            if risks: lines.append(f"3. FÃ¶lj upp risk: {risks[0]['title']} (score {risks[0]['probability']*risks[0]['impact']}).")
         elif "milstolp" in q or "milestone" in q:
-            for i,m in enumerate(milestones,1): lines.append(f"{i}. {m['title']} – {m['end_date']} – {m['progress']}%.")
-            if not milestones: lines.append("Inga öppna milstolpar hittades.")
+            for i,m in enumerate(milestones,1): lines.append(f"{i}. {m['title']} â€“ {m['end_date']} â€“ {m['progress']}%.")
+            if not milestones: lines.append("Inga Ã¶ppna milstolpar hittades.")
         elif "risk" in q:
-            for i,r in enumerate(risks,1): lines.append(f"{i}. {r['title']} – score {r['probability']*r['impact']} – owner {r['owner'] or 'ej satt'}.")
-            if not risks: lines.append("Inga öppna risker hittades.")
+            for i,r in enumerate(risks,1): lines.append(f"{i}. {r['title']} â€“ score {r['probability']*r['impact']} â€“ owner {r['owner'] or 'ej satt'}.")
+            if not risks: lines.append("Inga Ã¶ppna risker hittades.")
         else:
             lines.append("Signaler: "+", ".join(h["reasons"])+".")
-            lines.append("Fråga exempelvis: Vad ska jag fokusera på idag? Vilka risker är högst? Vilka milstolpar kommer härnäst?")
+            lines.append("FrÃ¥ga exempelvis: Vad ska jag fokusera pÃ¥ idag? Vilka risker Ã¤r hÃ¶gst? Vilka milstolpar kommer hÃ¤rnÃ¤st?")
         answer="\n".join(lines)
         with db() as conn:
             conn.execute("INSERT INTO assistant_queries(user_id,project_id,question,answer,created_at) VALUES(?,?,?,?,?)",(current_user()["id"],project_id,question,answer,datetime.now().isoformat(timespec="seconds"))); conn.commit()
@@ -6082,7 +6394,7 @@ def intake_v63():
     if request.method=="POST":
         title=(request.form.get("title") or "").strip()
         if not title:
-            flash("Titel krävs.","error")
+            flash("Titel krÃ¤vs.","error")
             return redirect(url_for("intake_v63"))
         with db() as conn:
             conn.execute("INSERT INTO intake_requests(request_type,title,customer,requested_by,priority,requested_date,status,description) VALUES(?,?,?,?,?,?,?,?)",
@@ -6165,7 +6477,7 @@ def stakeholder_project_v68(project_id):
     p=project_or_404(project_id); h=project_visual_health(project_id)
     with db() as conn:
         milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'StÃ¤ngd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
         decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decision_date DESC LIMIT 8",(project_id,)).fetchall()
     return render_template("stakeholder_project_v68.html",project=p,health=h,milestones=milestones,risks=risks,decisions=decisions)
 
@@ -6334,7 +6646,7 @@ def action_inbox_v78():
         with db() as conn:
             overdue=conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({marks}) AND t.progress<100 AND t.end_date<>'' AND t.end_date<? ORDER BY t.end_date LIMIT 30",ids+[date.today().isoformat()]).fetchall()
             changes=conn.execute(f"SELECT c.*,p.name project_name FROM change_requests c JOIN projects p ON p.id=c.project_id WHERE c.project_id IN ({marks}) AND c.status IN ('Proposed','Submitted','Pending') ORDER BY c.id DESC LIMIT 20",ids).fetchall()
-            risks=conn.execute(f"SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id WHERE r.project_id IN ({marks}) AND r.status<>'Stängd' AND r.probability*r.impact>=15 ORDER BY r.probability*r.impact DESC LIMIT 20",ids).fetchall()
+            risks=conn.execute(f"SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id WHERE r.project_id IN ({marks}) AND r.status<>'StÃ¤ngd' AND r.probability*r.impact>=15 ORDER BY r.probability*r.impact DESC LIMIT 20",ids).fetchall()
         with db() as conn: notes=conn.execute("SELECT * FROM notifications WHERE user_id=? AND is_read=0 ORDER BY id DESC LIMIT 30",(u["id"],)).fetchall()
     else: notes=[]
     return render_template("action_inbox_v78.html",overdue=overdue,changes=changes,risks=risks,notes=notes)
@@ -6373,3 +6685,4 @@ def intelligent_ppm_v80():
 if __name__=="__main__":
     init_db()
     app.run(host="0.0.0.0",port=int(os.getenv("PORT","8080")),debug=False)
+

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{project.name}} · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<div class="project-breadcrumb"><a href="/home">Idag</a><span>›</span><a href="/">Projekt</a><span>›</span><strong>{{project.name}}</strong></div>
+<section class="v15-project-hero">
+  <div>
+    <div class="v15-title-line"><span class="v15-health-pill {{health.rag}}"><i></i>{{'På rätt väg' if health.rag=='green' else 'Behöver uppmärksamhet' if health.rag=='amber' else 'I riskzonen'}}</span><h1>{{project.name}}</h1></div>
+    <p>{{project.customer or 'Ingen kund angiven'}} · {{project.project_manager or 'Ingen projektledare angiven'}}</p>
+  </div>
+  <div class="v15-actions"><a class="btn primary" href="/projects/{{project.id}}/quick-add">＋ Lägg till</a><a class="btn" href="/projects/{{project.id}}/impact">Analysera påverkan</a></div>
+</section>
+
+<nav class="project-view-switcher">
+  <a class="active" href="/projects/{{project.id}}/ultimate">Översikt</a><a href="/projects/{{project.id}}/workspace-pro">Lista</a><a href="/projects/{{project.id}}/kanban">Tavla</a><a href="/projects/{{project.id}}/gantt-next">Gantt</a><a href="/projects/{{project.id}}/calendar">Kalender</a><a href="/projects/{{project.id}}/risk-center">Risker</a><a href="/projects/{{project.id}}/collaboration">Samarbete</a>
+</nav>
+
+<section class="v15-kpis project">
+  <div><strong>{{progress}}%</strong><span>klart</span></div>
+  <div><strong>{{open_tasks|length}}</strong><span>öppna aktiviteter</span></div>
+  <div class="{% if health.overdue %}bad{% endif %}"><strong>{{health.overdue|length}}</strong><span>försenade</span></div>
+  <div class="{% if health.high_risks %}bad{% endif %}"><strong>{{health.high_risks|length}}</strong><span>höga risker</span></div>
+  <div class="{% if forecast.days %}warn{% endif %}"><strong>{{forecast.label}}</strong><span>prognos</span></div>
+  <div><strong>{{"%.0f"|format(health.actual)}}</strong><span>utfall / {{"%.0f"|format(health.planned)}} plan</span></div>
+</section>
+
+<div class="v15-grid-main">
+<section>
+  <div class="v15-panel">
+    <div class="v15-panel-head"><div><span class="v15-kicker">STYRNING</span><h2>Behöver beslut eller åtgärd</h2></div><a href="/my-work-2">Action Inbox →</a></div>
+    <div class="v15-attention-list">
+    {% for a in next_actions %}
+      <a class="v15-attention sev-{{a.severity}}" href="{{a.url}}"><i></i><div><small>{{a.type}}</small><strong>{{a.title}}</strong><span>{{a.detail}}</span></div><b>→</b></a>
+    {% else %}<div class="v15-empty">Inga kritiska avvikelser just nu.</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="v15-panel">
+    <div class="v15-panel-head"><div><span class="v15-kicker">PLAN</span><h2>Nästa milstolpar</h2></div><a href="/projects/{{project.id}}/gantt-next">Gantt →</a></div>
+    <div class="v15-timeline">
+      {% for m in milestones %}<div><i></i><span>{{m.end_date}}</span><strong>{{m.title}}</strong><small>{{m.status|sv}}</small></div>{% else %}<div class="v15-empty">Inga milstolpar definierade.</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="v15-panel">
+    <div class="v15-panel-head"><div><span class="v15-kicker">ARBETE</span><h2>Pågående aktiviteter</h2></div><a href="/projects/{{project.id}}/workspace-pro">Visa allt →</a></div>
+    <div class="v15-mini-list">
+      {% for t in open_tasks[:10] %}<a href="/projects/{{project.id}}/workspace-pro"><strong>{{t.title}}</strong><span>{{t.owner or 'Ej tilldelad'}} · {{t.end_date or 'utan datum'}} · {{t.progress or 0}}%</span></a>{% else %}<div class="v15-empty">Inga öppna aktiviteter.</div>{% endfor %}
+    </div>
+  </div>
+</section>
+
+<aside>
+  <div class="v15-panel">
+    <span class="v15-kicker">PROGNOS</span><h2>Leverans</h2>
+    <div class="v15-forecast"><strong>{{forecast.projected_end or project.end_date or 'Ej satt'}}</strong><span>prognostiserat slutdatum</span>{% if forecast.days %}<b>+{{forecast.days}} dagar mot plan</b>{% else %}<b class="good">Enligt plan</b>{% endif %}</div>
+    <a class="btn full" href="/projects/{{project.id}}/impact">Testa scenario</a>
+  </div>
+
+  <div class="v15-panel"><div class="v15-panel-head"><h2>Team</h2><a href="/resource-planner-2">Kapacitet →</a></div><div class="v15-people">{% for m in members[:10] %}<div><span>{{m.display_name[:1]|upper}}</span><strong>{{m.display_name}}</strong><small>{{m.project_role}}</small></div>{% else %}<div class="v15-empty">Inga medlemmar.</div>{% endfor %}</div></div>
+
+  <div class="v15-panel"><div class="v15-panel-head"><h2>Styrning</h2><a href="/control-center">Öppna →</a></div>
+    <div class="v15-stat-lines"><span><b>{{changes|length}}</b> senaste changes</span><span><b>{{decisions|length}}</b> senaste beslut</span><span><b>{{actions|length}}</b> öppna actions</span></div>
+  </div>
+
+  {% if status_report %}<div class="v15-panel"><span class="v15-kicker">SENASTE STATUS</span><h2>{{status_report.report_date}}</h2><p>{{status_report.summary or 'Ingen sammanfattning.'}}</p></div>{% endif %}
+  {% if devops %}<div class="v15-panel"><div class="v15-panel-head"><h2>Azure DevOps</h2><a href="/integrations/azure-devops/live">Öppna →</a></div>{% for d in devops %}<div class="v15-devops"><span>{{d.state or 'Okänd'}}</span><strong>{{d.c}}</strong></div>{% endfor %}</div>{% endif %}
+</aside>
+</div>
+</div>
+{% endblock %}

@@ -160,6 +160,7 @@ document.addEventListener("DOMContentLoaded",function(){
         <a data-command-item href="/my-work-2"><span>Mitt arbete</span><small>Uppgifter och åtgärder</small></a>
         <a data-command-item href="/"><span>Projekt</span><small>Alla projekt du har tillgång till</small></a>
         <a data-command-item href="/portfolio-cockpit"><span>Portfolio</span><small>Portfoliohälsa och prioritering</small></a>
+        <a data-command-item href="/resource-planner-2"><span>Resurser</span><small>Kapacitet och överbeläggning</small></a>
         <a data-command-item href="/search"><span>Sök allt</span><small>Projekt, aktiviteter, risker och DevOps</small></a>
       </div>
       <div class="command-group"><strong>Arbeta</strong>
@@ -184,16 +185,16 @@ document.addEventListener("DOMContentLoaded",function(){
   const open=()=>{modal.hidden=false;document.body.classList.add('command-open');setTimeout(()=>input.focus(),0)};
   const close=()=>{modal.hidden=true;document.body.classList.remove('command-open');input.value='';filter('')};
   const filter=(value)=>{
-    const needle=value.trim().toLågerCase();
+    const needle=value.trim().toLowerCase();
     document.querySelectorAll('[data-command-item]').forEach(a=>{
-      a.hidden=needle && !a.textContent.toLågerCase().includes(needle);
+      a.hidden=needle && !a.textContent.toLowerCase().includes(needle);
     });
     q.value=value; label.textContent=value;
     modal.querySelector('.command-global-search').hidden=!needle;
   };
   document.querySelectorAll('[data-command-open]').forEach(x=>x.addEventListener('click',open));
   document.addEventListener('keydown',e=>{
-    if((e.ctrlKey||e.metaKey)&&e.key.toLågerCase()==='k'){e.preventDefault();modal.hidden?open():close()}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();modal.hidden?open():close()}
     if(e.key==='Escape'&&!modal.hidden) close();
   });
   modal.addEventListener('click',e=>{if(e.target===modal)close()});

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Mitt arbete · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<section class="v15-hero compact">
+  <div><span class="v15-kicker">ACTION INBOX</span><h1>Mitt arbete</h1><p>En gemensam inkorg för aktiviteter, mötesåtgärder, förändringar och notifieringar.</p></div>
+</section>
+<section class="v15-kpis">
+  <a href="#tasks"><strong>{{tasks|length}}</strong><span>aktiviteter</span></a>
+  <a href="#actions"><strong>{{actions|length}}</strong><span>åtgärder</span></a>
+  <a href="#changes"><strong>{{changes|length}}</strong><span>förändringar</span></a>
+  <a href="#notes"><strong>{{notifications|length}}</strong><span>notifieringar</span></a>
+</section>
+
+<div class="v15-grid-main work">
+<section class="v15-panel" id="tasks">
+  <div class="v15-panel-head"><div><span class="v15-kicker">UPPGIFTER</span><h2>Mina aktiviteter</h2></div></div>
+  <div class="v15-work-list">
+  {% for t in tasks %}
+    <div class="v15-work-item {% if t.is_overdue %}overdue{% endif %}">
+      <div><small>{{t.project_name}}</small><a href="/projects/{{t.project_id}}/ultimate"><strong>{{t.title}}</strong></a><span>{{t.end_date or 'utan datum'}} · {{t.priority|sv}} · {{t.progress or 0}}%</span></div>
+      <form method="post" action="/work/action"><input type="hidden" name="kind" value="task"><input type="hidden" name="id" value="{{t.id}}"><button class="btn small">✓ Klar</button></form>
+    </div>
+  {% else %}<div class="v15-empty">Inga öppna aktiviteter.</div>{% endfor %}
+  </div>
+</section>
+
+<aside class="v15-panel" id="actions">
+  <div class="v15-panel-head"><div><span class="v15-kicker">ÅTGÄRDER</span><h2>Möten & actions</h2></div></div>
+  <div class="v15-work-list compact">
+  {% for a in actions %}
+    <div class="v15-work-item {% if a.is_overdue %}overdue{% endif %}">
+      <div><small>{{a.project_name}}</small><strong>{{a.title}}</strong><span>{{a.due_date or 'utan datum'}}</span></div>
+      <form method="post" action="/work/action"><input type="hidden" name="kind" value="action"><input type="hidden" name="id" value="{{a.id}}"><button class="btn small">✓</button></form>
+    </div>
+  {% else %}<div class="v15-empty">Inga öppna åtgärder.</div>{% endfor %}
+  </div>
+</aside>
+</div>
+
+<div class="v15-grid-main work">
+<section class="v15-panel" id="changes">
+  <div class="v15-panel-head"><div><span class="v15-kicker">CHANGE CONTROL</span><h2>Väntande förändringar</h2></div><a href="/control-center">Control Center →</a></div>
+  <div class="v15-mini-list">
+  {% for c in changes %}<a href="/control-center"><strong>{{c.title}}</strong><span>{{c.project_name}} · {{c.status|sv}} · {{c.impact_days or 0}} dagar · {{c.impact_cost or 0}} kostnadspåverkan</span></a>
+  {% else %}<div class="v15-empty">Inga väntande förändringar.</div>{% endfor %}
+  </div>
+</section>
+
+<aside class="v15-panel" id="notes">
+  <div class="v15-panel-head"><div><span class="v15-kicker">NOTIFIERINGAR</span><h2>Nytt</h2></div></div>
+  <div class="v15-mini-list">
+  {% for n in notifications %}
+    <div class="v15-note"><a href="{{n.link or '#'}}"><strong>{{n.message}}</strong><span>{{n.created_at}}</span></a><form method="post" action="/work/action"><input type="hidden" name="kind" value="notification"><input type="hidden" name="id" value="{{n.id}}"><button class="btn small">Läst</button></form></div>
+  {% else %}<div class="v15-empty">Inga olästa notifieringar.</div>{% endfor %}
+  </div>
+</aside>
+</div>
+</div>
+{% endblock %}

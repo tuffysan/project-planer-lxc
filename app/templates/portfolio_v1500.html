@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Portfolio · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<section class="v15-hero compact"><div><span class="v15-kicker">PORTFOLIO COCKPIT</span><h1>Portfolio</h1><p>Prioritera projekt utifrån leveransrisk, ekonomi och genomförande.</p></div><div class="v15-actions"><a class="btn" href="/scenario-planner">Scenarier</a><a class="btn" href="/resource-planner-2">Resurser</a></div></section>
+<section class="v15-kpis">
+  <div><strong>{{projects|length}}</strong><span>aktiva projekt</span></div>
+  <div class="bad"><strong>{{red}}</strong><span>röda</span></div>
+  <div class="warn"><strong>{{amber}}</strong><span>gula</span></div>
+  <div><strong>{{portfolio_progress}}%</strong><span>genomsnittligt klart</span></div>
+  <div><strong>{{"%.0f"|format(total_actual)}}</strong><span>utfall / {{"%.0f"|format(total_planned)}} plan</span></div>
+</section>
+
+<section class="v15-panel">
+<div class="v15-panel-head"><div><span class="v15-kicker">PRIORITERAD PORTFÖLJ</span><h2>Projekt efter behov av uppmärksamhet</h2></div></div>
+<div class="v15-project-table">
+  <div class="v15-project-row header"><span>Projekt</span><span>Hälsa</span><span>Klart</span><span>Försenat</span><span>Blockerat</span><span>Höga risker</span><span>Budget</span></div>
+  {% for p in projects %}
+  <a class="v15-project-row" href="/projects/{{p.id}}/ultimate">
+    <span><strong>{{p.name}}</strong><small>{{p.project_manager or 'Ingen projektledare'}}</small></span>
+    <span><b class="v15-rag {{p.health.rag}}"></b>{{p.health.score}}/100 risk</span>
+    <span>{{p.progress|round|int}}%</span>
+    <span class="{% if p.overdue %}v15-danger{% endif %}">{{p.overdue}}</span>
+    <span class="{% if p.blocked %}v15-danger{% endif %}">{{p.blocked}}</span>
+    <span class="{% if p.high_risks %}v15-danger{% endif %}">{{p.high_risks}}</span>
+    <span>{{"%.0f"|format(p.actual_cost)}} / {{"%.0f"|format(p.planned_cost)}}</span>
+  </a>
+  {% else %}<div class="v15-empty">Inga aktiva projekt.</div>{% endfor %}
+</div>
+</section>
+</div>
+{% endblock %}

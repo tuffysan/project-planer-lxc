@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Påverkansanalys · {{project.name}}{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<div class="project-breadcrumb"><a href="/projects/{{project.id}}/ultimate">{{project.name}}</a><span>›</span><strong>Påverkansanalys</strong></div>
+<section class="v15-hero compact"><div><span class="v15-kicker">WHAT-IF</span><h1>Påverkansanalys</h1><p>Förhandsgranska vad en försening kan göra med beroende aktiviteter. Inga projektdata ändras.</p></div></section>
+<div class="v15-grid-main">
+<section class="v15-panel">
+<form class="v15-impact-form" method="get">
+  <label>Startaktivitet<select name="task_id">{% for t in tasks %}<option value="{{t.id}}" {% if t.id==start_task %}selected{% endif %}>{{t.title}}</option>{% endfor %}</select></label>
+  <label>Förskjutning (dagar)<input type="number" min="0" max="180" name="shift" value="{{shift}}"></label>
+  <button class="btn primary">Beräkna påverkan</button>
+</form>
+<div class="v15-impact-summary"><strong>{{affected|length}}</strong><span>aktiviteter påverkas</span><strong>{{projected_end or '—'}}</strong><span>indikativt nytt projektslut</span></div>
+<div class="v15-project-table impact">
+  <div class="v15-project-row header"><span>Aktivitet</span><span>Nuvarande start</span><span>Ny start</span><span>Nuvarande slut</span><span>Nytt slut</span></div>
+  {% for t in affected %}<div class="v15-project-row"><span><strong>{{t.title}}</strong></span><span>{{t.start_date or '—'}}</span><span>{{t.new_start or '—'}}</span><span>{{t.end_date or '—'}}</span><span>{{t.new_end or '—'}}</span></div>{% else %}<div class="v15-empty">Ingen kedja hittades.</div>{% endfor %}
+</div>
+</section>
+<aside class="v15-panel"><span class="v15-kicker">TOLKNING</span><h2>Vad betyder detta?</h2><p>Analysen följer befintliga aktivitetsberoenden från vald startaktivitet och lägger på den valda förskjutningen. Resultatet är en konsekvensförhandsvisning – inte en automatisk omplanering.</p><a class="btn full" href="/projects/{{project.id}}/gantt-next">Öppna Gantt</a></aside>
+</div>
+</div>
+{% endblock %}

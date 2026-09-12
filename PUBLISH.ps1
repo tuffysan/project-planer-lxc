@@ -235,6 +235,14 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 
 Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
 
+# Keep runtime version synchronized with VERSION for every release.
+$AppPy = Join-Path $Root "app\app.py"
+if (Test-Path $AppPy) {
+    $appSource = Get-Content $AppPy -Raw
+    $appSource = [regex]::Replace($appSource, 'APP_VERSION\s*=\s*"[^"]+"', ('APP_VERSION = "' + $Version + '"'), 1)
+    Set-Content -Path $AppPy -Value $appSource -Encoding utf8
+}
+
 $Required = @(
     "install-lxc.sh",
     "install-app.sh",
@@ -420,6 +428,11 @@ while ($true) {
     $oldVersion = $Version
     $Version = Get-NextPatchVersion -CurrentVersion $Version
     $Tag = "v$Version"
+    Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
+    $AppPy = Join-Path $Root "app\app.py"
+    $appSource = Get-Content $AppPy -Raw
+    $appSource = [regex]::Replace($appSource, 'APP_VERSION\s*=\s*"[^"]+"', ('APP_VERSION = "' + $Version + '"'), 1)
+    Set-Content -Path $AppPy -Value $appSource -Encoding utf8
     Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
     Write-Host "Version v$oldVersion already exists. Using $Tag instead." -ForegroundColor Yellow
 }

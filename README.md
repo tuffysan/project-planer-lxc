@@ -113,3 +113,10 @@ CTID=200 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/projec
 ```
 
 `VERSION=x.y.z` kan fortfarande anges om en specifik release ska installeras.
+
+## v15.0.0 – Professional PPM Edition
+
+v15 samlar kärnarbetet kring fyra huvudytor: **Idag**, **Mitt arbete**, **Projekt** och **Portfolio**.
+
+Nytt i v15 är bland annat Action Inbox, nytt Project Cockpit, leveransprognos,
+prioriterad Portfolio Cockpit och What-if-påverkansanalys för aktivitetsberoenden.
