@@ -130,3 +130,8 @@ Planeringsmotor för beroenden/kritisk linje samt kapacitets-heatmap och samlad 
 ## v15.2.0 – Controlled Planning Edition
 
 Rättad språkväxlare, kontrollerad automatisk omplanering med undo/audit, resursutjämning och explicit Azure DevOps tvåvägssynk.
+
+
+## v15.2.1 – Language Encoding Fix
+
+Rättar grundorsaken till den trasiga språkmenyn i Windows-publishflödet och ersätter emoji-flaggor med stabila språkbadges (SV/EN/DE/NO/DA/FI).

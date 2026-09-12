@@ -7,6 +7,22 @@
 
 $ErrorActionPreference = "Stop"
 
+function Read-Utf8Text {
+    param([Parameter(Mandatory=$true)][string]$Path)
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    return [System.IO.File]::ReadAllText($Path, $utf8)
+}
+
+function Write-Utf8Text {
+    param(
+        [Parameter(Mandatory=$true)][string]$Path,
+        [Parameter(Mandatory=$true)][string]$Text
+    )
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $utf8)
+}
+
+
 # PowerShell 7 can promote native stderr into ErrorRecords when
 # PSNativeCommandUseErrorActionPreference is enabled. Git often writes
 # normal progress/info to stderr, so disable that behavior for this script.
@@ -238,9 +254,15 @@ Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
 # Keep runtime version synchronized with VERSION for every release.
 $AppPy = Join-Path $Root "app\app.py"
 if (Test-Path $AppPy) {
-    $appSource = Get-Content $AppPy -Raw
+    $appSource = Read-Utf8Text -Path $AppPy
     $appSource = [regex]::Replace($appSource, 'APP_VERSION\s*=\s*"[^"]+"', ('APP_VERSION = "' + $Version + '"'), 1)
-    Set-Content -Path $AppPy -Value $appSource -Encoding utf8
+    Write-Utf8Text -Path $AppPy -Text $appSource
+
+# Verify that UTF-8 language data was not corrupted during publishing.
+$appCheck = Read-Utf8Text -Path $AppPy
+if ($appCheck -match "Ã|Â|ðŸ") {
+    Fail "UTF-8 corruption detected in app/app.py. Publish aborted before commit/release."
+}
 }
 
 $Required = @(
@@ -430,9 +452,9 @@ while ($true) {
     $Tag = "v$Version"
     Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
     $AppPy = Join-Path $Root "app\app.py"
-    $appSource = Get-Content $AppPy -Raw
+    $appSource = Read-Utf8Text -Path $AppPy
     $appSource = [regex]::Replace($appSource, 'APP_VERSION\s*=\s*"[^"]+"', ('APP_VERSION = "' + $Version + '"'), 1)
-    Set-Content -Path $AppPy -Value $appSource -Encoding utf8
+    Write-Utf8Text -Path $AppPy -Text $appSource
     Set-Content -Path (Join-Path $Root "VERSION") -Value $Version -Encoding ascii
     Write-Host "Version v$oldVersion already exists. Using $Tag instead." -ForegroundColor Yellow
 }

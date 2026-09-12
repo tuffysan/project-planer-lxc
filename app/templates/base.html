@@ -41,15 +41,15 @@
     <span class="app-version-badge" title="Installerad appversion">v{{app_version}}</span>
     <details class="language-menu language-menu-v152">
       <summary class="language-button" aria-label="{{ui('choose_language')}}" title="{{ui('choose_language')}}">
-        <span class="language-flag">{{languages[active_lang]['flag']}}</span>
+        <span class="language-code-badge">{{languages[active_lang]['flag']}}</span>
         <span class="language-active-name">{{languages[active_lang]['name']}}</span>
         <span class="language-chevron">▾</span>
       </summary>
       <div class="language-dropdown">
-        <div class="language-title">🌐 {{ui('language')}}</div>
+        <div class="language-title">{{ui('language')}}</div>
         {% for code,item in languages.items() %}
           <a class="{% if code==active_lang %}active{% endif %}" href="{{url_for('set_language',lang=code)}}" hreflang="{{code}}">
-            <span>{{item.flag}}</span><span>{{item.name}}</span>{% if code==active_lang %}<b>✓</b>{% endif %}
+            <span class="language-code-badge">{{item.flag}}</span><span>{{item.name}}</span>{% if code==active_lang %}<b>✓</b>{% endif %}
           </a>
         {% endfor %}
       </div>
