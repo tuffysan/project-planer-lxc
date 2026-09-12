@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-1.0.1}"
+VERSION="${VERSION:-1.0.6}"
 HOSTNAME="${HOSTNAME:-project-planer}"
 CORES="${CORES:-1}"
 MEMORY="${MEMORY:-1024}"
@@ -17,7 +17,7 @@ if ! command -v pct >/dev/null 2>&1; then
   exit 1
 fi
 
-# Accept VERSION=1.0.1 or VERSION=v1.0.1
+# Accept VERSION=1.0.6 or VERSION=v1.0.6
 TAG="$VERSION"
 [[ "$TAG" == v* ]] || TAG="v$TAG"
 

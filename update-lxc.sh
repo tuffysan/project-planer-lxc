@@ -2,14 +2,14 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-1.0.1}"
+VERSION="${VERSION:-1.0.6}"
 CTID="${CTID:-}"
 TAG="$VERSION"
 [[ "$TAG" == v* ]] || TAG="v$TAG"
 
 if [[ -z "$CTID" ]]; then
   echo "Ange CTID, exempel:"
-  echo "CTID=200 VERSION=1.0.1 bash update-lxc.sh"
+  echo "CTID=200 VERSION=1.0.6 bash update-lxc.sh"
   exit 1
 fi
 
