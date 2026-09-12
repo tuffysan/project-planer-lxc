@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.1.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"

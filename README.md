@@ -1,55 +1,45 @@
-# Project Planer LXC v2.1.0 – Multilingual Branding Edition
+# Project Planer LXC v2.1.1
 
-v2.1.0 bygger vidare på Complete Edition och lägger till språkval och en ny visuell identitet.
+Maintenance release for the v2.1 multilingual/branding edition.
 
-## Nytt i v2.1.0
+## Fixes in v2.1.1
 
-- Ny Project Planer-appikon.
-- Favicon och appikon i flera storlekar.
-- Den nya grafiska Project Planer-identiteten inkluderas i appen.
-- Språkväljare i toppmenyn.
-- Språkvalet sparas i användarens session.
-- Svenska.
-- English.
-- Deutsch.
-- Norsk.
-- Dansk.
-- Suomi.
-- Gemensamt översättningslager i backend för vidare lokalisering.
-- Navigering, login, lösenordsbyte och centrala dashboardtexter använder språkstödet.
-- `/about` visar den nya Project Planer-brandingen.
-- Alla funktioner från v2.0.0 finns kvar.
+- Fixes fresh Debian 12 LXC installation where `python3 -m venv` failed because `python3-venv` was not installed.
+- Installs `python3`, `python3-venv` and `python3-pip` before the application installer starts.
+- Installs and generates `en_US.UTF-8` locale to remove Debian locale warnings.
+- Replaces the problematic `HOSTNAME` environment variable with `LXC_HOSTNAME`.
+- Default container hostname is now `project-planer`.
+- Adds Python/venv preflight checks.
+- Detects and removes an incomplete `.venv`.
+- Verifies both the systemd service and `/health` before reporting success.
+- Failed fresh installations automatically remove the failed LXC unless `KEEP_FAILED_CONTAINER=1` is supplied.
+- Keeps all v2.1.0 language selection, branding, icon, Admin, PMO, planning and integration features.
 
-## Språk
-
-Välj språk direkt från menyn uppe till höger. Språkstödet är byggt så att fler språk enkelt kan läggas till i `LANGUAGES` och `TRANSLATIONS` i `app/app.py`.
-
-## Branding
-
-Assets ligger i:
-
-```text
-app/static/assets/project-planer-icon.png
-app/static/assets/project-planer-icon-192.png
-app/static/assets/project-planer-icon-128.png
-app/static/assets/project-planer-icon-64.png
-app/static/assets/project-planer-icon-32.png
-app/static/assets/project-planer-branding.png
-```
-
-## Installation
+## Fresh install
 
 ```bash
-VERSION=2.1.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
-## Uppgradering
+Custom hostname:
 
 ```bash
-CTID=140 VERSION=2.1.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+LXC_HOSTNAME=project-planer VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
-## Publicering
+Keep a failed container for troubleshooting:
+
+```bash
+KEEP_FAILED_CONTAINER=1 VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+```
+
+## Upgrade existing container
+
+```bash
+CTID=201 VERSION=2.1.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+```
+
+## Publish
 
 ```powershell
 .\PUBLISH.cmd

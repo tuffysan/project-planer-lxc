@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-2.1.0}"
+VERSION="${VERSION:-2.1.1}"
 TAG="v${VERSION}"
 CTID="${CTID:-140}"
 APP_DIR="/opt/project-plan"
@@ -17,7 +17,7 @@ pct push "$CTID" "$TMP" "/tmp/project-plan-update.zip"
 pct exec "$CTID" -- bash -lc "
 set -euo pipefail
 apt-get update -qq
-apt-get install -y -qq unzip curl python3 python3-venv >/dev/null
+apt-get install -y -qq unzip curl python3 python3-venv python3-pip locales >/dev/null
 if [ -d '$APP_DIR' ]; then
   mkdir -p '$APP_DIR/backups'
   [ -f '$APP_DIR/data/projectplan.db' ] && cp '$APP_DIR/data/projectplan.db' '$APP_DIR/backups/projectplan-\$(date +%Y%m%d-%H%M%S).db' || true
