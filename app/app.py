@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "7.0.1"
+APP_VERSION = "8.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -920,6 +920,37 @@ CREATE TABLE IF NOT EXISTS intelligence_notes_v50 (
         CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id,is_read);
         CREATE INDEX IF NOT EXISTS idx_resource_alloc_project_week ON resource_allocations(project_id,week_start);
         CREATE INDEX IF NOT EXISTS idx_audit_project_id ON audit_log(project_id,id);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS form_definitions(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,entity_type TEXT NOT NULL DEFAULT 'Project Request',description TEXT DEFAULT '',fields_json TEXT NOT NULL DEFAULT '[]',active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS form_submissions(id INTEGER PRIMARY KEY AUTOINCREMENT,form_id INTEGER NOT NULL,title TEXT NOT NULL,payload_json TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'New',score REAL DEFAULT 0,created_by INTEGER,created_at TEXT NOT NULL,FOREIGN KEY(form_id) REFERENCES form_definitions(id) ON DELETE CASCADE);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS business_cases(id INTEGER PRIMARY KEY AUTOINCREMENT,project_id INTEGER,submission_id INTEGER,title TEXT NOT NULL,strategic_fit INTEGER DEFAULT 5,business_value INTEGER DEFAULT 5,urgency INTEGER DEFAULT 5,regulatory INTEGER DEFAULT 5,technical_risk INTEGER DEFAULT 5,resource_demand INTEGER DEFAULT 5,cost_score INTEGER DEFAULT 5,expected_benefit INTEGER DEFAULT 5,total_score REAL DEFAULT 0,estimated_cost REAL DEFAULT 0,expected_value REAL DEFAULT 0,status TEXT DEFAULT 'Draft',created_at TEXT NOT NULL);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS cross_project_dependencies(id INTEGER PRIMARY KEY AUTOINCREMENT,predecessor_project_id INTEGER NOT NULL,successor_project_id INTEGER NOT NULL,predecessor_task_id INTEGER,successor_task_id INTEGER,link_type TEXT NOT NULL DEFAULT 'FS',lag_days INTEGER DEFAULT 0,status TEXT DEFAULT 'Active',notes TEXT DEFAULT '',created_at TEXT NOT NULL);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS resource_directory(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,display_name TEXT NOT NULL,role_name TEXT DEFAULT '',location TEXT DEFAULT '',capacity_pct INTEGER DEFAULT 100,skills_json TEXT NOT NULL DEFAULT '[]',available_from TEXT DEFAULT '',active INTEGER NOT NULL DEFAULT 1);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_resource_directory_user ON resource_directory(user_id) WHERE user_id IS NOT NULL;
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS managed_templates(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,version INTEGER NOT NULL DEFAULT 1,description TEXT DEFAULT '',tasks_json TEXT NOT NULL DEFAULT '[]',active INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS project_template_instances(project_id INTEGER PRIMARY KEY,managed_template_id INTEGER NOT NULL,template_version INTEGER NOT NULL,applied_at TEXT NOT NULL);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS portfolio_scenarios(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,description TEXT DEFAULT '',changes_json TEXT NOT NULL DEFAULT '[]',created_by INTEGER,created_at TEXT NOT NULL);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS project_benefits(id INTEGER PRIMARY KEY AUTOINCREMENT,project_id INTEGER NOT NULL,title TEXT NOT NULL,unit TEXT DEFAULT '%',baseline_value REAL DEFAULT 0,target_value REAL DEFAULT 0,actual_value REAL,measurement_date TEXT DEFAULT '',owner TEXT DEFAULT '',status TEXT DEFAULT 'Planned',created_at TEXT NOT NULL);
         """)
 
         # Migration from older versions
@@ -3908,6 +3939,177 @@ def enterprise_home_v70():
     red=sum(1 for p in cards if p["health"]["rag"]=="red"); amber=sum(1 for p in cards if p["health"]["rag"]=="amber"); green=sum(1 for p in cards if p["health"]["rag"]=="green")
     overdue=sum(p["health"]["overdue_count"] for p in cards); risks=sum(p["health"]["high_risk_count"] for p in cards)
     return render_template("enterprise_home_v70.html",user=u,projects=cards,green=green,amber=amber,red=red,overdue=overdue,risks=risks)
+
+
+@app.route("/form-builder",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def form_builder_v71():
+    if request.method=="POST":
+        name=(request.form.get("name") or "").strip()
+        if not name: flash("Form name required.","error"); return redirect(url_for("form_builder_v71"))
+        fields=[x.strip() for x in (request.form.get("fields") or "").splitlines() if x.strip()]
+        with db() as conn:
+            conn.execute("INSERT INTO form_definitions(name,entity_type,description,fields_json,created_at) VALUES(?,?,?,?,?)",(name,request.form.get("entity_type","Project Request"),request.form.get("description",""),json.dumps(fields),datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        return redirect(url_for("form_builder_v71"))
+    with db() as conn: forms=conn.execute("SELECT * FROM form_definitions ORDER BY id DESC").fetchall()
+    return render_template("form_builder_v71.html",forms=forms)
+
+@app.route("/forms/<int:form_id>/submit",methods=["GET","POST"])
+@login_required
+def form_submit_v71(form_id):
+    with db() as conn: form=conn.execute("SELECT * FROM form_definitions WHERE id=? AND active=1",(form_id,)).fetchone()
+    if not form: abort(404)
+    fields=json.loads(form["fields_json"] or "[]")
+    if request.method=="POST":
+        title=(request.form.get("title") or "").strip()
+        if not title: flash("Title required.","error"); return redirect(url_for("form_submit_v71",form_id=form_id))
+        payload={f:request.form.get(f,"") for f in fields}
+        with db() as conn:
+            conn.execute("INSERT INTO form_submissions(form_id,title,payload_json,created_by,created_at) VALUES(?,?,?,?,?)",(form_id,title,json.dumps(payload),current_user()["id"],datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        flash("Request submitted.","success"); return redirect(url_for("intake_v63"))
+    return render_template("form_submit_v71.html",form=form,fields=fields)
+
+
+@app.route("/business-cases",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def business_cases_v72():
+    if request.method=="POST":
+        vals=[max(0,min(10,int(request.form.get(k) or 0))) for k in ("strategic_fit","business_value","urgency","regulatory","technical_risk","resource_demand","cost_score","expected_benefit")]
+        # Positive value dimensions + inverse risk/demand/cost dimensions.
+        score=round((vals[0]+vals[1]+vals[2]+vals[3]+(10-vals[4])+(10-vals[5])+(10-vals[6])+vals[7])/80*100,1)
+        with db() as conn:
+            conn.execute("""INSERT INTO business_cases(title,strategic_fit,business_value,urgency,regulatory,technical_risk,resource_demand,cost_score,expected_benefit,total_score,estimated_cost,expected_value,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+              (request.form.get("title","").strip(),*vals,score,float(request.form.get("estimated_cost") or 0),float(request.form.get("expected_value") or 0),"Draft",datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        return redirect(url_for("business_cases_v72"))
+    with db() as conn: cases=conn.execute("SELECT * FROM business_cases ORDER BY total_score DESC,id DESC").fetchall()
+    return render_template("business_cases_v72.html",cases=cases)
+
+
+@app.route("/portfolio-dependencies",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def portfolio_dependencies_v73():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST":
+        a=int(request.form.get("predecessor_project_id") or 0); b=int(request.form.get("successor_project_id") or 0)
+        if not a or not b or a==b: flash("Choose two different projects.","error"); return redirect(url_for("portfolio_dependencies_v73"))
+        project_or_404(a); project_or_404(b)
+        with db() as conn:
+            conn.execute("INSERT INTO cross_project_dependencies(predecessor_project_id,successor_project_id,link_type,lag_days,notes,created_at) VALUES(?,?,?,?,?,?)",(a,b,request.form.get("link_type","FS"),int(request.form.get("lag_days") or 0),request.form.get("notes",""),datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        return redirect(url_for("portfolio_dependencies_v73"))
+    with db() as conn:
+        deps=conn.execute("""SELECT d.*,a.name predecessor,b.name successor FROM cross_project_dependencies d JOIN projects a ON a.id=d.predecessor_project_id JOIN projects b ON b.id=d.successor_project_id ORDER BY d.id DESC""").fetchall()
+    return render_template("portfolio_dependencies_v73.html",projects=projects,deps=deps)
+
+
+@app.route("/resource-directory",methods=["GET","POST"])
+@login_required
+def resource_directory_v74():
+    if request.method=="POST":
+        if current_user()["role"] not in ("admin","pm"): abort(403)
+        skills=[x.strip() for x in (request.form.get("skills") or "").split(",") if x.strip()]
+        with db() as conn:
+            conn.execute("INSERT INTO resource_directory(display_name,role_name,location,capacity_pct,skills_json,available_from) VALUES(?,?,?,?,?,?)",(request.form.get("display_name","").strip(),request.form.get("role_name",""),request.form.get("location",""),int(request.form.get("capacity_pct") or 100),json.dumps(skills),request.form.get("available_from",""))); conn.commit()
+        return redirect(url_for("resource_directory_v74"))
+    with db() as conn: resources=conn.execute("SELECT * FROM resource_directory WHERE active=1 ORDER BY display_name").fetchall()
+    cards=[dict(r,skills=json.loads(r["skills_json"] or "[]")) for r in resources]
+    return render_template("resource_directory_v74.html",resources=cards)
+
+
+@app.route("/managed-templates",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def managed_templates_v75():
+    if request.method=="POST":
+        tasks=[x.strip() for x in (request.form.get("tasks") or "").splitlines() if x.strip()]
+        with db() as conn:
+            conn.execute("INSERT INTO managed_templates(name,description,tasks_json,created_at) VALUES(?,?,?,?)",(request.form.get("name","").strip(),request.form.get("description",""),json.dumps(tasks),datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        return redirect(url_for("managed_templates_v75"))
+    with db() as conn: rows=conn.execute("SELECT * FROM managed_templates WHERE active=1 ORDER BY name,version DESC").fetchall()
+    return render_template("managed_templates_v75.html",templates=rows)
+
+
+@app.route("/scenario-planner",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def scenario_planner_v76():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST":
+        changes=[]
+        for p in projects:
+            decision=request.form.get(f"decision_{p['id']}","keep")
+            shift=int(request.form.get(f"shift_{p['id']}") or 0)
+            changes.append({"project_id":p["id"],"decision":decision,"shift_days":shift})
+        with db() as conn:
+            conn.execute("INSERT INTO portfolio_scenarios(name,description,changes_json,created_by,created_at) VALUES(?,?,?,?,?)",(request.form.get("name","Scenario"),request.form.get("description",""),json.dumps(changes),current_user()["id"],datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        flash("Scenario saved. No live project data was changed.","success"); return redirect(url_for("scenario_planner_v76"))
+    with db() as conn: scenarios=conn.execute("SELECT * FROM portfolio_scenarios ORDER BY id DESC LIMIT 20").fetchall()
+    return render_template("scenario_planner_v76.html",projects=projects,scenarios=scenarios)
+
+
+@app.route("/benefits",methods=["GET","POST"])
+@login_required
+def benefits_v77():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST":
+        pid=int(request.form.get("project_id") or 0); project_or_404(pid,write=True)
+        with db() as conn:
+            conn.execute("INSERT INTO project_benefits(project_id,title,unit,baseline_value,target_value,actual_value,measurement_date,owner,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",(pid,request.form.get("title","").strip(),request.form.get("unit","%"),float(request.form.get("baseline_value") or 0),float(request.form.get("target_value") or 0),float(request.form["actual_value"]) if request.form.get("actual_value") else None,request.form.get("measurement_date",""),request.form.get("owner",""),"Measured" if request.form.get("actual_value") else "Planned",datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        return redirect(url_for("benefits_v77"))
+    ids=[p["id"] for p in projects]; rows=[]
+    if ids:
+        marks=",".join("?"*len(ids))
+        with db() as conn: rows=conn.execute(f"SELECT b.*,p.name project_name FROM project_benefits b JOIN projects p ON p.id=b.project_id WHERE b.project_id IN ({marks}) ORDER BY b.id DESC",ids).fetchall()
+    return render_template("benefits_v77.html",projects=projects,benefits=rows)
+
+
+@app.get("/action-inbox")
+@login_required
+def action_inbox_v78():
+    u=current_user(); projects=roadmap_accessible_projects(); ids=[p["id"] for p in projects]
+    overdue=[]; changes=[]; risks=[]
+    if ids:
+        marks=",".join("?"*len(ids))
+        with db() as conn:
+            overdue=conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({marks}) AND t.progress<100 AND t.end_date<>'' AND t.end_date<? ORDER BY t.end_date LIMIT 30",ids+[date.today().isoformat()]).fetchall()
+            changes=conn.execute(f"SELECT c.*,p.name project_name FROM change_requests c JOIN projects p ON p.id=c.project_id WHERE c.project_id IN ({marks}) AND c.status IN ('Proposed','Submitted','Pending') ORDER BY c.id DESC LIMIT 20",ids).fetchall()
+            risks=conn.execute(f"SELECT r.*,p.name project_name FROM risks r JOIN projects p ON p.id=r.project_id WHERE r.project_id IN ({marks}) AND r.status<>'Stängd' AND r.probability*r.impact>=15 ORDER BY r.probability*r.impact DESC LIMIT 20",ids).fetchall()
+        with db() as conn: notes=conn.execute("SELECT * FROM notifications WHERE user_id=? AND is_read=0 ORDER BY id DESC LIMIT 30",(u["id"],)).fetchall()
+    else: notes=[]
+    return render_template("action_inbox_v78.html",overdue=overdue,changes=changes,risks=risks,notes=notes)
+
+
+@app.get("/control-engine")
+@login_required
+def control_engine_v79():
+    projects=roadmap_accessible_projects(); signals=[]
+    with db() as conn:
+        for p in projects:
+            h=project_visual_health(p["id"])
+            alloc=conn.execute("SELECT COALESCE(MAX(allocation_pct),0) mx FROM resource_allocations WHERE project_id=?",(p["id"],)).fetchone()["mx"]
+            deps=conn.execute("SELECT COUNT(*) c FROM cross_project_dependencies WHERE successor_project_id=? AND status='Active'",(p["id"],)).fetchone()["c"]
+            costs=conn.execute("SELECT COALESCE(SUM(planned),0) b,COALESCE(SUM(actual),0) a FROM project_costs WHERE project_id=?",(p["id"],)).fetchone()
+            score=100-h["overdue_count"]*8-h["high_risk_count"]*10-(15 if alloc>120 else 0)-(5 if deps else 0)-(15 if costs["b"] and costs["a"]>costs["b"] else 0)
+            signals.append({"project":p,"health":h,"control_score":max(0,min(100,score)),"allocation":alloc,"dependencies":deps,"budget_over":bool(costs["b"] and costs["a"]>costs["b"])})
+    signals.sort(key=lambda x:x["control_score"])
+    return render_template("control_engine_v79.html",signals=signals)
+
+
+@app.get("/v8")
+@login_required
+def intelligent_ppm_v80():
+    projects=roadmap_accessible_projects(); cards=[]
+    with db() as conn:
+        intake_count=conn.execute("SELECT COUNT(*) c FROM form_submissions WHERE status='New'").fetchone()["c"]
+        scenario_count=conn.execute("SELECT COUNT(*) c FROM portfolio_scenarios").fetchone()["c"]
+        goals_count=conn.execute("SELECT COUNT(*) c FROM strategic_goals").fetchone()["c"]
+        dep_count=conn.execute("SELECT COUNT(*) c FROM cross_project_dependencies WHERE status='Active'").fetchone()["c"]
+    for p in projects:
+        h=project_visual_health(p["id"]); cards.append({"project":p,"health":h})
+    red=sum(1 for x in cards if x["health"]["rag"]=="red"); amber=sum(1 for x in cards if x["health"]["rag"]=="amber")
+    return render_template("intelligent_ppm_v80.html",projects=cards,red=red,amber=amber,intake_count=intake_count,scenario_count=scenario_count,goals_count=goals_count,dep_count=dep_count)
 
 if __name__=="__main__":
     init_db()

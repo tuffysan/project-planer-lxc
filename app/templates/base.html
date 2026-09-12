@@ -18,57 +18,92 @@
   </a>
 
   {% if current_user %}
-  <nav class="primary-nav" aria-label="Main navigation">
-    <a href="{{url_for('index')}}">{{t('dashboard')}}</a>
-    <a href="{{url_for('visual_dashboard_v503')}}">Portfolio Health</a>
-    <a href="{{url_for('enterprise_home_v70')}}">★ v7 Home</a>
-    <a href="{{url_for('dashboard_designer_v69')}}">Dashboard Designer</a>
-    <a href="{{url_for('stakeholder_index_v68')}}">Stakeholder</a>
-    <a href="{{url_for('financial_control_v67')}}">Finance Pro</a>
-    <a href="{{url_for('goals_v66')}}">Goals</a>
-    <a href="{{url_for('resource_planning_v65')}}">Resources Pro</a>
-    <a href="{{url_for('automation_designer_v64')}}">Automations</a>
-    <a href="{{url_for('intake_v63')}}">Intake</a>
-    <a href="{{url_for('task_experience_v61')}}">Tasks Pro</a>
-    <a href="{{url_for('pm_copilot_v60')}}">PM Copilot</a>
-    <a href="{{url_for('project_wizard_v58')}}">＋ New Project</a>
-    <a href="{{url_for('focus_v56')}}">Focus</a>
-    <a href="{{url_for('team_capacity_v55')}}">Team Capacity</a>
-    <a href="{{url_for('visual_dashboard_v503')}}">Portfolio</a>
-    <a href="{{url_for('quick_add_v51')}}">＋ Quick Add</a>
-    <a href="{{url_for('my_work')}}">My Work</a>
-        <a href="{{url_for('home_v41')}}">Home</a>
-    <a href="{{url_for('workspace')}}">Workspace</a>
+  <button class="nav-toggle" type="button" aria-label="Öppna meny" aria-expanded="false"
+          onclick="document.body.classList.toggle('nav-open');this.setAttribute('aria-expanded',document.body.classList.contains('nav-open')?'true':'false')">☰</button>
+
+  <nav class="primary-nav nav-clean" aria-label="Main navigation">
+    <a class="nav-home" href="{{url_for('intelligent_ppm_v80')}}">Översikt</a>
+
     <details class="nav-menu">
-      <summary>Projects ▾</summary>
+      <summary>Mitt arbete ▾</summary>
       <div class="nav-dropdown">
+        <a href="{{url_for('action_inbox_v78')}}">Inbox</a>
+        <a href="{{url_for('my_work')}}">My Work</a>
+        <a href="{{url_for('focus_v56')}}">Focus</a>
+        <a href="{{url_for('task_experience_v61')}}">Tasks</a>
+        <a href="{{url_for('quick_add_v51')}}">＋ Quick Add</a>
+        <a href="{{url_for('command_palette')}}">Sök</a>
+      </div>
+    </details>
+
+    <details class="nav-menu">
+      <summary>Projekt ▾</summary>
+      <div class="nav-dropdown">
+        <a href="{{url_for('workspace')}}">Project Workspace</a>
         <a href="{{url_for('planning_hub')}}">Planning</a>
         <a href="{{url_for('control_center')}}">Project Control</a>
-        <a href="{{url_for('resource_plan')}}">Capacity</a>
-        <a href="{{url_for('finance_control')}}">Finance</a>
         <a href="{{url_for('collaboration_hub')}}">Collaboration</a>
         <a href="{{url_for('report_center')}}">Reports</a>
+        <a href="{{url_for('stakeholder_index_v68')}}">Stakeholder</a>
+        {% if current_user['role'] in ['admin','pm'] %}
+        <a class="nav-accent" href="{{url_for('project_wizard_v58')}}">＋ New Project</a>
+        {% endif %}
       </div>
     </details>
+
     <details class="nav-menu">
-      <summary>PMO ▾</summary>
+      <summary>Portfölj ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('executive_pmo')}}">Executive PMO</a>
+        <a href="{{url_for('visual_dashboard_v503')}}">Portfolio Health</a>
         <a href="{{url_for('pmo')}}">Portfolios</a>
-        <a href="{{url_for('resources')}}">Resources</a>
+        <a href="{{url_for('executive_pmo')}}">Executive PMO</a>
+        <a href="{{url_for('control_engine_v79')}}">Control Engine</a>
+        <a href="{{url_for('portfolio_dependencies_v73')}}">Dependencies</a>
+        <a href="{{url_for('scenario_planner_v76')}}">Scenarios</a>
+        <a href="{{url_for('business_cases_v72')}}">Business Cases</a>
+        <a href="{{url_for('goals_v66')}}">Goals</a>
+        <a href="{{url_for('benefits_v77')}}">Benefits</a>
       </div>
     </details>
-        <details class="nav-menu">
-      <summary>More ▾</summary>
+
+    <details class="nav-menu">
+      <summary>Resurser & ekonomi ▾</summary>
       <div class="nav-dropdown">
-        <a href="{{url_for('command_palette')}}">Search</a>
-        <a href="{{url_for('automation_ops_v46')}}">Automation</a>
-        <a href="{{url_for('enterprise_center_v47')}}">Enterprise</a>
-        <a href="{{url_for('executive_reporting')}}">Executive Reports</a>
-        <a href="{{url_for('integration_center_v35')}}">Integrations</a>
-        <a href="{{url_for('security_center')}}">Security</a>
-</div>
+        <a href="{{url_for('resource_directory_v74')}}">Resource Directory</a>
+        <a href="{{url_for('resource_planning_v65')}}">Resource Planning</a>
+        <a href="{{url_for('team_capacity_v55')}}">Team Capacity</a>
+        <a href="{{url_for('financial_control_v67')}}">Financial Control</a>
+        <a href="{{url_for('finance_control')}}">Project Finance</a>
+      </div>
     </details>
+
+    <details class="nav-menu">
+      <summary>Verktyg ▾</summary>
+      <div class="nav-dropdown">
+        <a href="{{url_for('pm_copilot_v60')}}">PM Copilot</a>
+        <a href="{{url_for('intake_v63')}}">Intake</a>
+        {% if current_user['role'] in ['admin','pm'] %}
+        <a href="{{url_for('form_builder_v71')}}">Form Builder</a>
+        <a href="{{url_for('managed_templates_v75')}}">Managed Templates</a>
+        <a href="{{url_for('automation_designer_v64')}}">Automations</a>
+        {% endif %}
+        <a href="{{url_for('dashboard_designer_v69')}}">Dashboard Designer</a>
+        <a href="{{url_for('integration_center_v35')}}">Integrations</a>
+      </div>
+    </details>
+
+    {% if current_user['role']=='admin' %}
+    <details class="nav-menu">
+      <summary>Admin ▾</summary>
+      <div class="nav-dropdown">
+        <a href="{{url_for('admin_center')}}">Admin Center</a>
+        <a href="{{url_for('admin_quality')}}">Quality Center</a>
+        <a href="{{url_for('security_center')}}">Security</a>
+        <a href="{{url_for('enterprise_center_v47')}}">Enterprise</a>
+        <a href="{{url_for('automation_ops_v46')}}">Automation Ops</a>
+      </div>
+    </details>
+    {% endif %}
   </nav>
   {% endif %}
 
@@ -142,12 +177,25 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 {% if current_user %}
 <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
-  <a href="{{url_for('index')}}"><span>⌂</span><small>Hem</small></a>
-  <a href="{{url_for('visual_dashboard_v503')}}"><span>◉</span><small>Portfolio</small></a>
-  <a href="{{url_for('my_work_2')}}"><span>✓</span><small>My Work</small></a>
-  <a href="{{url_for('command_palette')}}"><span>⌕</span><small>Sök</small></a>
+  <a href="{{url_for('intelligent_ppm_v80')}}"><span>⌂</span><small>Hem</small></a>
+  <a href="{{url_for('action_inbox_v78')}}"><span>◎</span><small>Inbox</small></a>
+  <a href="{{url_for('my_work')}}"><span>✓</span><small>Arbete</small></a>
+  <a href="{{url_for('quick_add_v51')}}"><span>＋</span><small>Skapa</small></a>
+  <button type="button" onclick="document.body.classList.toggle('nav-open')"><span>☰</span><small>Meny</small></button>
 </nav>
 {% endif %}
+
+
+<script>
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape") document.body.classList.remove("nav-open");
+});
+document.addEventListener("click",function(e){
+  if(document.body.classList.contains("nav-open") && e.target.closest(".primary-nav a")){
+    document.body.classList.remove("nav-open");
+  }
+});
+</script>
 
 </body>
 </html>
