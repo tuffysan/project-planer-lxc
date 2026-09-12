@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}{{project.name}} · Timeline{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">TIMELINE 2.0</div><h1>{{project.name}}</h1><p class="lead">Visuell plan för aktiviteter och milstolpar.</p></div></div>
+<section class="panel timeline-board">{% for t in tasks %}<div class="timeline-task"><div><b>{{t.wbs}} {{t.title}}</b><small>{{t.start_date or '–'}} → {{t.end_date or '–'}}</small></div><div class="timeline-visual"><span class="{% if t.milestone %}milestone-bar{% else %}task-bar{% endif %}" style="width:{{ [15,t.progress]|max }}%"></span></div><span class="status-chip">{{t.progress}}%</span></div>{% else %}<div class="empty">Inga aktiviteter.</div>{% endfor %}</section>
+{% endblock %}

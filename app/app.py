@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "5.0.4"
+APP_VERSION = "6.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -3453,6 +3453,204 @@ def project_visual_v503(project_id):
 @app.context_processor
 def visual_context_v503():
     return {"today_iso": date.today().isoformat()}
+
+
+@app.route("/quick-add",methods=["GET","POST"])
+@login_required
+def quick_add_v51():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST":
+        project_id=int(request.form.get("project_id") or 0)
+        project_or_404(project_id)
+        kind=(request.form.get("kind") or "task").lower()
+        title=(request.form.get("title") or "").strip()
+        owner=(request.form.get("owner") or "").strip()
+        due=(request.form.get("due_date") or "").strip()
+        if not title:
+            flash("Titel krävs.","error"); return redirect(url_for("quick_add_v51"))
+        with db() as conn:
+            if kind=="risk":
+                conn.execute("INSERT INTO risks(project_id,kind,title,owner,due_date,created_at) VALUES(?,?,?,?,?,?)",(project_id,"Risk",title,owner,due,datetime.now().isoformat(timespec="seconds")))
+            elif kind=="milestone":
+                conn.execute("INSERT INTO tasks(project_id,title,owner,end_date,status,priority,progress,milestone) VALUES(?,?,?,?,?,?,?,1)",(project_id,title,owner,due,"Ej startad","Normal",0))
+            else:
+                conn.execute("INSERT INTO tasks(project_id,title,owner,end_date,status,priority,progress,milestone) VALUES(?,?,?,?,?,?,?,0)",(project_id,title,owner,due,"Ej startad","Normal",0))
+            conn.commit()
+        flash("Skapad.","success"); return redirect(url_for("quick_add_v51"))
+    return render_template("quick_add_v51.html",projects=projects)
+
+@app.post("/tasks/<int:task_id>/quick-update")
+@login_required
+def task_quick_update_v51(task_id):
+    with db() as conn:
+        t=conn.execute("SELECT * FROM tasks WHERE id=?",(task_id,)).fetchone()
+        if not t: abort(404)
+        project_or_404(t["project_id"])
+        status=request.form.get("status") or t["status"]
+        progress=max(0,min(100,int(request.form.get("progress") or t["progress"] or 0)))
+        conn.execute("UPDATE tasks SET status=?,progress=? WHERE id=?",(status,progress,task_id)); conn.commit()
+    flash("Aktiviteten uppdaterades.","success")
+    return redirect(request.referrer or url_for("my_work_2"))
+
+
+@app.get("/projects/<int:project_id>/workspace-2")
+@login_required
+def workspace_2_v52(project_id):
+    p=project_or_404(project_id); h=project_visual_health(project_id)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY end_date,id",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 10",(project_id,)).fetchall()
+    return render_template("workspace_2_v52.html",project=p,health=h,tasks=tasks,risks=risks,changes=changes)
+
+
+@app.get("/projects/<int:project_id>/board-2")
+@login_required
+def board_v53(project_id):
+    p=project_or_404(project_id)
+    with db() as conn: tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY sort_order,id",(project_id,)).fetchall()
+    columns=["Ej startad","Pågår","Blockerad","Klar"]
+    return render_template("board_v53.html",project=p,tasks=tasks,columns=columns)
+
+@app.post("/projects/<int:project_id>/tasks/<int:task_id>/move")
+@login_required
+def board_move_v53(project_id,task_id):
+    project_or_404(project_id); status=request.form.get("status") or "Ej startad"
+    if status not in ("Ej startad","Pågår","Blockerad","Klar"): abort(400)
+    progress=100 if status=="Klar" else (50 if status=="Pågår" else 0)
+    with db() as conn:
+        conn.execute("UPDATE tasks SET status=?,progress=CASE WHEN ?='Klar' THEN 100 WHEN progress=100 THEN ? ELSE progress END WHERE id=? AND project_id=?",(status,status,progress,task_id,project_id)); conn.commit()
+    return redirect(url_for("board_v53",project_id=project_id))
+
+@app.get("/projects/<int:project_id>/timeline-2")
+@login_required
+def timeline_v53(project_id):
+    p=project_or_404(project_id)
+    with db() as conn: tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY start_date,end_date,id",(project_id,)).fetchall()
+    return render_template("timeline_v53.html",project=p,tasks=tasks)
+
+
+@app.get("/projects/<int:project_id>/action-center")
+@login_required
+def action_center_v54(project_id):
+    p=project_or_404(project_id); h=project_visual_health(project_id)
+    with db() as conn:
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? AND status IN ('Proposed','Submitted','Pending') ORDER BY id DESC",(project_id,)).fetchall()
+    matrix={(prob,impact):[] for prob in range(1,6) for impact in range(1,6)}
+    for r in risks: matrix[(int(r["probability"]),int(r["impact"]))].append(r)
+    return render_template("action_center_v54.html",project=p,health=h,risks=risks,changes=changes,matrix=matrix)
+
+
+@app.get("/team-capacity")
+@login_required
+def team_capacity_v55():
+    projects=roadmap_accessible_projects(); pids=[int(p["id"]) for p in projects]
+    rows=[]
+    if pids:
+        marks=",".join("?"*len(pids))
+        with db() as conn:
+            rows=conn.execute(f"SELECT resource_name,week_start,SUM(allocation_pct) allocation,SUM(planned_hours) hours FROM resource_allocations WHERE project_id IN ({marks}) GROUP BY resource_name,week_start ORDER BY week_start,resource_name",pids).fetchall()
+    weeks=sorted({r["week_start"] for r in rows})[:4]
+    people=sorted({r["resource_name"] for r in rows})
+    cap={(r["resource_name"],r["week_start"]):r for r in rows}
+    return render_template("team_capacity_v55.html",weeks=weeks,people=people,cap=cap)
+
+
+@app.get("/focus")
+@login_required
+def focus_v56():
+    u=current_user(); today=date.today()
+    with db() as conn:
+        if u["role"]=="admin":
+            tasks=conn.execute("SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.progress<100 ORDER BY t.end_date").fetchall()
+        else:
+            tasks=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+                JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=? WHERE t.progress<100 ORDER BY t.end_date""",(u["id"],)).fetchall()
+        notes=conn.execute("SELECT * FROM notifications WHERE user_id=? AND is_read=0 ORDER BY id DESC LIMIT 20",(u["id"],)).fetchall()
+    overdue=[]; today_items=[]; week=[]
+    for t in tasks:
+        d=parse_date(t["end_date"])
+        if not d: continue
+        if d<today: overdue.append(t)
+        elif d==today: today_items.append(t)
+        elif d<=today+timedelta(days=7): week.append(t)
+    return render_template("focus_v56.html",overdue=overdue,today_items=today_items,week=week,notes=notes)
+
+
+@app.route("/projects/<int:project_id>/status-report-2",methods=["GET","POST"])
+@login_required
+def status_report_v57(project_id):
+    p=project_or_404(project_id); h=project_visual_health(project_id)
+    with db() as conn:
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
+        milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date LIMIT 8",(project_id,)).fetchall()
+        changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 5",(project_id,)).fetchall()
+        if request.method=="POST":
+            rag={"green":"Green","amber":"Amber","red":"Red"}[h["rag"]]
+            conn.execute("""INSERT INTO status_reports(project_id,report_date,overall_rag,scope_rag,schedule_rag,budget_rag,resources_rag,summary,achievements,next_steps,created_by,created_at)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",(project_id,date.today().isoformat(),rag,rag,rag,"Green","Green",request.form.get("summary",""),request.form.get("achievements",""),request.form.get("next_steps",""),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+            conn.commit(); flash("Statusrapport sparad.","success")
+    suggested=f"Projektet är {h['label'].lower()} med health score {h['score']}/100 och {h['progress']}% progress. {h['overdue_count']} aktiviteter är försenade och {h['high_risk_count']} höga risker är öppna."
+    return render_template("status_report_v57.html",project=p,health=h,risks=risks,milestones=milestones,changes=changes,suggested=suggested)
+
+
+@app.route("/project-wizard",methods=["GET","POST"])
+@login_required
+def project_wizard_v58():
+    presets={
+      "IT Project":["Kickoff","Requirements","Design","Build","System Test","UAT","Go-live"],
+      "Integration Project":["Kickoff","Interface specification","Development","SIT","FAT","SAT","Cutover","Go-live"],
+      "LIMS Implementation":["Kickoff","URS","Configuration","Interfaces","Validation","UAT","Training","Go-live"],
+      "Upgrade Project":["Assessment","Backup","DEV upgrade","Regression test","UAT","Production upgrade","Hypercare"],
+      "General Project":["Kickoff","Planning","Execution","Review","Handover"]
+    }
+    if request.method=="POST":
+        name=(request.form.get("name") or "").strip(); template=request.form.get("template") or "General Project"
+        if not name: flash("Projektnamn krävs.","error"); return redirect(url_for("project_wizard_v58"))
+        start=request.form.get("start_date") or date.today().isoformat(); end=request.form.get("end_date") or ""
+        with db() as conn:
+            cur=conn.execute("INSERT INTO projects(name,customer,project_manager,description,start_date,end_date,template_name,created_by,created_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                (name,request.form.get("customer",""),request.form.get("project_manager",""),request.form.get("description",""),start,end,template,current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+            pid=cur.lastrowid
+            conn.execute("INSERT OR IGNORE INTO project_members(project_id,user_id,project_role,added_at,added_by) VALUES(?,?,?,?,?)",(pid,current_user()["id"],"owner",datetime.now().isoformat(timespec="seconds"),current_user()["id"]))
+            for i,title in enumerate(presets.get(template,presets["General Project"]),1):
+                conn.execute("INSERT INTO tasks(project_id,wbs,title,status,priority,progress,sort_order,milestone) VALUES(?,?,?,?,?,?,?,?)",(pid,str(i),title,"Ej startad","Normal",0,i,1 if title in ("Go-live","Handover") else 0))
+            conn.commit()
+        flash("Projektet skapades från template.","success"); return redirect(url_for("workspace_2_v52",project_id=pid))
+    return render_template("project_wizard_v58.html",presets=presets)
+
+
+@app.route("/pm-copilot",methods=["GET","POST"])
+@login_required
+def pm_copilot_v60():
+    projects=roadmap_accessible_projects(); answer=""; question=""; selected=None
+    if request.method=="POST":
+        question=(request.form.get("question") or "").strip()
+        project_id=int(request.form.get("project_id") or 0)
+        selected=project_or_404(project_id); h=project_visual_health(project_id)
+        with db() as conn:
+            risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 3",(project_id,)).fetchall()
+            milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 AND progress<100 ORDER BY end_date LIMIT 3",(project_id,)).fetchall()
+        lines=[f"{selected['name']}: {h['label']} · health {h['score']}/100 · progress {h['progress']}%."]
+        q=question.lower()
+        if "fokus" in q or "focus" in q or "idag" in q:
+            if h["blocked"]: lines.append(f"1. Hantera blockerad aktivitet: {h['blocked'][0]['title']}.")
+            if h["overdue"]: lines.append(f"2. Uppdatera försenad aktivitet: {h['overdue'][0]['title']} ({h['overdue'][0]['end_date']}).")
+            if risks: lines.append(f"3. Följ upp risk: {risks[0]['title']} (score {risks[0]['probability']*risks[0]['impact']}).")
+        elif "milstolp" in q or "milestone" in q:
+            for i,m in enumerate(milestones,1): lines.append(f"{i}. {m['title']} – {m['end_date']} – {m['progress']}%.")
+            if not milestones: lines.append("Inga öppna milstolpar hittades.")
+        elif "risk" in q:
+            for i,r in enumerate(risks,1): lines.append(f"{i}. {r['title']} – score {r['probability']*r['impact']} – owner {r['owner'] or 'ej satt'}.")
+            if not risks: lines.append("Inga öppna risker hittades.")
+        else:
+            lines.append("Signaler: "+", ".join(h["reasons"])+".")
+            lines.append("Fråga exempelvis: Vad ska jag fokusera på idag? Vilka risker är högst? Vilka milstolpar kommer härnäst?")
+        answer="\n".join(lines)
+        with db() as conn:
+            conn.execute("INSERT INTO assistant_queries(user_id,project_id,question,answer,created_at) VALUES(?,?,?,?,?)",(current_user()["id"],project_id,question,answer,datetime.now().isoformat(timespec="seconds"))); conn.commit()
+    return render_template("pm_copilot_v60.html",projects=projects,answer=answer,question=question,selected=selected)
 
 if __name__=="__main__":
     init_db()

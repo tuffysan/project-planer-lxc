@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Team Capacity{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">TEAM & RESOURCES</div><h1>Kapacitet</h1><p class="lead">Se överbeläggning innan den blir ett leveransproblem.</p></div></div>
+<section class="panel capacity-board"><div class="capacity-row capacity-head"><b>Resurs</b>{% for w in weeks %}<b>{{w}}</b>{% endfor %}</div>{% for person in people %}<div class="capacity-row"><strong>{{person}}</strong>{% for w in weeks %}{% set r=cap.get((person,w)) %}{% set a=r.allocation if r else 0 %}<div class="capacity-cell {% if a>120 %}red{% elif a>100 %}amber{% endif %}"><b>{{a}}%</b><small>{{r.hours if r else 0}} h</small></div>{% endfor %}</div>{% else %}<div class="empty">Ingen resursallokering ännu. Lägg till allokeringar i Resources.</div>{% endfor %}</section>
+{% endblock %}

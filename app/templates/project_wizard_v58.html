@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}New Project Wizard{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">PROJECT SETUP</div><h1>New Project Wizard</h1><p class="lead">Starta med rätt struktur i stället för ett tomt projekt.</p></div></div>
+<div class="wizard-steps">{% for s in ['1 Project','2 Template','3 Team','4 Dates','5 Deliverables','6 Review'] %}<span class="wizard-step {% if loop.first %}active{% endif %}">{{s}}</span>{% endfor %}</div>
+<section class="panel"><form method="post" class="quick-form"><label class="full">Projektnamn<input name="name" required autofocus></label><label>Kund<input name="customer"></label><label>Projektledare<input name="project_manager"></label><label>Template<select name="template">{% for name in presets %}<option>{{name}}</option>{% endfor %}</select></label><label>Start<input type="date" name="start_date"></label><label>Slut<input type="date" name="end_date"></label><label class="full">Beskrivning<textarea name="description" rows="4"></textarea></label><div class="full"><button class="primary">Skapa projekt med struktur</button></div></form></section>
+<div class="feature-grid">{% for name,tasks in presets.items() %}<article class="feature-card"><h3>{{name}}</h3><p class="muted">{{tasks|join(' → ')}}</p></article>{% endfor %}</div>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% block title %}Quick Add{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">EVERYDAY UX</div><h1>Quick Add</h1><p class="lead">Skapa det vanligaste utan att lämna arbetsflödet.</p></div></div>
+<section class="panel"><form method="post" class="quick-form">
+<label>Projekt<select name="project_id" required>{% for p in projects %}<option value="{{p.id}}">{{p.name}}</option>{% endfor %}</select></label>
+<label>Typ<select name="kind"><option value="task">Aktivitet</option><option value="milestone">Milstolpe</option><option value="risk">Risk</option></select></label>
+<label class="full">Titel<input name="title" required autofocus></label><label>Ansvarig<input name="owner"></label><label>Datum<input type="date" name="due_date"></label>
+<div class="full"><button class="primary">Skapa</button></div></form></section>
+{% endblock %}
