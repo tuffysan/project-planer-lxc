@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "8.0.0"
+APP_VERSION = "8.0.2"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -3169,17 +3169,208 @@ def command_palette():
 @login_required
 def project_workspace(project_id,tab="overview"):
     p=project_or_404(project_id)
-    allowed={"overview","plan","control","resources","finance","documents","meetings","reports","activity"}
-    if tab not in allowed: abort(404)
+    allowed={"overview","plan","tasks","risks","resources","finance","documents","reports","meetings"}
+    if tab not in allowed:
+        abort(404)
+
+    h=project_visual_health(project_id)
+    today=date.today()
+
     with db() as conn:
-        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,)).fetchall()
-        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
-        docs=conn.execute("SELECT * FROM documents WHERE project_id=? ORDER BY updated_at DESC",(project_id,)).fetchall()
-        meetings=conn.execute("SELECT * FROM meetings WHERE project_id=? ORDER BY meeting_date DESC",(project_id,)).fetchall()
-        audit_rows=conn.execute("SELECT * FROM audit_log WHERE project_id=? ORDER BY id DESC LIMIT 60",(project_id,)).fetchall()
-        costs=conn.execute("SELECT * FROM project_costs WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall()
-        status_reports=conn.execute("SELECT * FROM status_reports WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall()
-    return render_template("project_workspace_v42.html",project=p,tab=tab,tasks=tasks,risks=risks,docs=docs,meetings=meetings,audit_rows=audit_rows,costs=costs,status_reports=status_reports)
+        tasks=conn.execute("""
+            SELECT * FROM tasks
+            WHERE project_id=? AND deleted_at IS NULL
+            ORDER BY COALESCE(sort_order,999999), wbs, id
+        """,(project_id,)).fetchall()
+
+        milestones=conn.execute("""
+            SELECT * FROM tasks
+            WHERE project_id=? AND milestone=1 AND deleted_at IS NULL
+            ORDER BY CASE WHEN end_date='' THEN 1 ELSE 0 END,end_date,id
+        """,(project_id,)).fetchall()
+
+        risks=conn.execute("""
+            SELECT * FROM risks
+            WHERE project_id=? AND status<>'Stängd'
+            ORDER BY probability*impact DESC,id DESC
+        """,(project_id,)).fetchall()
+
+        changes=conn.execute("""
+            SELECT * FROM change_requests
+            WHERE project_id=?
+            ORDER BY id DESC
+            LIMIT 30
+        """,(project_id,)).fetchall()
+
+        docs=conn.execute("""
+            SELECT * FROM documents
+            WHERE project_id=?
+            ORDER BY updated_at DESC,id DESC
+        """,(project_id,)).fetchall()
+
+        meetings=conn.execute("""
+            SELECT * FROM meetings
+            WHERE project_id=?
+            ORDER BY meeting_date DESC,id DESC
+        """,(project_id,)).fetchall()
+
+        actions=conn.execute("""
+            SELECT * FROM action_items
+            WHERE project_id=?
+            ORDER BY CASE WHEN status IN ('Done','Closed','Stängd') THEN 1 ELSE 0 END,
+                     CASE WHEN due_date='' THEN 1 ELSE 0 END,due_date,id
+        """,(project_id,)).fetchall()
+
+        decisions=conn.execute("""
+            SELECT * FROM decisions
+            WHERE project_id=?
+            ORDER BY COALESCE(decided_at,decision_date,'') DESC,id DESC
+            LIMIT 30
+        """,(project_id,)).fetchall()
+
+        audit_rows=conn.execute("""
+            SELECT * FROM audit_log
+            WHERE project_id=?
+            ORDER BY id DESC
+            LIMIT 30
+        """,(project_id,)).fetchall()
+
+        costs=conn.execute("""
+            SELECT * FROM project_costs
+            WHERE project_id=?
+            ORDER BY cost_date DESC,id DESC
+        """,(project_id,)).fetchall()
+
+        allocations=conn.execute("""
+            SELECT * FROM resource_allocations
+            WHERE project_id=?
+            ORDER BY resource_name,week_start
+        """,(project_id,)).fetchall()
+
+        reports=conn.execute("""
+            SELECT * FROM status_reports
+            WHERE project_id=?
+            ORDER BY report_date DESC,id DESC
+            LIMIT 20
+        """,(project_id,)).fetchall()
+
+        benefits=conn.execute("""
+            SELECT * FROM project_benefits
+            WHERE project_id=?
+            ORDER BY id DESC
+        """,(project_id,)).fetchall()
+
+        incoming_deps=conn.execute("""
+            SELECT d.*,p.name AS predecessor_name
+            FROM cross_project_dependencies d
+            JOIN projects p ON p.id=d.predecessor_project_id
+            WHERE d.successor_project_id=? AND d.status='Active'
+            ORDER BY d.id DESC
+        """,(project_id,)).fetchall()
+
+        outgoing_deps=conn.execute("""
+            SELECT d.*,p.name AS successor_name
+            FROM cross_project_dependencies d
+            JOIN projects p ON p.id=d.successor_project_id
+            WHERE d.predecessor_project_id=? AND d.status='Active'
+            ORDER BY d.id DESC
+        """,(project_id,)).fetchall()
+
+    open_tasks=[t for t in tasks if int(t["progress"] or 0)<100]
+    overdue_tasks=[
+        t for t in open_tasks
+        if parse_date(t["end_date"]) and parse_date(t["end_date"]) < today
+    ]
+    blocked_tasks=[
+        t for t in open_tasks
+        if (t["status"] or "").strip().lower() in ("blocked","blockerad")
+    ]
+    high_risks=[r for r in risks if int(r["probability"] or 0)*int(r["impact"] or 0)>=15]
+    pending_changes=[c for c in changes if (c["status"] or "") in ("Proposed","Submitted","Pending")]
+
+    budget=sum(float(c["planned"] or 0) for c in costs)
+    actual=sum(float(c["actual"] or 0) for c in costs)
+    variance=actual-budget
+    budget_pct=round((actual/budget)*100) if budget else 0
+
+    # Resource summary: peak allocation by resource across weeks.
+    resource_summary={}
+    for a in allocations:
+        name=(a["resource_name"] or "Unnamed").strip()
+        item=resource_summary.setdefault(name,{"name":name,"peak":0,"hours":0.0})
+        item["peak"]=max(item["peak"],int(a["allocation_pct"] or 0))
+        item["hours"]+=float(a["planned_hours"] or 0)
+    resource_summary=sorted(resource_summary.values(),key=lambda x:(-x["peak"],x["name"]))[:10]
+
+    # Unified attention queue: one place for PM action.
+    attention=[]
+    for t in overdue_tasks[:8]:
+        attention.append({
+            "severity":"red" if (today-parse_date(t["end_date"])).days>=7 else "amber",
+            "kind":"Task",
+            "title":t["title"],
+            "detail":f"Försenad sedan {t['end_date']}",
+            "url":url_for("project_workspace",project_id=project_id,tab="tasks")
+        })
+    for t in blocked_tasks[:5]:
+        attention.append({
+            "severity":"red","kind":"Blocker",
+            "title":t["title"],"detail":"Blockerad aktivitet",
+            "url":url_for("project_workspace",project_id=project_id,tab="tasks")
+        })
+    for r in high_risks[:5]:
+        attention.append({
+            "severity":"red","kind":"Risk",
+            "title":r["title"],
+            "detail":f"Risk score {int(r['probability'] or 0)*int(r['impact'] or 0)}",
+            "url":url_for("project_workspace",project_id=project_id,tab="risks")
+        })
+    for c in pending_changes[:5]:
+        attention.append({
+            "severity":"amber","kind":"Change",
+            "title":c["title"],"detail":c["status"],
+            "url":url_for("project_workspace",project_id=project_id,tab="risks")
+        })
+    if budget and actual>budget:
+        attention.append({
+            "severity":"amber" if actual <= budget*1.10 else "red",
+            "kind":"Budget","title":"Budget över plan",
+            "detail":f"{variance:,.0f} över budget",
+            "url":url_for("project_workspace",project_id=project_id,tab="finance")
+        })
+    for r in resource_summary:
+        if r["peak"]>120:
+            attention.append({
+                "severity":"red","kind":"Resource",
+                "title":f"{r['name']} är överallokerad",
+                "detail":f"Peak {r['peak']}%",
+                "url":url_for("project_workspace",project_id=project_id,tab="resources")
+            })
+        elif r["peak"]>100:
+            attention.append({
+                "severity":"amber","kind":"Resource",
+                "title":f"{r['name']} har hög belastning",
+                "detail":f"Peak {r['peak']}%",
+                "url":url_for("project_workspace",project_id=project_id,tab="resources")
+            })
+    attention=attention[:12]
+
+    next_milestones=[
+        m for m in milestones
+        if int(m["progress"] or 0)<100 and parse_date(m["end_date"])
+    ][:8]
+
+    return render_template(
+        "project_workspace_v802.html",
+        project=p,tab=tab,health=h,
+        tasks=tasks,open_tasks=open_tasks,overdue_tasks=overdue_tasks,blocked_tasks=blocked_tasks,
+        milestones=milestones,next_milestones=next_milestones,
+        risks=risks,high_risks=high_risks,changes=changes,pending_changes=pending_changes,
+        docs=docs,meetings=meetings,actions=actions,decisions=decisions,audit_rows=audit_rows,
+        costs=costs,budget=budget,actual=actual,variance=variance,budget_pct=budget_pct,
+        allocations=allocations,resource_summary=resource_summary,reports=reports,benefits=benefits,
+        incoming_deps=incoming_deps,outgoing_deps=outgoing_deps,attention=attention,today=today
+    )
 
 
 def dependency_diagnostics(project_id):
@@ -3981,7 +4172,7 @@ def business_cases_v72():
         score=round((vals[0]+vals[1]+vals[2]+vals[3]+(10-vals[4])+(10-vals[5])+(10-vals[6])+vals[7])/80*100,1)
         with db() as conn:
             conn.execute("""INSERT INTO business_cases(title,strategic_fit,business_value,urgency,regulatory,technical_risk,resource_demand,cost_score,expected_benefit,total_score,estimated_cost,expected_value,status,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-              (request.form.get("title","").strip(),*vals,score,float(request.form.get("estimated_cost") or 0),float(request.form.get("expected_value") or 0),"Draft",datetime.now().isoformat(timespec="seconds"))); conn.commit()
+              (request.form.get("title","").strip(),vals[0],vals[1],vals[2],vals[3],vals[4],vals[5],vals[6],vals[7],score,float(request.form.get("estimated_cost") or 0),float(request.form.get("expected_value") or 0),"Draft",datetime.now().isoformat(timespec="seconds"))); conn.commit()
         return redirect(url_for("business_cases_v72"))
     with db() as conn: cases=conn.execute("SELECT * FROM business_cases ORDER BY total_score DESC,id DESC").fetchall()
     return render_template("business_cases_v72.html",cases=cases)

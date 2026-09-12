@@ -1,1 +1,42 @@
-{% extends "base.html" %}{% block title %}Project Planer 8{% endblock %}{% block content %}<div class="feature-hero"><div><div class="eyebrow">PROJECT PLANER 8.0</div><h1>Intelligent PPM Platform</h1><p class="lead">Strategy → Demand → Portfolio → Resources → Project → Outcome.</p></div><span class="status-chip green">v8.0</span></div><div class="visual-kpi-grid"><div class="visual-kpi danger"><div><small>Red projects</small><strong>{{red}}</strong></div></div><div class="visual-kpi warning"><div><small>Amber projects</small><strong>{{amber}}</strong></div></div><div class="visual-kpi"><div><small>New intake</small><strong>{{intake_count}}</strong></div></div><div class="visual-kpi"><div><small>Dependencies</small><strong>{{dep_count}}</strong></div></div></div><div class="pm-grid"><a class="pm-card" href="{{url_for('form_builder_v71')}}"><h3>Demand & Intake</h3><p>Forms and structured requests</p></a><a class="pm-card" href="{{url_for('business_cases_v72')}}"><h3>Prioritization</h3><p>Business cases and scoring</p></a><a class="pm-card" href="{{url_for('scenario_planner_v76')}}"><h3>Portfolio Scenarios</h3><p>{{scenario_count}} saved sandboxes</p></a><a class="pm-card" href="{{url_for('resource_directory_v74')}}"><h3>People & Skills</h3><p>Resource directory and capacity</p></a><a class="pm-card" href="{{url_for('portfolio_dependencies_v73')}}"><h3>Dependencies</h3><p>Cross-project impact</p></a><a class="pm-card" href="{{url_for('goals_v66')}}"><h3>Strategy</h3><p>{{goals_count}} strategic goals</p></a><a class="pm-card" href="{{url_for('benefits_v77')}}"><h3>Outcomes</h3><p>Benefits realization</p></a><a class="pm-card" href="{{url_for('control_engine_v79')}}"><h3>Control Engine</h3><p>Signals, impact and action</p></a><a class="pm-card" href="{{url_for('action_inbox_v78')}}"><h3>My Inbox</h3><p>Actionable work</p></a></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Översikt · Project Planer{% endblock %}
+{% block content %}
+<div class="feature-hero">
+  <div>
+    <div class="eyebrow">PROJECT PLANER 8</div>
+    <h1>Vad behöver din uppmärksamhet?</h1>
+    <p class="lead">En samlad översikt för beslut och nästa åtgärd — inte en lista över alla funktioner.</p>
+  </div>
+  <div class="ux-actions">
+    <a class="button primary" href="{{url_for('quick_add_v51')}}">＋ Skapa</a>
+    <a class="button" href="{{url_for('action_inbox_v78')}}">Öppna Inbox</a>
+  </div>
+</div>
+
+<div class="visual-kpi-grid">
+  <a class="visual-kpi danger" href="{{url_for('visual_dashboard_v503')}}"><div><small>Röda projekt</small><strong>{{red}}</strong><span>Öppna portfolio health →</span></div></a>
+  <a class="visual-kpi warning" href="{{url_for('visual_dashboard_v503')}}"><div><small>Orange projekt</small><strong>{{amber}}</strong><span>Se vad som kräver fokus →</span></div></a>
+  <a class="visual-kpi" href="{{url_for('intake_v63')}}"><div><small>Nya requests</small><strong>{{intake_count}}</strong><span>Granska intake →</span></div></a>
+  <a class="visual-kpi" href="{{url_for('portfolio_dependencies_v73')}}"><div><small>Beroenden</small><strong>{{dep_count}}</strong><span>Se påverkan →</span></div></a>
+</div>
+
+<section class="panel">
+  <div class="ux-section-head"><div><h2>Snabbvägar</h2><div class="ux-help">De vanligaste arbetsflödena.</div></div></div>
+  <div class="pm-grid">
+    <a class="pm-card" href="{{url_for('action_inbox_v78')}}"><h3>◎ Min Inbox</h3><p>Åtgärder, risker, changes och försenade aktiviteter.</p></a>
+    <a class="pm-card" href="{{url_for('my_work')}}"><h3>✓ Mitt arbete</h3><p>Det jag behöver göra nu och härnäst.</p></a>
+    <a class="pm-card" href="{{url_for('visual_dashboard_v503')}}"><h3>◉ Portfölj</h3><p>Health, progress och projekt som behöver uppmärksamhet.</p></a>
+    <a class="pm-card" href="{{url_for('control_engine_v79')}}"><h3>⚑ Control Engine</h3><p>Sammanvägda signaler från plan, risk, resurs och ekonomi.</p></a>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="ux-section-head"><div><h2>Styrning</h2><div class="ux-help">Använd vid planering och PMO-arbete.</div></div></div>
+  <div class="pm-grid">
+    <a class="pm-card" href="{{url_for('business_cases_v72')}}"><h3>Prioritering</h3><p>Business cases och scoring.</p></a>
+    <a class="pm-card" href="{{url_for('scenario_planner_v76')}}"><h3>Scenarier</h3><p>{{scenario_count}} sparade portfolio-scenarier.</p></a>
+    <a class="pm-card" href="{{url_for('resource_directory_v74')}}"><h3>Resurser</h3><p>Kompetens, kapacitet och tillgänglighet.</p></a>
+    <a class="pm-card" href="{{url_for('benefits_v77')}}"><h3>Effekter</h3><p>Följ upp nyttan efter leverans.</p></a>
+  </div>
+</section>
+{% endblock %}

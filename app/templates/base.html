@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="{{url_for('static',filename='style.css')}}">
 </head>
 <body>
+<a class="ux-skip" href="#main-content">Hoppa till innehåll</a>
 <header class="topbar branded nav-v401">
   <a class="brand brand-with-icon" href="{{url_for('index')}}">
     <img src="{{url_for('static',filename='assets/project-planer-icon-64.png')}}" alt="Project Planer">
@@ -142,7 +143,7 @@
   </div>
 </header>
 
-<main class="shell">
+<main class="shell" id="main-content" tabindex="-1">
 {% with messages=get_flashed_messages(with_categories=true) %}
   {% for category,message in messages %}<div class="flash {{category}}">{{message}}</div>{% endfor %}
 {% endwith %}
@@ -194,6 +195,22 @@ document.addEventListener("click",function(e){
   if(document.body.classList.contains("nav-open") && e.target.closest(".primary-nav a")){
     document.body.classList.remove("nav-open");
   }
+});
+</script>
+
+
+<script data-ux-v801>
+document.addEventListener("DOMContentLoaded",function(){
+  const menus=[...document.querySelectorAll(".primary-nav details.nav-menu")];
+  menus.forEach(m=>m.addEventListener("toggle",function(){
+    if(m.open) menus.forEach(other=>{if(other!==m) other.removeAttribute("open");});
+  }));
+  document.querySelectorAll("form").forEach(function(f){
+    f.addEventListener("submit",function(){
+      const btn=f.querySelector('button[type="submit"],button:not([type])');
+      if(btn && !btn.disabled){btn.dataset.originalText=btn.textContent;btn.disabled=true;btn.textContent="Sparar…";}
+    });
+  });
 });
 </script>
 
