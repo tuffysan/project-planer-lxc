@@ -16,13 +16,13 @@ This is a cumulative release. It contains all functionality from the preceding r
 ## Upgrade an existing LXC
 
 ```bash
-CTID=<your-ctid> VERSION=6.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
+CTID=<your-ctid> VERSION=7.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/update-lxc.sh)"
 ```
 
 ## New install
 
 ```bash
-VERSION=6.0.0 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
+VERSION=7.0.1 bash -c "$(curl -fsSL https://raw.githubusercontent.com/tuffysan/project-planer-lxc/main/install-lxc.sh)"
 ```
 
 Run `./VERIFY.sh` before publishing. Keep a database backup before production upgrades.
@@ -70,3 +70,8 @@ Adds RAG project health, portfolio visual dashboard, visual project cockpit, hea
 ## v5.0.4 – Visual UX Refinement
 
 Second visual UX pass: fixes dashboard data binding, makes RAG status visible directly on the main dashboard, adds portfolio distribution, status reasons, trend indicators, search/filter/sort and a mobile bottom navigation.
+
+
+## v7.0.1 Full Quality Audit
+
+See `AUDIT-v7.0.1.md`. This release focuses on permissions, database reliability, startup migrations, health checks, static validation and responsive hardening rather than new features.

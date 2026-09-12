@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}{{project.name}} · Planning Engine{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">PLANNING ENGINE PRO</div><h1>{{project.name}}</h1><p class="lead">Gantt-planering med dependencies, kritiska signaler och direkt datumredigering.</p></div></div>
+<div class="pm-toolbar"><span class="status-chip">FS/SS/FF/SF: {{links|length}}</span><span class="status-chip red">Critical/attention: {{critical|length}}</span><a class="button" href="{{url_for('planning_pro_v43',project_id=project.id)}}">Advanced planning</a></div>
+<section class="panel gantt-pro">{% for t in tasks %}<div class="gantt-row"><div><b>{{t.wbs}} {{t.title}}</b><small>{{t.start_date}} → {{t.end_date}}</small></div><div class="gantt-track"><div class="gantt-bar {% if t.id in critical %}critical{% endif %}" style="width:{{ [8,t.progress]|max }}%"></div></div><span>{{t.progress}}%</span></div>{% else %}<div class="empty">Inga aktiviteter.</div>{% endfor %}</section>
+{% endblock %}

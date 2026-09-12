@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Resource Planning Pro{% endblock %}{% block content %}
+<div class="feature-hero"><div><div class="eyebrow">RESOURCE PLANNING PRO</div><h1>Demand vs Capacity</h1><p class="lead">Hitta överbeläggning över projekt innan den påverkar leveransen.</p></div></div>
+<section class="panel table-wrap"><table><thead><tr><th>Resource</th>{% for w in weeks %}<th>{{w}}</th>{% endfor %}</tr></thead><tbody>{% for person in people %}<tr><th>{{person}}</th>{% for w in weeks %}{% set r=cap.get((person,w)) %}{% set a=r.allocation if r else 0 %}<td><div class="capacity-cell {% if a>120 %}red{% elif a>100 %}amber{% endif %}"><b>{{a}}%</b><small>{{r.hours if r else 0}}h</small></div></td>{% endfor %}</tr>{% else %}<tr><td colspan="9">Ingen resursdata.</td></tr>{% endfor %}</tbody></table></section>
+{% endblock %}

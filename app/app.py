@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "6.0.0"
+APP_VERSION = "7.0.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -147,6 +147,12 @@ def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA busy_timeout=5000")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 def ensure_column(conn, table, column, definition):
@@ -860,6 +866,60 @@ CREATE TABLE IF NOT EXISTS intelligence_notes_v50 (
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
     FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
 );
+        """)
+
+
+
+        # v7.0.1: make late-roadmap tables part of normal startup migration.
+        conn.executescript("""
+        CREATE TABLE IF NOT EXISTS intake_requests(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            request_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            customer TEXT DEFAULT '',
+            requested_by TEXT DEFAULT '',
+            priority TEXT DEFAULT 'Normal',
+            requested_date TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'New',
+            description TEXT DEFAULT '',
+            project_id INTEGER
+        );
+        CREATE TABLE IF NOT EXISTS visual_automation_rules(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            trigger_name TEXT NOT NULL,
+            condition_name TEXT DEFAULT '',
+            action_name TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS strategic_goals(
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            target_value REAL DEFAULT 0,
+            current_value REAL DEFAULT 0,
+            unit TEXT DEFAULT '%',
+            owner TEXT DEFAULT '',
+            due_date TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS goal_projects(
+            goal_id INTEGER NOT NULL,
+            project_id INTEGER NOT NULL,
+            weight INTEGER DEFAULT 100,
+            PRIMARY KEY(goal_id,project_id),
+            FOREIGN KEY(goal_id) REFERENCES strategic_goals(id) ON DELETE CASCADE,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tasks_project_status ON tasks(project_id,status);
+        CREATE INDEX IF NOT EXISTS idx_tasks_project_end ON tasks(project_id,end_date);
+        CREATE INDEX IF NOT EXISTS idx_tasks_owner ON tasks(owner);
+        CREATE INDEX IF NOT EXISTS idx_risks_project_status ON risks(project_id,status);
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id,is_read);
+        CREATE INDEX IF NOT EXISTS idx_resource_alloc_project_week ON resource_allocations(project_id,week_start);
+        CREATE INDEX IF NOT EXISTS idx_audit_project_id ON audit_log(project_id,id);
         """)
 
         # Migration from older versions
@@ -1618,14 +1678,24 @@ def forbidden(e):return render_template("error.html",code=403,message="Du saknar
 @app.errorhandler(404)
 def not_found(e):return render_template("error.html",code=404,message="Sidan kunde inte hittas."),404
 
+@app.errorhandler(500)
+def internal_error(e):
+    request_id=secrets.token_hex(4)
+    app.logger.exception("Unhandled error request_id=%s path=%s",request_id,request.path)
+    return render_template("error.html",code=500,message=f"Ett internt fel inträffade. Referens: {request_id}"),500
+
+
 
 def visible_projects_for_user():
     u=current_user()
     with db() as conn:
         if u["role"]=="admin":
-            return conn.execute("SELECT * FROM projects ORDER BY name").fetchall()
+            return conn.execute("""SELECT * FROM projects
+                WHERE COALESCE(archived_at,'')='' AND COALESCE(deleted_at,'')=''
+                ORDER BY name""").fetchall()
         return conn.execute("""SELECT p.* FROM projects p JOIN project_members pm ON pm.project_id=p.id
-                              WHERE pm.user_id=? ORDER BY p.name""",(u["id"],)).fetchall()
+                              WHERE pm.user_id=? AND COALESCE(p.archived_at,'')='' AND COALESCE(p.deleted_at,'')=''
+                              ORDER BY p.name""",(u["id"],)).fetchall()
 
 @app.get("/my-work")
 @login_required
@@ -3009,6 +3079,12 @@ def stability_snapshot():
     results["version"]={"ok":True,"detail":APP_VERSION}
     return results
 
+
+
+@app.get("/health/live")
+def health_live_v701():
+    return jsonify(status="alive",version=APP_VERSION),200
+
 @app.get("/health/ready")
 def health_ready():
     snap=stability_snapshot()
@@ -3461,7 +3537,7 @@ def quick_add_v51():
     projects=roadmap_accessible_projects()
     if request.method=="POST":
         project_id=int(request.form.get("project_id") or 0)
-        project_or_404(project_id)
+        project_or_404(project_id,write=True)
         kind=(request.form.get("kind") or "task").lower()
         title=(request.form.get("title") or "").strip()
         owner=(request.form.get("owner") or "").strip()
@@ -3485,7 +3561,7 @@ def task_quick_update_v51(task_id):
     with db() as conn:
         t=conn.execute("SELECT * FROM tasks WHERE id=?",(task_id,)).fetchone()
         if not t: abort(404)
-        project_or_404(t["project_id"])
+        project_or_404(t["project_id"],write=True)
         status=request.form.get("status") or t["status"]
         progress=max(0,min(100,int(request.form.get("progress") or t["progress"] or 0)))
         conn.execute("UPDATE tasks SET status=?,progress=? WHERE id=?",(status,progress,task_id)); conn.commit()
@@ -3515,7 +3591,7 @@ def board_v53(project_id):
 @app.post("/projects/<int:project_id>/tasks/<int:task_id>/move")
 @login_required
 def board_move_v53(project_id,task_id):
-    project_or_404(project_id); status=request.form.get("status") or "Ej startad"
+    project_or_404(project_id,write=True); status=request.form.get("status") or "Ej startad"
     if status not in ("Ej startad","Pågår","Blockerad","Klar"): abort(400)
     progress=100 if status=="Klar" else (50 if status=="Pågår" else 0)
     with db() as conn:
@@ -3581,7 +3657,7 @@ def focus_v56():
 @app.route("/projects/<int:project_id>/status-report-2",methods=["GET","POST"])
 @login_required
 def status_report_v57(project_id):
-    p=project_or_404(project_id); h=project_visual_health(project_id)
+    p=project_or_404(project_id,write=(request.method=="POST")); h=project_visual_health(project_id)
     with db() as conn:
         risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
         milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date LIMIT 8",(project_id,)).fetchall()
@@ -3597,6 +3673,7 @@ def status_report_v57(project_id):
 
 @app.route("/project-wizard",methods=["GET","POST"])
 @login_required
+@role_required("admin","pm")
 def project_wizard_v58():
     presets={
       "IT Project":["Kickoff","Requirements","Design","Build","System Test","UAT","Go-live"],
@@ -3651,6 +3728,186 @@ def pm_copilot_v60():
         with db() as conn:
             conn.execute("INSERT INTO assistant_queries(user_id,project_id,question,answer,created_at) VALUES(?,?,?,?,?)",(current_user()["id"],project_id,question,answer,datetime.now().isoformat(timespec="seconds"))); conn.commit()
     return render_template("pm_copilot_v60.html",projects=projects,answer=answer,question=question,selected=selected)
+
+
+@app.get("/task-experience")
+@login_required
+def task_experience_v61():
+    projects=roadmap_accessible_projects()
+    ids=[int(p["id"]) for p in projects]
+    tasks=[]
+    if ids:
+        marks=",".join("?" for _ in ids)
+        with db() as conn:
+            tasks=conn.execute(f"""SELECT t.*,p.name project_name
+                FROM tasks t JOIN projects p ON p.id=t.project_id
+                WHERE t.project_id IN ({marks}) AND t.progress<100
+                  AND COALESCE(t.deleted_at,'')=''
+                ORDER BY CASE WHEN t.end_date='' THEN 1 ELSE 0 END,t.end_date,t.id LIMIT 30""",ids).fetchall()
+    return render_template("task_experience_v61.html",projects=projects,tasks=tasks)
+
+@app.post("/tasks/<int:task_id>/inline")
+@login_required
+def task_inline_v61(task_id):
+    with db() as conn:
+        t=conn.execute("SELECT * FROM tasks WHERE id=?",(task_id,)).fetchone()
+        if not t: abort(404)
+        project_or_404(t["project_id"])
+        status=request.form.get("status") or t["status"]; owner=request.form.get("owner",t["owner"])
+        end_date=request.form.get("end_date",t["end_date"]); priority=request.form.get("priority",t["priority"])
+        progress=max(0,min(100,int(request.form.get("progress") or t["progress"] or 0)))
+        conn.execute("UPDATE tasks SET status=?,owner=?,end_date=?,priority=?,progress=? WHERE id=?",(status,owner,end_date,priority,progress,task_id)); conn.commit()
+    flash("Aktiviteten sparades.","success"); return redirect(request.referrer or url_for("task_experience_v61"))
+
+
+@app.get("/projects/<int:project_id>/planning-engine")
+@login_required
+def planning_engine_v62(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY start_date,end_date,id",(project_id,)).fetchall()
+        links=conn.execute("SELECT * FROM task_links WHERE project_id=? ORDER BY id",(project_id,)).fetchall()
+    critical={t["id"] for t in tasks if t["status"]=="Blockerad" or (parse_date(t["end_date"]) and parse_date(t["end_date"])<date.today() and t["progress"]<100)}
+    return render_template("planning_engine_v62.html",project=p,tasks=tasks,links=links,critical=critical)
+
+@app.post("/projects/<int:project_id>/tasks/<int:task_id>/schedule")
+@login_required
+def schedule_task_v62(project_id,task_id):
+    project_or_404(project_id,write=True)
+    with db() as conn:
+        t=conn.execute("SELECT * FROM tasks WHERE id=? AND project_id=?",(task_id,project_id)).fetchone()
+        if not t: abort(404)
+        conn.execute("UPDATE tasks SET start_date=?,end_date=? WHERE id=?",(request.form.get("start_date",""),request.form.get("end_date",""),task_id)); conn.commit()
+    return redirect(url_for("planning_engine_v62",project_id=project_id))
+
+
+def ensure_intake_v63():
+    with db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS intake_requests(id INTEGER PRIMARY KEY AUTOINCREMENT,request_type TEXT NOT NULL,title TEXT NOT NULL,customer TEXT DEFAULT '',requested_by TEXT DEFAULT '',priority TEXT DEFAULT 'Normal',requested_date TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'New',description TEXT DEFAULT '',project_id INTEGER)"""); conn.commit()
+
+@app.route("/intake",methods=["GET","POST"])
+@login_required
+def intake_v63():
+    ensure_intake_v63()
+    if request.method=="POST":
+        title=(request.form.get("title") or "").strip()
+        if not title:
+            flash("Titel krävs.","error")
+            return redirect(url_for("intake_v63"))
+        with db() as conn:
+            conn.execute("INSERT INTO intake_requests(request_type,title,customer,requested_by,priority,requested_date,status,description) VALUES(?,?,?,?,?,?,?,?)",
+              (request.form.get("request_type","Project Request"),title,request.form.get("customer",""),request.form.get("requested_by",""),request.form.get("priority","Normal"),date.today().isoformat(),"New",request.form.get("description",""))); conn.commit()
+        flash("Request mottagen.","success"); return redirect(url_for("intake_v63"))
+    with db() as conn: rows=conn.execute("SELECT * FROM intake_requests ORDER BY id DESC").fetchall()
+    return render_template("intake_v63.html",rows=rows)
+
+
+def ensure_rules_v64():
+    with db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS visual_automation_rules(id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,trigger_name TEXT NOT NULL,condition_name TEXT DEFAULT '',action_name TEXT NOT NULL,enabled INTEGER NOT NULL DEFAULT 1,created_at TEXT NOT NULL)"""); conn.commit()
+
+@app.route("/automation-designer",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def automation_designer_v64():
+    ensure_rules_v64()
+    if request.method=="POST":
+        with db() as conn:
+            conn.execute("INSERT INTO visual_automation_rules(name,trigger_name,condition_name,action_name,enabled,created_at) VALUES(?,?,?,?,1,?)",
+              (request.form.get("name","Rule"),request.form.get("trigger_name","Task overdue"),request.form.get("condition_name",""),request.form.get("action_name","Notify PM"),datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        flash("Automation sparad.","success"); return redirect(url_for("automation_designer_v64"))
+    with db() as conn: rules=conn.execute("SELECT * FROM visual_automation_rules ORDER BY id DESC").fetchall()
+    return render_template("automation_designer_v64.html",rules=rules)
+
+
+@app.get("/resource-planning-pro")
+@login_required
+def resource_planning_v65():
+    projects=roadmap_accessible_projects(); pids=[p["id"] for p in projects]
+    rows=[]
+    if pids:
+        q=",".join("?"*len(pids))
+        with db() as conn: rows=conn.execute(f"SELECT resource_name,week_start,SUM(allocation_pct) allocation,SUM(planned_hours) hours,GROUP_CONCAT(DISTINCT project_id) projects FROM resource_allocations WHERE project_id IN ({q}) GROUP BY resource_name,week_start ORDER BY week_start,resource_name",pids).fetchall()
+    weeks=sorted({r["week_start"] for r in rows})[:8]; people=sorted({r["resource_name"] for r in rows}); cap={(r["resource_name"],r["week_start"]):r for r in rows}
+    return render_template("resource_planning_v65.html",weeks=weeks,people=people,cap=cap)
+
+
+def ensure_goals_v66():
+    with db() as conn:
+        conn.execute("""CREATE TABLE IF NOT EXISTS strategic_goals(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,description TEXT DEFAULT '',target_value REAL DEFAULT 0,current_value REAL DEFAULT 0,unit TEXT DEFAULT '%',owner TEXT DEFAULT '',due_date TEXT DEFAULT '',created_at TEXT NOT NULL)""")
+        conn.execute("""CREATE TABLE IF NOT EXISTS goal_projects(goal_id INTEGER NOT NULL,project_id INTEGER NOT NULL,weight INTEGER DEFAULT 100,PRIMARY KEY(goal_id,project_id))"""); conn.commit()
+
+@app.route("/goals",methods=["GET","POST"])
+@login_required
+@role_required("admin","pm")
+def goals_v66():
+    ensure_goals_v66()
+    if request.method=="POST":
+        with db() as conn:
+            conn.execute("INSERT INTO strategic_goals(title,description,target_value,current_value,unit,owner,due_date,created_at) VALUES(?,?,?,?,?,?,?,?)",
+             (request.form.get("title",""),request.form.get("description",""),float(request.form.get("target_value") or 100),float(request.form.get("current_value") or 0),request.form.get("unit","%"),request.form.get("owner",""),request.form.get("due_date",""),datetime.now().isoformat(timespec="seconds"))); conn.commit()
+        return redirect(url_for("goals_v66"))
+    with db() as conn: goals=conn.execute("SELECT * FROM strategic_goals ORDER BY id DESC").fetchall()
+    return render_template("goals_v66.html",goals=goals)
+
+
+@app.get("/financial-control-pro")
+@login_required
+def financial_control_v67():
+    projects=roadmap_accessible_projects(); cards=[]
+    with db() as conn:
+        for p in projects:
+            costs=conn.execute("SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?",(p["id"],)).fetchone()
+            budget=float(costs["planned"] or 0); actual=float(costs["actual"] or 0)
+            forecast=max(actual,budget); variance=forecast-budget
+            cards.append({"project":p,"budget":budget,"actual":actual,"forecast":forecast,"variance":variance,"used":round(actual/budget*100) if budget else 0})
+    return render_template("financial_control_v67.html",cards=cards)
+
+
+@app.get("/stakeholder")
+@login_required
+def stakeholder_index_v68():
+    return render_template("stakeholder_index_v68.html",projects=roadmap_accessible_projects())
+
+@app.get("/stakeholder/<int:project_id>")
+@login_required
+def stakeholder_project_v68(project_id):
+    p=project_or_404(project_id); h=project_visual_health(project_id)
+    with db() as conn:
+        milestones=conn.execute("SELECT * FROM tasks WHERE project_id=? AND milestone=1 ORDER BY end_date",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC LIMIT 5",(project_id,)).fetchall()
+        decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decision_date DESC LIMIT 8",(project_id,)).fetchall()
+    return render_template("stakeholder_project_v68.html",project=p,health=h,milestones=milestones,risks=risks,decisions=decisions)
+
+
+@app.route("/dashboard-designer-2",methods=["GET","POST"])
+@login_required
+def dashboard_designer_v69():
+    u=current_user()
+    defaults=["Portfolio Health","Progress","Needs Attention","Risk Summary","Budget","Resource Capacity"]
+    with db() as conn:
+        row=conn.execute("SELECT layout_json FROM dashboard_preferences WHERE user_id=?",(u["id"],)).fetchone()
+        if request.method=="POST":
+            widgets=request.form.getlist("widgets") or defaults
+            payload=json.dumps({"widgets":widgets})
+            conn.execute("INSERT INTO dashboard_preferences(user_id,layout_json) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET layout_json=excluded.layout_json",(u["id"],payload)); conn.commit()
+            flash("Dashboard sparad.","success"); return redirect(url_for("dashboard_designer_v69"))
+    selected=defaults
+    if row:
+        try: selected=json.loads(row["layout_json"]).get("widgets",defaults)
+        except: pass
+    return render_template("dashboard_designer_v69.html",selected=selected,all_widgets=defaults)
+
+
+@app.get("/v7")
+@login_required
+def enterprise_home_v70():
+    u=current_user(); projects=roadmap_accessible_projects(); cards=[]
+    for p in projects:
+        item=dict(p); item["health"]=project_visual_health(p["id"]); cards.append(item)
+    red=sum(1 for p in cards if p["health"]["rag"]=="red"); amber=sum(1 for p in cards if p["health"]["rag"]=="amber"); green=sum(1 for p in cards if p["health"]["rag"]=="green")
+    overdue=sum(p["health"]["overdue_count"] for p in cards); risks=sum(p["health"]["high_risk_count"] for p in cards)
+    return render_template("enterprise_home_v70.html",user=u,projects=cards,green=green,amber=amber,red=red,overdue=overdue,risks=risks)
 
 if __name__=="__main__":
     init_db()

@@ -246,3 +246,39 @@ body{background:#f4f7fa;color:var(--ink)}.shell{max-width:1500px;margin:0 auto}.
 @media(max-width:720px){.feature-hero{align-items:flex-start;flex-direction:column}.quick-form{grid-template-columns:1fr}.quick-form .full{grid-column:auto}.capacity-row{grid-template-columns:110px repeat(4,90px);overflow-x:auto}.board-grid{grid-template-columns:repeat(4,270px)}}
 
 .timeline-task{display:grid;grid-template-columns:minmax(180px,300px) 1fr auto;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.timeline-task>div:first-child{display:flex;flex-direction:column}.timeline-task small{color:var(--muted)}.timeline-visual{height:18px;background:#edf2f6;border-radius:6px;overflow:hidden}.task-bar{display:block;height:100%;background:#527fa2;border-radius:6px}.milestone-bar{display:block;width:16px!important;height:16px;background:var(--rag-amber);transform:rotate(45deg);margin-left:8px}@media(max-width:720px){.timeline-task{grid-template-columns:1fr auto}.timeline-visual{grid-column:1/-1;grid-row:2}}
+
+/* v6.1-v7 product UX */
+.pm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.pm-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}.pm-card h3{margin:.1rem 0 .5rem}.pm-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}.pm-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.pm-form .wide{grid-column:1/-1}.pm-form input,.pm-form select,.pm-form textarea{width:100%}.drawer-demo{border-left:4px solid #4d7898}.gantt-pro{overflow:auto}.gantt-row{display:grid;grid-template-columns:220px minmax(600px,1fr) 80px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}.gantt-track{height:22px;background:#eef3f6;border-radius:7px;position:relative}.gantt-bar{height:100%;border-radius:7px;background:#507fa3;min-width:18px}.gantt-bar.critical{background:#b84c4c}.form-preview{background:#f7f9fb;border:1px dashed #b8c5d0;border-radius:12px;padding:12px}.rule{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:8px;align-items:center}.strategy-tree{display:grid;gap:12px}.goal-card{border-left:4px solid #4f7f9f}.money{font-variant-numeric:tabular-nums}.portal-shell{max-width:1000px;margin:auto}.widget-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.widget{grid-column:span 4;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}.widget.wide{grid-column:span 8}.role-home{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}.big-number{font-size:30px;font-weight:800}.priority-score{display:inline-grid;place-items:center;min-width:38px;height:30px;border-radius:999px;background:#eef3f7;font-weight:800}
+@media(max-width:800px){.pm-form{grid-template-columns:1fr}.pm-form .wide{grid-column:auto}.rule{grid-template-columns:1fr}.widget,.widget.wide{grid-column:1/-1}.role-home{grid-template-columns:1fr}.gantt-row{grid-template-columns:160px minmax(520px,1fr) 60px}}
+
+/* v7.0.1 Full Quality Audit — responsive hardening */
+html,body{max-width:100%;overflow-x:hidden}
+img,svg,canvas{max-width:100%}
+input,select,textarea,button{max-width:100%}
+.action-card form,.action-card{min-width:0}
+.action-card .grow{min-width:0}
+.action-card .grow b,.action-card .grow small{overflow-wrap:anywhere}
+.table-wrap,.responsive-table{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{max-width:100%}
+.pm-toolbar{position:relative}
+@media (max-width:1024px){
+  .dashboard-columns,.role-home{grid-template-columns:1fr}
+  .feature-grid,.pm-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .widget-grid{grid-template-columns:repeat(6,1fr)}
+  .widget,.widget.wide{grid-column:span 3}
+}
+@media (max-width:720px){
+  .shell,.content,.main-content{max-width:100%;padding-left:10px;padding-right:10px}
+  .feature-hero,.project-hero{padding:14px}
+  .visual-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .action-card{align-items:flex-start;flex-wrap:wrap}
+  .action-card>input,.action-card>select,.action-card>button{flex:1 1 100%;width:100%}
+  .pm-toolbar>a,.pm-toolbar>button,.pm-toolbar>input,.pm-toolbar>select{width:100%}
+  .widget,.widget.wide{grid-column:1/-1}
+  button,.button,input,select{min-height:44px}
+  textarea{min-height:96px}
+}
+@media (max-width:420px){
+  .visual-kpi-grid{grid-template-columns:1fr}
+  .feature-card,.pm-card,.panel{border-radius:12px}
+}
