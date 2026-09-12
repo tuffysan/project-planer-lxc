@@ -760,3 +760,135 @@ tbody tr:hover{background:color-mix(in srgb,var(--primary,#0f4c81) 4%,transparen
 .next-actions{display:flex;gap:8px;flex-wrap:wrap}.next-actions a,.next-actions button{min-height:44px}
 .next-badge{display:inline-flex;align-items:center;border-radius:999px;padding:4px 9px;background:#f2f4f7;font-size:.85rem}
 @media(max-width:760px){.next-grid{grid-template-columns:1fr}.next-table{font-size:.92rem}.next-table th:nth-child(n+4),.next-table td:nth-child(n+4){display:none}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}
+
+/* Project Planer Simple UX */
+.simple-shell{max-width:1180px;margin:auto}.simple-hero{padding:24px 0 14px}
+.simple-nav{display:flex;gap:8px;overflow:auto;padding:8px 0 14px}.simple-nav a{min-height:44px;display:flex;align-items:center;padding:0 14px;border-radius:10px;text-decoration:none;white-space:nowrap}
+.simple-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.simple-card{padding:18px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}
+.simple-card h2,.simple-card h3{margin-top:0}.simple-kpi{font-size:1.7rem;font-weight:750}.simple-muted{color:#667085}
+.simple-actions{display:flex;gap:8px;flex-wrap:wrap}.simple-actions a,.simple-actions button{min-height:44px}
+.simple-search{width:100%;font-size:1.05rem;padding:12px 14px;border-radius:12px;border:1px solid #d0d5dd}
+.simple-list{list-style:none;padding:0}.simple-list li{padding:11px 0;border-bottom:1px solid #eaecf0}
+.simple-badge{display:inline-block;padding:3px 8px;border-radius:999px;background:#f2f4f7;font-size:.82rem}
+details.simple-more{margin-top:12px} details.simple-more summary{cursor:pointer;font-weight:600}
+@media(max-width:760px){.simple-grid{grid-template-columns:1fr}.simple-card{padding:15px}}

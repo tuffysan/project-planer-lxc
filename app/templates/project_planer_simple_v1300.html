@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}Project Planer Simple{% endblock %}{% block content %}<div class="simple-shell">
+<section class="simple-hero"><div class="eyebrow">v13.0</div><h1>Project Planer</h1><p>Konsoliderar v12-serien till en enklare produktupplevelse med avancerade funktioner i kontext.</p></section>
+<nav class="simple-nav"><a href="/today">Idag</a><a href="/my-work-2">Mitt arbete</a><a href="/">Projekt</a><a href="/portfolio-cockpit">Portfolio</a><a href="/search">🔎 Sök</a></nav>
+<div class="simple-grid"><section class="simple-card"><div class="simple-kpi">{{attention}}</div><div>projekt behöver uppmärksamhet</div></section><section class="simple-card"><div class="simple-kpi">{{unread}}</div><div>nya notiser</div></section></div>
+<section class="simple-card"><h2>Mina projekt</h2><ul class="simple-list">{% for p in projects %}<li><a href="/projects/{{p.id}}/workspace-3"><strong>{{p.name}}</strong></a> · {{p.progress|round|int}}% {% if p.overdue %}· ⚠ {{p.overdue}} försenade{% endif %}</li>{% endfor %}</ul></section>
+<section class="simple-card"><h2>Mitt arbete</h2><ul class="simple-list">{% for t in mine %}<li>{{t.title}} · {{t.project_name}} · {{t.end_date or "utan datum"}}</li>{% else %}<li>Inga öppna aktiviteter.</li>{% endfor %}</ul></section></div>{% endblock %}

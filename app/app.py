@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "12.0.0"
+APP_VERSION = "13.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -3372,6 +3372,173 @@ def intelligent_pm_v1200():
     attention=sum(1 for p in projects if (p["overdue"] or 0)>0 or (p["risks"] or 0)>0)
     return render_template("intelligent_pm_v1200.html",projects=projects,my_tasks=my_tasks,unread=unread,
                            devops_failed=devops_failed,attention=attention,today=today)
+
+@app.get("/ux-cleanup")
+@login_required
+def ux_cleanup_v1201():
+    primary=[("Idag","/today"),("Mitt arbete","/my-work-2"),("Projekt","/"),("Portfolio","/portfolio-cockpit")]
+    return render_template("ux_cleanup_v1201.html",primary=primary)
+
+@app.get("/navigation-2")
+@login_required
+def navigation_v1210():
+    return render_template("navigation_v1210.html")
+
+@app.get("/projects/<int:project_id>/workspace-3")
+@login_required
+def workspace_v1220(project_id):
+    with db() as conn:
+        p=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not p: abort(404)
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,sort_order LIMIT 200",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND LOWER(COALESCE(status,'')) NOT IN ('closed','stängd') ORDER BY probability*impact DESC LIMIT 20",(project_id,)).fetchall()
+    overdue=[t for t in tasks if t["end_date"] and t["end_date"]<datetime.utcnow().date().isoformat() and (t["status"] or "").lower() not in ("done","completed","closed","klar")]
+    progress=round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
+    return render_template("workspace_v1220.html",project=p,tasks=tasks,risks=risks,overdue=overdue,progress=progress)
+
+@app.route("/projects/<int:project_id>/quick-add",methods=["GET","POST"])
+@login_required
+def quick_actions_v1230(project_id):
+    with db() as conn:
+        project=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not project: abort(404)
+        if request.method=="POST":
+            kind=(request.form.get("kind") or "task").strip()
+            title=(request.form.get("title") or "").strip()
+            if not title:
+                flash("Ange en rubrik.","error")
+            elif kind in ("task","milestone"):
+                conn.execute("""INSERT INTO tasks(project_id,title,status,priority,progress,milestone,sort_order)
+                  VALUES(?,?, 'Not started','Normal',0,?,COALESCE((SELECT MAX(sort_order)+1 FROM tasks WHERE project_id=?),1))""",
+                  (project_id,title,1 if kind=="milestone" else 0,project_id))
+                conn.commit(); flash("Skapad.","success")
+            elif kind=="risk":
+                conn.execute("""INSERT INTO risks(project_id,kind,title,probability,impact,status,created_at)
+                  VALUES(?, 'Risk', ?, 1, 1, 'Open', CURRENT_TIMESTAMP)""",(project_id,title)); conn.commit(); flash("Risk skapad.","success")
+            elif kind=="decision":
+                conn.execute("""INSERT INTO decisions(project_id,title,decision,decision_date) VALUES(?,?,?,date('now'))""",(project_id,title,"")); conn.commit(); flash("Beslut skapat.","success")
+        return render_template("quick_actions_v1230.html",project=project)
+
+@app.get("/search")
+@login_required
+def universal_search_v1240():
+    q=(request.args.get("q") or "").strip()
+    results=[]
+    if q:
+        like="%"+q+"%"
+        with db() as conn:
+            for r in conn.execute("SELECT id,name FROM projects WHERE deleted_at IS NULL AND name LIKE ? LIMIT 20",(like,)).fetchall():
+                results.append({"kind":"Projekt","title":r["name"],"url":f"/projects/{r['id']}/workspace-3"})
+            for r in conn.execute("SELECT id,project_id,title FROM tasks WHERE deleted_at IS NULL AND title LIKE ? LIMIT 30",(like,)).fetchall():
+                results.append({"kind":"Aktivitet","title":r["title"],"url":f"/projects/{r['project_id']}/workspace-3"})
+            for r in conn.execute("SELECT id,project_id,title FROM risks WHERE title LIKE ? LIMIT 20",(like,)).fetchall():
+                results.append({"kind":"Risk","title":r["title"],"url":f"/projects/{r['project_id']}/workspace-3"})
+            try:
+                for r in conn.execute("SELECT work_item_id,title FROM azure_devops_work_item_links WHERE title LIKE ? LIMIT 20",(like,)).fetchall():
+                    results.append({"kind":"DevOps","title":f"#{r['work_item_id']} {r['title']}","url":"/integrations/azure-devops/live"})
+            except Exception: pass
+    return render_template("universal_search_v1240.html",q=q,results=results)
+
+@app.route("/projects/<int:project_id>/smart-task",methods=["GET","POST"])
+@login_required
+def smart_forms_v1250(project_id):
+    with db() as conn:
+        project=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not project: abort(404)
+        if request.method=="POST":
+            title=(request.form.get("title") or "").strip()
+            owner=(request.form.get("owner") or "").strip()
+            end_date=(request.form.get("end_date") or "").strip() or None
+            priority=(request.form.get("priority") or "Normal").strip()
+            notes=(request.form.get("notes") or "").strip()
+            if title:
+                conn.execute("""INSERT INTO tasks(project_id,title,owner,end_date,status,priority,progress,milestone,notes,sort_order)
+                VALUES(?,?,?,?, 'Not started',?,0,0,?,COALESCE((SELECT MAX(sort_order)+1 FROM tasks WHERE project_id=?),1))""",
+                (project_id,title,owner,end_date,priority,notes,project_id)); conn.commit(); flash("Aktivitet skapad.","success")
+        return render_template("smart_forms_v1250.html",project=project)
+
+@app.get("/smart-tables")
+@login_required
+def smart_tables_v1260():
+    q=(request.args.get("q") or "").strip()
+    status=(request.args.get("status") or "").strip()
+    sql="""SELECT t.id,t.project_id,t.title,t.owner,t.status,t.priority,t.end_date,t.progress,p.name project_name
+           FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL"""
+    args=[]
+    if q: sql+=" AND (t.title LIKE ? OR p.name LIKE ?)"; args += ["%"+q+"%","%"+q+"%"]
+    if status: sql+=" AND t.status=?"; args.append(status)
+    sql+=" ORDER BY t.end_date LIMIT 500"
+    with db() as conn: rows=conn.execute(sql,args).fetchall()
+    return render_template("smart_tables_v1260.html",rows=rows,q=q,status=status)
+
+@app.get("/notifications-2")
+@login_required
+def notifications_v1270():
+    uid=session.get("user_id")
+    with db() as conn:
+        rows=conn.execute("""SELECT * FROM notifications WHERE user_id=? ORDER BY is_read ASC,created_at DESC LIMIT 200""",(uid,)).fetchall()
+    unread=[r for r in rows if not r["is_read"]]
+    return render_template("notifications_v1270.html",rows=rows,unread=unread)
+
+@app.route("/projects/new-guided",methods=["GET","POST"])
+@login_required
+def guided_setup_v1280():
+    if request.method=="POST":
+        name=(request.form.get("name") or "").strip()
+        customer=(request.form.get("customer") or "").strip()
+        pm=(request.form.get("project_manager") or "").strip()
+        start=(request.form.get("start_date") or "").strip() or None
+        end=(request.form.get("end_date") or "").strip() or None
+        if not name:
+            flash("Projektnamn krävs.","error")
+        else:
+            with db() as conn:
+                cur=conn.execute("""INSERT INTO projects(name,customer,project_manager,description,start_date,end_date,created_by,created_at)
+                VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",(name,customer,pm,"",start,end,session.get("user_id")))
+                pid=cur.lastrowid; conn.commit()
+            flash("Projekt skapat.","success")
+            return redirect(f"/projects/{pid}/workspace-3")
+    return render_template("guided_setup_v1280.html")
+
+def ensure_personalization_v1290(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS user_favorites(
+      user_id INTEGER NOT NULL,project_id INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(user_id,project_id))""")
+
+@app.route("/personalization",methods=["GET","POST"])
+@login_required
+def personalization_v1290():
+    uid=session.get("user_id")
+    with db() as conn:
+        ensure_personalization_v1290(conn)
+        if request.method=="POST":
+            pid=request.form.get("project_id",type=int); action=request.form.get("action")
+            if pid and action=="favorite": conn.execute("INSERT OR IGNORE INTO user_favorites(user_id,project_id) VALUES(?,?)",(uid,pid))
+            if pid and action=="remove": conn.execute("DELETE FROM user_favorites WHERE user_id=? AND project_id=?",(uid,pid))
+            conn.commit()
+        projects=conn.execute("""SELECT p.*,CASE WHEN f.project_id IS NULL THEN 0 ELSE 1 END favorite
+          FROM projects p LEFT JOIN user_favorites f ON f.project_id=p.id AND f.user_id=?
+          WHERE p.deleted_at IS NULL AND p.archived_at IS NULL ORDER BY favorite DESC,p.name""",(uid,)).fetchall()
+    return render_template("personalization_v1290.html",projects=projects)
+
+@app.get("/simple")
+@login_required
+def project_planer_simple_v1300():
+    uid=session.get("user_id")
+    with db() as conn:
+        try: ensure_personalization_v1290(conn)
+        except Exception: pass
+        projects=conn.execute("""SELECT p.id,p.name,
+          COALESCE((SELECT AVG(COALESCE(t.progress,0)) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL),0) progress,
+          COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL AND t.end_date<date('now')
+          AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')),0) overdue
+          FROM projects p WHERE p.deleted_at IS NULL AND p.archived_at IS NULL ORDER BY p.name LIMIT 50""").fetchall()
+        mine=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+          WHERE t.owner_user_id=? AND t.deleted_at IS NULL AND p.deleted_at IS NULL
+          AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar') ORDER BY t.end_date LIMIT 12""",(uid,)).fetchall()
+        unread=conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0",(uid,)).fetchone()[0]
+    attention=sum(1 for p in projects if p["overdue"])
+    return render_template("project_planer_simple_v1300.html",projects=projects,mine=mine,unread=unread,attention=attention)
 
 @app.route("/admin")
 @login_required

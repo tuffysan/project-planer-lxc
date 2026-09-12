@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Lägg till{% endblock %}{% block content %}<div class="simple-shell">
+<section class="simple-hero"><div class="eyebrow">v12.3</div><h1>+ Lägg till</h1><p>Ett gemensamt snabbflöde för aktivitet, milstolpe, risk, issue och beslut.</p></section>
+<section class="simple-card"><form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+<label>Vad vill du lägga till?<select name="kind"><option value="task">Aktivitet</option><option value="milestone">Milstolpe</option><option value="risk">Risk</option><option value="decision">Beslut</option></select></label>
+<label>Rubrik<input name="title" required autofocus></label><button type="submit">Skapa</button></form></section></div>{% endblock %}

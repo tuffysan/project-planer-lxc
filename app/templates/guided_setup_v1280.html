@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block title %}Skapa projekt{% endblock %}{% block content %}<div class="simple-shell">
+<section class="simple-hero"><div class="eyebrow">v12.8</div><h1>Skapa projekt</h1><p>Skapa projekt med en kort stegvis wizard och bra standardvärden.</p></section><section class="simple-card">
+<form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><label>Vad heter projektet?<input name="name" required autofocus></label><label>Kund<input name="customer"></label><label>Projektledare<input name="project_manager"></label><div class="simple-grid"><label>Start<input type="date" name="start_date"></label><label>Mål/slut<input type="date" name="end_date"></label></div><button>Skapa projekt</button></form></section></div>{% endblock %}

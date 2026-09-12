@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Smart Tables{% endblock %}{% block content %}<div class="simple-shell">
+<section class="simple-hero"><div class="eyebrow">v12.6</div><h1>Smart Tables</h1><p>Gemensam tabellupplevelse med filter, sökning och tydliga statusfält.</p></section>
+<form class="simple-actions"><input name="q" value="{{q}}" placeholder="Sök…"><select name="status"><option value="">Alla statusar</option><option>Not started</option><option>In progress</option><option>Done</option></select><button>Filtrera</button></form>
+<section class="simple-card"><table class="next-table"><thead><tr><th>Projekt</th><th>Aktivitet</th><th>Ansvarig</th><th>Status</th><th>Slut</th><th>Progress</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{r.project_name}}</td><td>{{r.title}}</td><td>{{r.owner or ""}}</td><td>{{r.status or ""}}</td><td>{{r.end_date or ""}}</td><td>{{r.progress or 0}}%</td></tr>{% endfor %}</tbody></table></section></div>{% endblock %}

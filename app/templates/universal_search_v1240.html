@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Sök{% endblock %}{% block content %}<div class="simple-shell">
+<section class="simple-hero"><div class="eyebrow">v12.4 · Ctrl+K</div><h1>Universal Search</h1><p>Sök projekt, aktiviteter, risker, beslut och DevOps Work Items från ett ställe.</p></section>
+<form method="get"><input class="simple-search" name="q" value="{{q}}" placeholder="Sök projekt, aktivitet, risk eller DevOps…" autofocus></form>
+<ul class="simple-list">{% for r in results %}<li><span class="simple-badge">{{r.kind}}</span> <a href="{{r.url}}">{{r.title}}</a></li>{% else %}{% if q %}<li>Inga träffar.</li>{% endif %}{% endfor %}</ul></div>
+<script>document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();document.querySelector('.simple-search')?.focus();}});</script>{% endblock %}
