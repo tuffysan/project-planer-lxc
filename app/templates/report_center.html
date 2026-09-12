@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block title %}Report Center{% endblock %}
+{% block content %}<h1>Report Center</h1><form class="panel" method="post"><input name="name" placeholder="Rapportnamn" required><select name="report_type"><option>portfolio</option><option>project</option><option>resources</option><option>finance</option><option>raid</option></select><textarea name="config_json" placeholder='{"columns":["status","progress"]}'></textarea><button>Spara rapportdefinition</button></form>
+<div class="panel"><table class="compact-table"><tr><th>Namn</th><th>Typ</th><th>Skapad</th></tr>{% for r in reports %}<tr><td>{{r.name}}</td><td>{{r.report_type}}</td><td>{{r.created_at}}</td></tr>{% else %}<tr><td>Inga rapporter ännu.</td></tr>{% endfor %}</table></div>{% endblock %}

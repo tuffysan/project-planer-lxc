@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block title %}WBS · {{project.name}}{% endblock %}
+{% block content %}
+<div class="toolbar"><a href="{{url_for('project_cockpit',project_id=project.id)}}">← Cockpit</a><a href="{{url_for('new_task',project_id=project.id)}}">+ Aktivitet</a></div>
+<h1>WBS · {{project.name}}</h1><div class="table-scroll"><table class="compact-table"><thead><tr><th>WBS</th><th>Aktivitet</th><th>Ansvarig</th><th>Plan</th><th>Status</th><th>Progress</th><th></th></tr></thead><tbody>
+{% for t in rows %}<tr><td>{{t.wbs}}</td><td><span class="wbs-indent" style="width:{{t.depth*22}}px"></span>{% if t.children_count %}▾ {% endif %}<b>{{t.title}}</b></td><td>{{t.owner}}</td><td>{{t.start_date}} → {{t.end_date}}</td><td><span class="badge">{{t.derived}}</span></td>
+<td><form class="toolbar" method="post" action="{{url_for('task_quick_update',project_id=project.id,task_id=t.id)}}"><input type="number" name="progress" min="0" max="100" value="{{t.progress}}" style="width:70px"><select name="status">{% for s in ['Ej startad','Pågår','Blockerad','Klar','Pausad'] %}<option {% if s==t.status %}selected{% endif %}>{{s}}</option>{% endfor %}</select><button class="btn-small">Spara</button></form></td><td><a href="{{url_for('edit_task',project_id=project.id,task_id=t.id)}}">Redigera</a></td></tr>{% endfor %}
+</tbody></table></div>{% endblock %}

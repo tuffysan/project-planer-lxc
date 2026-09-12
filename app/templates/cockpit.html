@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}Cockpit · {{project.name}}{% endblock %}
+{% block content %}
+<div class="toolbar"><a href="{{url_for('project',project_id=project.id)}}">← Projekt</a><a href="{{url_for('project_wbs',project_id=project.id)}}">WBS</a><a href="{{url_for('gantt_pro',project_id=project.id)}}">Gantt Pro</a></div>
+<h1><span class="rag {{rag}}"></span>{{project.name}} · Cockpit</h1>
+<div class="roadmap-grid">
+<div class="kpi">Progress<strong>{{avg}}%</strong></div><div class="kpi">Försenade<strong>{{overdue|length}}</strong></div>
+<div class="kpi">Blockerade<strong>{{blocked|length}}</strong></div><div class="kpi">Höga risker<strong>{{high_risks|length}}</strong></div>
+</div>
+<div class="panel"><h2>Kräver uppmärksamhet</h2>{% if attention %}<table class="compact-table">{% for kind,title,detail,css in attention %}<tr><td><span class="badge {{css}}">{{kind}}</span></td><td>{{title}}</td><td>{{detail}}</td></tr>{% endfor %}</table>{% else %}<p>Inget akut just nu.</p>{% endif %}</div>
+<div class="roadmap-grid"><div class="panel"><h2>Nästa milstolpar</h2>{% for m in milestones %}<p><b>{{m.title}}</b><br><small>{{m.end_date}} · {{m.progress}}%</small></p>{% else %}<p>Inga öppna milstolpar.</p>{% endfor %}</div>
+<div class="panel"><h2>Senaste aktivitet</h2>{% for a in recent %}<p><b>{{a.action}}</b> · {{a.entity_type}}<br><small>{{a.created_at}} · {{a.display_name or ''}}</small></p>{% else %}<p>Ingen historik.</p>{% endfor %}</div></div>
+{% endblock %}

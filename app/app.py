@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "2.1.3"
+APP_VERSION = "3.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -539,6 +539,89 @@ def init_db():
         );
         """)
 
+        conn.executescript("""
+
+        CREATE TABLE IF NOT EXISTS resource_allocations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            user_id INTEGER,
+            resource_name TEXT NOT NULL,
+            week_start TEXT NOT NULL,
+            allocation_pct INTEGER NOT NULL DEFAULT 0,
+            planned_hours REAL NOT NULL DEFAULT 0,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        """)
+
+        conn.executescript("""
+
+        CREATE TABLE IF NOT EXISTS programs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            owner TEXT NOT NULL DEFAULT '',
+            description TEXT NOT NULL DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS program_projects (
+            program_id INTEGER NOT NULL,
+            project_id INTEGER NOT NULL,
+            PRIMARY KEY(program_id,project_id),
+            FOREIGN KEY(program_id) REFERENCES programs(id) ON DELETE CASCADE,
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+
+        """)
+
+        conn.executescript("""
+
+        CREATE TABLE IF NOT EXISTS document_versions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            document_id INTEGER NOT NULL,
+            version_no INTEGER NOT NULL,
+            content TEXT NOT NULL DEFAULT '',
+            created_by INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
+            FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS mentions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            mentioned_user_id INTEGER NOT NULL,
+            source_type TEXT NOT NULL,
+            source_id INTEGER,
+            message TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            read_at TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+            FOREIGN KEY(mentioned_user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        """)
+
+        conn.executescript("""
+
+        CREATE TABLE IF NOT EXISTS report_definitions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            report_type TEXT NOT NULL DEFAULT 'portfolio',
+            config_json TEXT NOT NULL DEFAULT '{}',
+            owner_user_id INTEGER,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(owner_user_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+        CREATE TABLE IF NOT EXISTS oidc_settings (
+            id INTEGER PRIMARY KEY CHECK (id=1),
+            enabled INTEGER NOT NULL DEFAULT 0,
+            issuer TEXT NOT NULL DEFAULT '',
+            client_id TEXT NOT NULL DEFAULT '',
+            scopes TEXT NOT NULL DEFAULT 'openid profile email'
+        );
+        INSERT OR IGNORE INTO oidc_settings(id) VALUES(1);
+
+        """)
+
         # Migration from older versions
         ensure_column(conn, "users", "force_password_change", "INTEGER NOT NULL DEFAULT 0")
         ensure_column(conn, "users", "failed_logins", "INTEGER NOT NULL DEFAULT 0")
@@ -552,6 +635,7 @@ def init_db():
         ensure_column(conn, "tasks", "remaining_hours", "REAL DEFAULT 0")
         ensure_column(conn, "tasks", "parent_task_id", "INTEGER")
         ensure_column(conn, "tasks", "duration_days", "INTEGER DEFAULT 1")
+        ensure_column(conn, "tasks", "owner_user_id", "INTEGER")
 
         conn.execute("INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(?,?)",
                      (APP_VERSION, datetime.now().isoformat(timespec="seconds")))
@@ -1760,6 +1844,395 @@ def api_docs():
 @login_required
 def about():
     return render_template("about.html")
+
+def roadmap_accessible_projects():
+    u=current_user()
+    with db() as conn:
+        if u["role"]=="admin":
+            return conn.execute("SELECT * FROM projects ORDER BY name").fetchall()
+        return conn.execute("""SELECT p.* FROM projects p JOIN project_members pm ON pm.project_id=p.id
+                              WHERE pm.user_id=? ORDER BY p.name""",(u["id"],)).fetchall()
+
+def roadmap_task_tree(tasks):
+    rows=[dict(t) for t in tasks]
+    by_id={int(t["id"]):t for t in rows}
+    children={}
+    roots=[]
+    for t in rows:
+        pid=t.get("parent_task_id")
+        if pid and int(pid) in by_id and int(pid)!=int(t["id"]):
+            children.setdefault(int(pid),[]).append(t)
+        else:
+            roots.append(t)
+    def key(t):
+        raw=str(t.get("wbs") or "")
+        parts=[]
+        for p in raw.split("."):
+            try: parts.append((0,int(p)))
+            except: parts.append((1,p.lower()))
+        return (parts,int(t.get("sort_order") or 0),int(t["id"]))
+    for vals in children.values(): vals.sort(key=key)
+    roots.sort(key=key)
+    out=[]
+    def walk(t,depth):
+        r=dict(t); r["depth"]=depth; r["derived"]=derived_status(t); r["children_count"]=len(children.get(int(t["id"]),[]))
+        out.append(r)
+        for c in children.get(int(t["id"]),[]): walk(c,depth+1)
+    for r in roots: walk(r,0)
+    return out
+
+@app.get("/planning")
+@login_required
+def planning_hub():
+    projects=roadmap_accessible_projects()
+    return render_template("planning_hub.html",projects=projects)
+
+@app.get("/projects/<int:project_id>/cockpit")
+@login_required
+def project_cockpit(project_id):
+    p=project_or_404(project_id)
+    today=date.today()
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,))]
+        actions=[dict(r) for r in conn.execute("SELECT * FROM action_items WHERE project_id=? AND status<>'Done' ORDER BY due_date,id",(project_id,))]
+        recent=conn.execute("""SELECT a.*,u.display_name FROM audit_log a LEFT JOIN users u ON u.id=a.user_id
+                              WHERE a.project_id=? ORDER BY a.id DESC LIMIT 10""",(project_id,)).fetchall()
+    overdue=[t for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t.get("end_date"))<today]
+    blocked=[t for t in tasks if t.get("status")=="Blockerad" and int(t.get("progress") or 0)<100]
+    high_risks=[r for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=12]
+    milestones=[t for t in tasks if t.get("milestone") and parse_date(t.get("end_date")) and int(t.get("progress") or 0)<100]
+    milestones.sort(key=lambda x:parse_date(x.get("end_date")))
+    avg=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
+    rag="red" if overdue or len(high_risks)>=2 or len(blocked)>=2 else ("amber" if high_risks or blocked else "green")
+    attention=[]
+    for t in overdue[:5]: attention.append(("Försenad",t["title"],t.get("end_date") or "","danger"))
+    for t in blocked[:5]: attention.append(("Blockerad",t["title"],t.get("owner") or "","warning"))
+    for r in high_risks[:5]: attention.append(("Hög risk",r["title"],f"Score {int(r.get('probability') or 0)*int(r.get('impact') or 0)}","danger"))
+    return render_template("cockpit.html",project=p,tasks=tasks,risks=risks,actions=actions,recent=recent,
+                           overdue=overdue,blocked=blocked,high_risks=high_risks,milestones=milestones[:8],
+                           avg=avg,rag=rag,attention=attention)
+
+@app.get("/projects/<int:project_id>/wbs")
+@login_required
+def project_wbs(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,sort_order,id",(project_id,)).fetchall()
+    return render_template("wbs.html",project=p,rows=roadmap_task_tree(tasks))
+
+@app.post("/projects/<int:project_id>/tasks/<int:task_id>/quick")
+@login_required
+def task_quick_update(project_id,task_id):
+    project_or_404(project_id,write=True)
+    progress=max(0,min(100,int(request.form.get("progress","0") or 0)))
+    status=request.form.get("status","Pågår")
+    if progress==100: status="Klar"
+    with db() as conn:
+        conn.execute("UPDATE tasks SET progress=?,status=? WHERE id=? AND project_id=?",(progress,status,task_id,project_id))
+    audit(project_id,"task",task_id,"quick_updated",f"{status} {progress}%")
+    return redirect(request.referrer or url_for("project_wbs",project_id=project_id))
+
+@app.get("/my-work-2")
+@login_required
+def my_work_2():
+    u=current_user(); today=date.today()
+    with db() as conn:
+        projects=roadmap_accessible_projects()
+        ids=[p["id"] for p in projects]
+        if not ids: tasks=[]; actions=[]
+        else:
+            ph=",".join("?" for _ in ids)
+            tasks=[dict(r) for r in conn.execute(f"""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+                WHERE t.project_id IN ({ph}) AND t.progress<100 AND
+                (LOWER(t.owner)=LOWER(?) OR t.owner_user_id=?) ORDER BY t.end_date,t.priority""",(*ids,u["display_name"],u["id"]))]
+            actions=[dict(r) for r in conn.execute(f"""SELECT a.*,p.name project_name FROM action_items a JOIN projects p ON p.id=a.project_id
+                WHERE a.project_id IN ({ph}) AND a.status<>'Done' AND LOWER(a.owner)=LOWER(?) ORDER BY a.due_date""",(*ids,u["display_name"]))]
+    for t in tasks:
+        d=parse_date(t.get("end_date")); t["is_overdue"]=bool(d and d<today); t["is_week"]=bool(d and today<=d<=today+timedelta(days=7))
+    return render_template("my_work_2.html",tasks=tasks,actions=actions,today=today)
+
+@app.get("/projects/<int:project_id>/gantt-pro")
+@login_required
+def gantt_pro(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,))]
+        links=[dict(r) for r in conn.execute("SELECT * FROM task_links WHERE project_id=? ORDER BY id",(project_id,))]
+    dated=[t for t in tasks if parse_date(t.get("start_date")) and parse_date(t.get("end_date"))]
+    if dated:
+        rs=min(parse_date(t["start_date"]) for t in dated); re=max(parse_date(t["end_date"]) for t in dated)
+        total=max(1,(re-rs).days+1)
+        for t in dated:
+            st=parse_date(t["start_date"]); en=parse_date(t["end_date"])
+            t["left"]=round((st-rs).days/total*100,3); t["width"]=max(.8,round(((en-st).days+1)/total*100,3))
+    else: rs=re=None
+    return render_template("gantt_pro.html",project=p,tasks=roadmap_task_tree(tasks),dated=dated,links=links,rs=rs,re=re)
+
+@app.route("/control-center",methods=["GET","POST"])
+@login_required
+def control_center():
+    projects=roadmap_accessible_projects()
+    project_id=request.args.get("project_id",type=int) or (projects[0]["id"] if projects else None)
+    if project_id: project_or_404(project_id)
+    with db() as conn:
+        raid=conn.execute("SELECT * FROM raid_items WHERE project_id=? ORDER BY kind,status,due_date",(project_id,)).fetchall() if project_id else []
+        changes=conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall() if project_id else []
+        decisions=conn.execute("SELECT * FROM decisions WHERE project_id=? ORDER BY decided_at DESC,id DESC",(project_id,)).fetchall() if project_id else []
+        approvals=conn.execute("SELECT * FROM approvals WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall() if project_id else []
+    return render_template("control_center.html",projects=projects,project_id=project_id,raid=raid,changes=changes,decisions=decisions,approvals=approvals)
+
+@app.post("/projects/<int:project_id>/raid/new")
+@login_required
+def roadmap_raid_new(project_id):
+    project_or_404(project_id,write=True)
+    with db() as conn:
+        conn.execute("""INSERT INTO raid_items(project_id,kind,title,description,owner,status,due_date,created_at)
+                        VALUES(?,?,?,?,?,?,?,?)""",(project_id,request.form.get("kind","Risk"),request.form["title"].strip(),
+                        request.form.get("description","").strip(),request.form.get("owner","").strip(),
+                        request.form.get("status","Open"),request.form.get("due_date",""),datetime.now().isoformat(timespec="seconds")))
+    audit(project_id,"raid",None,"created",request.form["title"].strip())
+    return redirect(url_for("control_center",project_id=project_id))
+
+@app.post("/projects/<int:project_id>/changes/new")
+@login_required
+def roadmap_change_new(project_id):
+    project_or_404(project_id,write=True)
+    u=current_user()
+    with db() as conn:
+        conn.execute("""INSERT INTO change_requests(project_id,title,description,reason,impact_cost,impact_days,status,requested_by,created_at)
+                        VALUES(?,?,?,?,?,?,?,?,?)""",(project_id,request.form["title"].strip(),request.form.get("description","").strip(),
+                        request.form.get("reason","").strip(),float(request.form.get("impact_cost","0") or 0),int(request.form.get("impact_days","0") or 0),
+                        "Submitted",u["id"],datetime.now().isoformat(timespec="seconds")))
+    audit(project_id,"change",None,"submitted",request.form["title"].strip())
+    return redirect(url_for("control_center",project_id=project_id))
+
+@app.post("/projects/<int:project_id>/changes/<int:change_id>/<decision>")
+@login_required
+def roadmap_change_decision(project_id,change_id,decision):
+    project_or_404(project_id,manager=True)
+    status="Approved" if decision=="approve" else "Rejected"
+    with db() as conn:
+        conn.execute("UPDATE change_requests SET status=?,decided_by=?,decided_at=? WHERE id=? AND project_id=?",
+                     (status,current_user()["id"],datetime.now().isoformat(timespec="seconds"),change_id,project_id))
+    audit(project_id,"change",change_id,status.lower(),"")
+    return redirect(url_for("control_center",project_id=project_id))
+
+@app.post("/projects/<int:project_id>/decisions/new")
+@login_required
+def roadmap_decision_new(project_id):
+    project_or_404(project_id,write=True)
+    with db() as conn:
+        conn.execute("""INSERT INTO decisions(project_id,title,decision,owner,decided_at)
+                        VALUES(?,?,?,?,?)""",(project_id,request.form["title"].strip(),request.form.get("decision","").strip(),
+                        request.form.get("owner","").strip(),datetime.now().isoformat(timespec="seconds")))
+    return redirect(url_for("control_center",project_id=project_id))
+
+@app.route("/resource-plan",methods=["GET","POST"])
+@login_required
+def resource_plan():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST":
+        pid=int(request.form["project_id"]); project_or_404(pid,manager=True)
+        with db() as conn:
+            conn.execute("""INSERT INTO resource_allocations(project_id,user_id,resource_name,week_start,allocation_pct,planned_hours)
+                            VALUES(?,?,?,?,?,?)""",(pid,int(request.form["user_id"]) if request.form.get("user_id") else None,
+                            request.form["resource_name"].strip(),request.form["week_start"],int(request.form.get("allocation_pct","0") or 0),
+                            float(request.form.get("planned_hours","0") or 0)))
+        return redirect(url_for("resource_plan"))
+    ids=[p["id"] for p in projects]
+    with db() as conn:
+        users=conn.execute("SELECT * FROM users WHERE active=1 ORDER BY display_name").fetchall()
+        if ids:
+            ph=",".join("?" for _ in ids)
+            allocations=conn.execute(f"""SELECT a.*,p.name project_name FROM resource_allocations a JOIN projects p ON p.id=a.project_id
+                                        WHERE a.project_id IN ({ph}) ORDER BY a.week_start,a.resource_name""",ids).fetchall()
+        else: allocations=[]
+    totals={}
+    for a in allocations:
+        k=(a["resource_name"],a["week_start"])
+        totals[k]=totals.get(k,0)+int(a["allocation_pct"] or 0)
+    return render_template("resource_plan.html",projects=projects,users=users,allocations=allocations,totals=totals)
+
+@app.get("/finance-control")
+@login_required
+def finance_control():
+    projects=roadmap_accessible_projects(); ids=[p["id"] for p in projects]
+    rows=[]
+    with db() as conn:
+        for p in projects:
+            f=conn.execute("SELECT * FROM project_finance WHERE project_id=?",(p["id"],)).fetchone()
+            ac=conn.execute("SELECT COALESCE(SUM(actual),0) v FROM project_costs WHERE project_id=?",(p["id"],)).fetchone()["v"]
+            planned=conn.execute("SELECT COALESCE(SUM(planned),0) v FROM project_costs WHERE project_id=?",(p["id"],)).fetchone()["v"]
+            budget=float(f["budget"] or 0) if f else 0
+            actual=float(ac or 0); forecast=max(float(planned or 0),actual)
+            rows.append({"project":p,"budget":budget,"actual":actual,"forecast":forecast,
+                         "variance":budget-forecast,"used_pct":round(actual/budget*100) if budget else 0})
+    return render_template("finance_control.html",rows=rows)
+
+@app.route("/executive-pmo",methods=["GET","POST"])
+@login_required
+def executive_pmo():
+    projects=roadmap_accessible_projects()
+    if request.method=="POST" and current_user()["role"] in ("admin","pm"):
+        with db() as conn:
+            conn.execute("INSERT OR IGNORE INTO programs(name,owner,description) VALUES(?,?,?)",
+                         (request.form["name"].strip(),request.form.get("owner","").strip(),request.form.get("description","").strip()))
+        return redirect(url_for("executive_pmo"))
+    data=[]
+    today=date.today()
+    with db() as conn:
+        programs=conn.execute("SELECT * FROM programs ORDER BY name").fetchall()
+        for p in projects:
+            tasks=[dict(x) for x in conn.execute("SELECT * FROM tasks WHERE project_id=?",(p["id"],))]
+            risks=[dict(x) for x in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd'",(p["id"],))]
+            overdue=sum(1 for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t.get("end_date"))<today)
+            high=sum(1 for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=12)
+            progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
+            score=max(0,100-overdue*12-high*10-(100-progress)//5)
+            rag="red" if score<60 else ("amber" if score<80 else "green")
+            data.append({"p":p,"progress":progress,"overdue":overdue,"high":high,"score":score,"rag":rag})
+    return render_template("executive_pmo.html",data=data,programs=programs)
+
+@app.get("/portfolio/<int:portfolio_id>/dashboard")
+@login_required
+def portfolio_dashboard_v2(portfolio_id):
+    with db() as conn:
+        portfolio=conn.execute("SELECT * FROM portfolios WHERE id=?",(portfolio_id,)).fetchone()
+        if not portfolio: abort(404)
+        projects=conn.execute("""SELECT p.* FROM projects p JOIN portfolio_projects pp ON pp.project_id=p.id
+                                 WHERE pp.portfolio_id=? ORDER BY p.name""",(portfolio_id,)).fetchall()
+    return render_template("portfolio_dashboard_v2.html",portfolio=portfolio,projects=projects)
+
+@app.route("/collaboration-hub",methods=["GET"])
+@login_required
+def collaboration_hub():
+    projects=roadmap_accessible_projects(); u=current_user()
+    ids=[p["id"] for p in projects]
+    with db() as conn:
+        mentions=conn.execute("""SELECT m.*,p.name project_name FROM mentions m JOIN projects p ON p.id=m.project_id
+                                 WHERE m.mentioned_user_id=? ORDER BY m.id DESC LIMIT 30""",(u["id"],)).fetchall()
+        if ids:
+            ph=",".join("?" for _ in ids)
+            meetings=conn.execute(f"SELECT m.*,p.name project_name FROM meetings m JOIN projects p ON p.id=m.project_id WHERE m.project_id IN ({ph}) ORDER BY meeting_date DESC LIMIT 30",ids).fetchall()
+            actions=conn.execute(f"SELECT a.*,p.name project_name FROM action_items a JOIN projects p ON p.id=a.project_id WHERE a.project_id IN ({ph}) AND a.status<>'Done' ORDER BY a.due_date LIMIT 50",ids).fetchall()
+        else: meetings=[]; actions=[]
+    return render_template("collaboration_hub.html",projects=projects,mentions=mentions,meetings=meetings,actions=actions)
+
+@app.post("/projects/<int:project_id>/mention")
+@login_required
+def create_mention(project_id):
+    project_or_404(project_id,write=True)
+    username=request.form.get("username","").strip().lstrip("@")
+    with db() as conn:
+        user=conn.execute("SELECT * FROM users WHERE username=? AND active=1",(username,)).fetchone()
+        if not user:
+            flash("Användaren hittades inte.","error")
+        else:
+            conn.execute("""INSERT INTO mentions(project_id,mentioned_user_id,source_type,message,created_at)
+                            VALUES(?,?,?,?,?)""",(project_id,user["id"],request.form.get("source_type","message"),
+                            request.form.get("message","").strip(),datetime.now().isoformat(timespec="seconds")))
+            conn.execute("""INSERT INTO notifications(user_id,project_id,title,body,created_at)
+                            VALUES(?,?,?,?,?)""",(user["id"],project_id,"Du blev omnämnd",request.form.get("message","").strip(),datetime.now().isoformat(timespec="seconds")))
+    return redirect(url_for("collaboration",project_id=project_id))
+
+@app.post("/documents/<int:document_id>/version")
+@login_required
+def document_new_version(document_id):
+    with db() as conn:
+        doc=conn.execute("SELECT * FROM documents WHERE id=?",(document_id,)).fetchone()
+        if not doc: abort(404)
+    project_or_404(doc["project_id"],write=True)
+    with db() as conn:
+        n=conn.execute("SELECT COALESCE(MAX(version_no),0)+1 n FROM document_versions WHERE document_id=?",(document_id,)).fetchone()["n"]
+        conn.execute("""INSERT INTO document_versions(document_id,version_no,content,created_by,created_at)
+                        VALUES(?,?,?,?,?)""",(document_id,n,request.form.get("content",""),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+        conn.execute("UPDATE documents SET content=?,updated_at=? WHERE id=?",(request.form.get("content",""),datetime.now().isoformat(timespec="seconds"),document_id))
+    return redirect(url_for("collaboration",project_id=doc["project_id"]))
+
+def project_assistant_summary(project_id):
+    p=project_or_404(project_id)
+    today=date.today()
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd'",(project_id,))]
+        changes=[dict(r) for r in conn.execute("SELECT * FROM change_requests WHERE project_id=? AND status='Submitted'",(project_id,))]
+        actions=[dict(r) for r in conn.execute("SELECT * FROM action_items WHERE project_id=? AND status<>'Done'",(project_id,))]
+    overdue=[t for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t.get("end_date"))<today]
+    blocked=[t for t in tasks if t.get("status")=="Blockerad"]
+    high=[r for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=12]
+    progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
+    lines=[f"{p['name']} är {progress}% färdigt."]
+    if overdue: lines.append(f"{len(overdue)} aktivitet(er) är försenade.")
+    if blocked: lines.append(f"{len(blocked)} aktivitet(er) är blockerade.")
+    if high: lines.append(f"{len(high)} höga risker behöver uppmärksamhet.")
+    if changes: lines.append(f"{len(changes)} change request(s) väntar på beslut.")
+    if actions: lines.append(f"{len(actions)} öppna actions finns.")
+    if not any((overdue,blocked,high,changes)): lines.append("Inga kritiska avvikelser identifierades av regelmotorn.")
+    return {"project":p,"progress":progress,"overdue":overdue,"blocked":blocked,"high":high,"changes":changes,"actions":actions,"text":" ".join(lines)}
+
+@app.route("/workspace")
+@login_required
+def workspace():
+    projects=roadmap_accessible_projects()
+    prefs={}
+    with db() as conn:
+        row=conn.execute("SELECT layout_json FROM dashboard_preferences WHERE user_id=?",(current_user()["id"],)).fetchone()
+        if row:
+            try: prefs=json.loads(row["layout_json"] or "{}")
+            except: prefs={}
+    return render_template("workspace.html",projects=projects,prefs=prefs)
+
+@app.post("/workspace/preferences")
+@login_required
+def workspace_preferences():
+    layout=request.form.get("layout_json","{}")
+    try: json.loads(layout)
+    except: layout="{}"
+    with db() as conn:
+        conn.execute("DELETE FROM dashboard_preferences WHERE user_id=?",(current_user()["id"],))
+        conn.execute("INSERT INTO dashboard_preferences(user_id,layout_json) VALUES(?,?)",(current_user()["id"],layout))
+    flash("Dashboard sparad.","success")
+    return redirect(url_for("workspace"))
+
+@app.get("/assistant/project/<int:project_id>")
+@login_required
+def assistant_project(project_id):
+    summary=project_assistant_summary(project_id)
+    return render_template("assistant_project.html",summary=summary)
+
+@app.route("/report-center",methods=["GET","POST"])
+@login_required
+def report_center():
+    if request.method=="POST":
+        with db() as conn:
+            conn.execute("INSERT INTO report_definitions(name,report_type,config_json,owner_user_id,created_at) VALUES(?,?,?,?,?)",
+                         (request.form["name"].strip(),request.form.get("report_type","portfolio"),request.form.get("config_json","{}"),
+                          current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+        return redirect(url_for("report_center"))
+    with db() as conn:
+        reports=conn.execute("SELECT * FROM report_definitions WHERE owner_user_id=? OR ?='admin' ORDER BY id DESC",(current_user()["id"],current_user()["role"])).fetchall()
+    return render_template("report_center.html",reports=reports)
+
+@app.route("/admin/integrations",methods=["GET","POST"])
+@login_required
+@role_required("admin")
+def admin_integrations():
+    with db() as conn:
+        if request.method=="POST":
+            conn.execute("UPDATE oidc_settings SET enabled=?,issuer=?,client_id=?,scopes=? WHERE id=1",
+                         (1 if request.form.get("enabled")=="on" else 0,request.form.get("issuer","").strip(),
+                          request.form.get("client_id","").strip(),request.form.get("scopes","openid profile email").strip()))
+            flash("OIDC-konfiguration sparad. Aktivering kräver IdP/client secret i servermiljön.","success")
+            return redirect(url_for("admin_integrations"))
+        oidc=conn.execute("SELECT * FROM oidc_settings WHERE id=1").fetchone()
+        webhooks=conn.execute("SELECT * FROM webhooks ORDER BY id DESC").fetchall()
+        rules=conn.execute("SELECT * FROM automation_rules ORDER BY id DESC").fetchall()
+    return render_template("admin_integrations.html",oidc=oidc,webhooks=webhooks,rules=rules)
+
+@app.get("/api/v1/health/summary")
+def api_health_summary():
+    return jsonify(status="ok",version=APP_VERSION,features=["planning","control","resources","finance","pmo","collaboration","reports","assistant"])
 
 if __name__=="__main__":
     init_db()

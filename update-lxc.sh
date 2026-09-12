@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-2.1.3}"
+VERSION="${VERSION:-3.0.0}"
 CTID="${CTID:-}"
 
 if ! command -v pct >/dev/null 2>&1; then
@@ -12,7 +12,7 @@ fi
 
 if [[ -z "$CTID" ]]; then
   echo "FEL: Ange CTID."
-  echo "Exempel: CTID=200 VERSION=2.1.3 bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/update-lxc.sh)\""
+  echo "Exempel: CTID=200 VERSION=3.0.0 bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/${REPO}/main/update-lxc.sh)\""
   exit 1
 fi
 

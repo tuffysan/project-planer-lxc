@@ -38,3 +38,20 @@ footer img{width:22px;height:22px;border-radius:5px}
   .brand-copy small{display:none}
   .language-button{min-width:auto}
 }
+
+/* Added in roadmap editions */
+
+.roadmap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+.kpi{background:#fff;border:1px solid #dbe4ec;border-radius:14px;padding:1rem}
+.kpi strong{font-size:1.65rem;display:block;margin-top:.35rem}
+.rag{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:.35rem}
+.rag.green{background:#1f9d55}.rag.amber{background:#d69e2e}.rag.red{background:#d64545}
+.panel{background:#fff;border:1px solid #dbe4ec;border-radius:14px;padding:1rem;margin:1rem 0}
+.table-scroll{overflow:auto}.compact-table{width:100%;border-collapse:collapse}.compact-table th,.compact-table td{padding:.55rem;border-bottom:1px solid #edf2f7;text-align:left}
+.badge{border-radius:999px;padding:.18rem .55rem;background:#edf2f7;font-size:.82rem}
+.badge.danger{background:#fde8e8}.badge.warning{background:#fff5d9}.badge.good{background:#e7f8ee}
+.wbs-indent{display:inline-block}.muted{opacity:.68}.toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.75rem 0}
+.btn-small{padding:.3rem .55rem;font-size:.85rem}
+.progressbar{height:8px;background:#e8eef3;border-radius:99px;overflow:hidden}.progressbar>span{display:block;height:100%;background:currentColor}
+.card-link{text-decoration:none;color:inherit}
+

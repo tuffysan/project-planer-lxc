@@ -1,0 +1,3 @@
+{% extends "base.html" %}{% block title %}Collaboration Hub{% endblock %}
+{% block content %}<h1>Collaboration Hub</h1><div class="roadmap-grid"><div class="panel"><h2>Omnämnanden</h2>{% for m in mentions %}<p><b>{{m.project_name}}</b><br>{{m.message}}<br><small>{{m.created_at}}</small></p>{% else %}<p>Inga omnämnanden.</p>{% endfor %}</div><div class="panel"><h2>Öppna actions</h2>{% for a in actions %}<p><b>{{a.title}}</b><br><small>{{a.project_name}} · {{a.owner}} · {{a.due_date}}</small></p>{% else %}<p>Inga actions.</p>{% endfor %}</div></div>
+<div class="panel"><h2>Senaste möten</h2><table class="compact-table">{% for m in meetings %}<tr><td>{{m.meeting_date}}</td><td>{{m.project_name}}</td><td>{{m.title}}</td></tr>{% endfor %}</table></div>{% endblock %}

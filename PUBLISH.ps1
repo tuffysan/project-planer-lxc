@@ -201,7 +201,7 @@ function Get-NextPatchVersion {
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $Root
 
-# v2.1.3 no longer uses GitHub Actions. A workflow file from v2.1.3 would
+# v3.0.0 no longer uses GitHub Actions. A workflow file from v3.0.0 would
 # require a PAT with workflow scope, so remove any stale copy before staging.
 $LegacyWorkflow = Join-Path $Root ".github\workflows\validate.yml"
 if (Test-Path $LegacyWorkflow) {
@@ -346,7 +346,7 @@ Compress-Archive -Path $Items.FullName -DestinationPath $ZipPath -CompressionLev
 
 Write-Host "[7/10] Committing source to $Branch..." -ForegroundColor Yellow
 
-# If v2.1.3 previously staged/committed dist locally, untrack it now.
+# If v3.0.0 previously staged/committed dist locally, untrack it now.
 # The release ZIP remains on disk and will still be uploaded by gh release.
 $untrackDist = Invoke-NativeCapture -FilePath $Git -ArgumentList @("rm","-r","--cached","--ignore-unmatch","dist")
 if ($untrackDist.ExitCode -ne 0) {

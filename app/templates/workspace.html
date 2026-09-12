@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Workspace{% endblock %}
+{% block content %}<h1>Workspace / Dashboard Designer</h1><p class="muted">Din personliga arbetsyta. Välj projekt för cockpit eller Project Assistant.</p>
+<div class="roadmap-grid">{% for p in projects %}<div class="kpi"><b>{{p.name}}</b><br><small>{{p.customer}}</small><div class="toolbar"><a href="{{url_for('project_cockpit',project_id=p.id)}}">Cockpit</a><a href="{{url_for('assistant_project',project_id=p.id)}}">Assistant</a></div></div>{% endfor %}</div>
+<div class="panel"><h2>Dashboard-layout</h2><form method="post" action="{{url_for('workspace_preferences')}}"><textarea name="layout_json" rows="7" style="width:100%">{{prefs|tojson}}</textarea><p class="muted">JSON-baserad widgetkonfiguration för kommande drag/drop-layout.</p><button>Spara layout</button></form></div>{% endblock %}

@@ -16,8 +16,8 @@ bash -n "$ROOT/install-app.sh"
 bash -n "$ROOT/install-lxc.sh"
 bash -n "$ROOT/update-lxc.sh"
 
-grep -q 'APP_VERSION = "2.1.3"' "$ROOT/app/app.py"
+grep -q 'APP_VERSION = "3.0.0"' "$ROOT/app/app.py"
 grep -q '^2.1.3$' "$ROOT/VERSION"
 grep -q '/opt/project-plan/current-venv/bin/gunicorn' "$ROOT/scripts/project-plan.service"
 
-echo "v2.1.3 package verification OK"
+echo "v3.0.0 package verification OK"
