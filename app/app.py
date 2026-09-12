@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "4.0.0"
+APP_VERSION = "5.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -767,6 +767,99 @@ CREATE TABLE IF NOT EXISTS project_health_snapshots (
     id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER NOT NULL, snapshot_date TEXT NOT NULL, progress INTEGER NOT NULL, overdue_count INTEGER NOT NULL, blocked_count INTEGER NOT NULL, high_risk_count INTEGER NOT NULL, open_change_count INTEGER NOT NULL, health_score INTEGER NOT NULL, details_json TEXT NOT NULL DEFAULT '{}', UNIQUE(project_id,snapshot_date), FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE);
 CREATE TABLE IF NOT EXISTS assistant_queries (
     id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, project_id INTEGER, question TEXT NOT NULL, answer TEXT NOT NULL, created_at TEXT NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS health_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    check_name TEXT NOT NULL,
+    status TEXT NOT NULL,
+    details TEXT NOT NULL DEFAULT '',
+    checked_at TEXT NOT NULL
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS user_preferences_v41 (
+    user_id INTEGER PRIMARY KEY,
+    start_page TEXT NOT NULL DEFAULT 'home',
+    compact_mode INTEGER NOT NULL DEFAULT 0,
+    favorite_project_id INTEGER,
+    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS project_calendars (
+    project_id INTEGER PRIMARY KEY,
+    work_week TEXT NOT NULL DEFAULT '1,2,3,4,5',
+    hours_per_day REAL NOT NULL DEFAULT 8,
+    holiday_json TEXT NOT NULL DEFAULT '[]',
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS risk_controls_v44 (
+    risk_id INTEGER PRIMARY KEY,
+    response_strategy TEXT NOT NULL DEFAULT '',
+    mitigation TEXT NOT NULL DEFAULT '',
+    contingency TEXT NOT NULL DEFAULT '',
+    residual_probability INTEGER NOT NULL DEFAULT 1,
+    residual_impact INTEGER NOT NULL DEFAULT 1,
+    review_date TEXT NOT NULL DEFAULT '',
+    FOREIGN KEY(risk_id) REFERENCES risks(id) ON DELETE CASCADE
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS notification_channels_v46 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_type TEXT NOT NULL,
+    name TEXT NOT NULL,
+    config_json TEXT NOT NULL DEFAULT '{}',
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+CREATE TABLE IF NOT EXISTS automation_queue_v46 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule_id INTEGER,
+    project_id INTEGER,
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    status TEXT NOT NULL DEFAULT 'Queued',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    processed_at TEXT NOT NULL DEFAULT ''
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS enterprise_roles_v47 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    permissions_json TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS retention_policies_v47 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_type TEXT NOT NULL UNIQUE,
+    retention_days INTEGER NOT NULL DEFAULT 365,
+    enabled INTEGER NOT NULL DEFAULT 1
+);
+        """)
+
+        conn.executescript("""
+CREATE TABLE IF NOT EXISTS intelligence_notes_v50 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    note_type TEXT NOT NULL,
+    source_text TEXT NOT NULL DEFAULT '',
+    generated_json TEXT NOT NULL DEFAULT '{}',
+    created_by INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+);
         """)
 
         # Migration from older versions
@@ -2868,6 +2961,366 @@ def meeting_to_actions(project_id):
                 body=raw.split(":",1)[1].strip()
                 if body: conn.execute("INSERT INTO decisions(project_id,title,decision,decided_by,decision_date,owner,decided_at) VALUES(?,?,?,?,?,?,?)",(project_id,body,body,current_user()["display_name"],date.today().isoformat(),current_user()["display_name"],datetime.now().isoformat(timespec="seconds"))); created+=1
     flash(f"Skapade {created} actions/beslut från mötesanteckningar.","success"); return redirect(url_for("collaboration",project_id=project_id))
+
+
+def stability_snapshot():
+    import shutil as _shutil
+    results={}
+    try:
+        with db() as conn:
+            integrity=conn.execute("PRAGMA integrity_check").fetchone()[0]
+            results["database"]={"ok": integrity=="ok","detail":integrity}
+            results["projects"]={"ok":True,"detail":conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]}
+    except Exception as ex:
+        results["database"]={"ok":False,"detail":str(ex)}
+    try:
+        usage=_shutil.disk_usage(DATA_DIR)
+        results["disk"]={"ok":usage.free > 100*1024*1024,"detail":{"free_mb":round(usage.free/1024/1024),"total_mb":round(usage.total/1024/1024)}}
+    except Exception as ex:
+        results["disk"]={"ok":False,"detail":str(ex)}
+    results["version"]={"ok":True,"detail":APP_VERSION}
+    return results
+
+@app.get("/health/ready")
+def health_ready():
+    snap=stability_snapshot()
+    ok=all(v.get("ok") for k,v in snap.items() if k!="version")
+    return jsonify(status="ready" if ok else "degraded",checks=snap), (200 if ok else 503)
+
+@app.get("/admin/quality")
+@login_required
+@role_required("admin")
+def admin_quality():
+    snap=stability_snapshot()
+    with db() as conn:
+        migrations=conn.execute("SELECT * FROM schema_migrations ORDER BY applied_at DESC").fetchall()
+    return render_template("quality_center.html",snap=snap,migrations=migrations)
+
+
+@app.get("/home")
+@login_required
+def home_v41():
+    u=current_user(); today=date.today(); projects=roadmap_accessible_projects()
+    ids=[p["id"] for p in projects]
+    with db() as conn:
+        if ids:
+            ph=",".join("?" for _ in ids)
+            tasks=[dict(r) for r in conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({ph}) AND t.progress<100 ORDER BY t.end_date LIMIT 30",ids)]
+            approvals=conn.execute(f"SELECT COUNT(*) c FROM approvals WHERE project_id IN ({ph}) AND status='Pending'",ids).fetchone()["c"]
+            high=conn.execute(f"SELECT COUNT(*) c FROM risks WHERE project_id IN ({ph}) AND status<>'Stängd' AND probability*impact>=12",ids).fetchone()["c"]
+        else: tasks=[]; approvals=0; high=0
+    overdue=[t for t in tasks if parse_date(t.get("end_date")) and parse_date(t["end_date"])<today]
+    dueweek=[t for t in tasks if parse_date(t.get("end_date")) and today<=parse_date(t["end_date"])<=today+timedelta(days=7)]
+    return render_template("home_v41.html",projects=projects,tasks=tasks,overdue=overdue,dueweek=dueweek,approvals=approvals,high=high)
+
+@app.get("/command")
+@login_required
+def command_palette():
+    q=(request.args.get("q") or "").strip()
+    projects=[]; tasks=[]
+    if q:
+        like=f"%{q}%"
+        allowed=roadmap_accessible_projects(); ids=[p["id"] for p in allowed]
+        with db() as conn:
+            projects=[p for p in allowed if q.lower() in (p["name"] or "").lower() or q.lower() in (p["customer"] or "").lower()]
+            if ids:
+                ph=",".join("?" for _ in ids)
+                tasks=conn.execute(f"SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE t.project_id IN ({ph}) AND (t.title LIKE ? OR t.wbs LIKE ? OR t.owner LIKE ?) ORDER BY t.end_date LIMIT 50",(*ids,like,like,like)).fetchall()
+    return render_template("command_palette.html",q=q,projects=projects,tasks=tasks)
+
+
+@app.get("/projects/<int:project_id>/workspace")
+@app.get("/projects/<int:project_id>/workspace/<tab>")
+@login_required
+def project_workspace(project_id,tab="overview"):
+    p=project_or_404(project_id)
+    allowed={"overview","plan","control","resources","finance","documents","meetings","reports","activity"}
+    if tab not in allowed: abort(404)
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,)).fetchall()
+        risks=conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,)).fetchall()
+        docs=conn.execute("SELECT * FROM documents WHERE project_id=? ORDER BY updated_at DESC",(project_id,)).fetchall()
+        meetings=conn.execute("SELECT * FROM meetings WHERE project_id=? ORDER BY meeting_date DESC",(project_id,)).fetchall()
+        audit_rows=conn.execute("SELECT * FROM audit_log WHERE project_id=? ORDER BY id DESC LIMIT 60",(project_id,)).fetchall()
+        costs=conn.execute("SELECT * FROM project_costs WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall()
+        status_reports=conn.execute("SELECT * FROM status_reports WHERE project_id=? ORDER BY id DESC",(project_id,)).fetchall()
+    return render_template("project_workspace_v42.html",project=p,tab=tab,tasks=tasks,risks=risks,docs=docs,meetings=meetings,audit_rows=audit_rows,costs=costs,status_reports=status_reports)
+
+
+def dependency_diagnostics(project_id):
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
+        links=[dict(r) for r in conn.execute("SELECT * FROM task_links WHERE project_id=?",(project_id,))]
+    ids={int(t["id"]) for t in tasks}; problems=[]
+    for l in links:
+        if int(l["predecessor_id"]) not in ids or int(l["successor_id"]) not in ids:
+            problems.append(f"Broken link #{l['id']}")
+        if int(l["predecessor_id"])==int(l["successor_id"]):
+            problems.append(f"Self dependency on task {l['predecessor_id']}")
+    return problems
+
+@app.route("/projects/<int:project_id>/planning-pro",methods=["GET","POST"])
+@login_required
+def planning_pro_v43(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    if request.method=="POST":
+        with db() as conn:
+            conn.execute("""INSERT INTO project_calendars(project_id,work_week,hours_per_day,holiday_json)
+                            VALUES(?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET work_week=excluded.work_week,hours_per_day=excluded.hours_per_day,holiday_json=excluded.holiday_json""",
+                         (project_id,request.form.get("work_week","1,2,3,4,5"),float(request.form.get("hours_per_day","8") or 8),request.form.get("holiday_json","[]")))
+        return redirect(url_for("planning_pro_v43",project_id=project_id))
+    with db() as conn:
+        tasks=conn.execute("SELECT * FROM tasks WHERE project_id=? ORDER BY wbs,id",(project_id,)).fetchall()
+        links=conn.execute("SELECT * FROM task_links WHERE project_id=? ORDER BY id",(project_id,)).fetchall()
+        cal=conn.execute("SELECT * FROM project_calendars WHERE project_id=?",(project_id,)).fetchone()
+    return render_template("planning_pro_v43.html",project=p,tasks=tasks,links=links,cal=cal,problems=dependency_diagnostics(project_id))
+
+@app.post("/projects/<int:project_id>/tasks/<int:task_id>/shift")
+@login_required
+def shift_task_v43(project_id,task_id):
+    project_or_404(project_id,write=True)
+    delta=int(request.form.get("days","0") or 0)
+    with db() as conn:
+        t=conn.execute("SELECT * FROM tasks WHERE id=? AND project_id=?",(task_id,project_id)).fetchone()
+        if not t: abort(404)
+        sd=parse_date(t["start_date"]); ed=parse_date(t["end_date"])
+        if sd: sd=sd+timedelta(days=delta)
+        if ed: ed=ed+timedelta(days=delta)
+        conn.execute("UPDATE tasks SET start_date=?,end_date=? WHERE id=?",(sd.isoformat() if sd else t["start_date"],ed.isoformat() if ed else t["end_date"],task_id))
+    audit(project_id,"task",task_id,"shifted",f"{delta} days")
+    return redirect(url_for("planning_pro_v43",project_id=project_id))
+
+
+@app.route("/projects/<int:project_id>/risk-center",methods=["GET"])
+@login_required
+def risk_center_v44(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        risks=conn.execute("""SELECT r.*,c.response_strategy,c.mitigation,c.contingency,c.residual_probability,c.residual_impact,c.review_date
+                              FROM risks r LEFT JOIN risk_controls_v44 c ON c.risk_id=r.id
+                              WHERE r.project_id=? ORDER BY r.probability*r.impact DESC,r.id DESC""",(project_id,)).fetchall()
+    matrix={(i,j):0 for i in range(1,6) for j in range(1,6)}
+    for r in risks:
+        prob=max(1,min(5,int(r["probability"] or 1))); impact=max(1,min(5,int(r["impact"] or 1))); matrix[(prob,impact)]+=1
+    return render_template("risk_center_v44.html",project=p,risks=risks,matrix=matrix)
+
+@app.post("/projects/<int:project_id>/risks/<int:risk_id>/control")
+@login_required
+def risk_control_save_v44(project_id,risk_id):
+    project_or_404(project_id,write=True)
+    with db() as conn:
+        r=conn.execute("SELECT id FROM risks WHERE id=? AND project_id=?",(risk_id,project_id)).fetchone()
+        if not r: abort(404)
+        conn.execute("""INSERT INTO risk_controls_v44(risk_id,response_strategy,mitigation,contingency,residual_probability,residual_impact,review_date)
+                        VALUES(?,?,?,?,?,?,?) ON CONFLICT(risk_id) DO UPDATE SET response_strategy=excluded.response_strategy,mitigation=excluded.mitigation,
+                        contingency=excluded.contingency,residual_probability=excluded.residual_probability,residual_impact=excluded.residual_impact,review_date=excluded.review_date""",
+                     (risk_id,request.form.get("response_strategy",""),request.form.get("mitigation",""),request.form.get("contingency",""),
+                      int(request.form.get("residual_probability","1")),int(request.form.get("residual_impact","1")),request.form.get("review_date","")))
+    return redirect(url_for("risk_center_v44",project_id=project_id))
+
+
+def status_report_payload(project_id):
+    p=project_or_404(project_id)
+    with db() as conn:
+        tasks=[dict(r) for r in conn.execute("SELECT * FROM tasks WHERE project_id=?",(project_id,))]
+        risks=[dict(r) for r in conn.execute("SELECT * FROM risks WHERE project_id=? AND status<>'Stängd' ORDER BY probability*impact DESC",(project_id,))]
+        changes=[dict(r) for r in conn.execute("SELECT * FROM change_requests WHERE project_id=? ORDER BY id DESC LIMIT 8",(project_id,))]
+    progress=round(sum(int(t.get("progress") or 0) for t in tasks)/len(tasks)) if tasks else 0
+    overdue=[t for t in tasks if int(t.get("progress") or 0)<100 and parse_date(t.get("end_date")) and parse_date(t["end_date"])<date.today()]
+    return p,tasks,risks,changes,progress,overdue
+
+@app.get("/projects/<int:project_id>/executive.pdf")
+@login_required
+def executive_pdf_v45(project_id):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    import io
+    p,tasks,risks,changes,progress,overdue=status_report_payload(project_id)
+    buf=io.BytesIO(); c=canvas.Canvas(buf,pagesize=A4); w,h=A4; y=h-55
+    c.setFont("Helvetica-Bold",18); c.drawString(45,y,f"Project Status – {p['name']}"); y-=30
+    c.setFont("Helvetica",10); c.drawString(45,y,f"Progress: {progress}%   Overdue: {len(overdue)}   Open risks: {len(risks)}"); y-=30
+    c.setFont("Helvetica-Bold",12); c.drawString(45,y,"Top risks"); y-=18; c.setFont("Helvetica",9)
+    for r in risks[:8]:
+        c.drawString(55,y,f"{r['title']} (score {int(r['probability'] or 0)*int(r['impact'] or 0)})"); y-=15
+        if y<70: c.showPage(); y=h-55
+    c.setFont("Helvetica-Bold",12); c.drawString(45,y,"Overdue activities"); y-=18; c.setFont("Helvetica",9)
+    for t in overdue[:12]:
+        c.drawString(55,y,f"{t.get('wbs','')} {t['title']} – {t.get('end_date','')}"); y-=15
+        if y<70: c.showPage(); y=h-55
+    c.save(); buf.seek(0)
+    return send_file(buf,mimetype="application/pdf",as_attachment=True,download_name=f"{p['name']}-status.pdf")
+
+@app.get("/projects/<int:project_id>/executive.pptx")
+@login_required
+def executive_pptx_v45(project_id):
+    from pptx import Presentation
+    from pptx.util import Inches
+    import io
+    p,tasks,risks,changes,progress,overdue=status_report_payload(project_id)
+    prs=Presentation()
+    s=prs.slides.add_slide(prs.slide_layouts[0]); s.shapes.title.text=p["name"]; s.placeholders[1].text=f"Executive Project Status · {date.today().isoformat()}"
+    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Project health"; s.placeholders[1].text=f"Progress: {progress}%\nOverdue activities: {len(overdue)}\nOpen risks: {len(risks)}\nRecent change requests: {len(changes)}"
+    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Top risks"; s.placeholders[1].text="\n".join(f"• {r['title']} – score {int(r['probability'] or 0)*int(r['impact'] or 0)}" for r in risks[:8]) or "No open risks"
+    s=prs.slides.add_slide(prs.slide_layouts[1]); s.shapes.title.text="Needs attention"; s.placeholders[1].text="\n".join(f"• {t['title']} – due {t.get('end_date','')}" for t in overdue[:10]) or "No overdue activities"
+    buf=io.BytesIO(); prs.save(buf); buf.seek(0)
+    return send_file(buf,mimetype="application/vnd.openxmlformats-officedocument.presentationml.presentation",as_attachment=True,download_name=f"{p['name']}-status.pptx")
+
+@app.get("/projects/<int:project_id>/report-pack")
+@login_required
+def report_pack_v45(project_id):
+    p=project_or_404(project_id)
+    return render_template("report_pack_v45.html",project=p)
+
+
+def automation_watch_v46():
+    today=date.today(); created=0
+    with db() as conn:
+        projects=conn.execute("SELECT * FROM projects WHERE COALESCE(archived,0)=0").fetchall() if table_has_column(conn,"projects","archived") else conn.execute("SELECT * FROM projects").fetchall()
+        for p in projects:
+            overdue=conn.execute("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND progress<100 AND end_date<>'' AND end_date<?",(p["id"],today.isoformat())).fetchone()["c"]
+            high=conn.execute("SELECT COUNT(*) c FROM risks WHERE project_id=? AND status<>'Stängd' AND probability*impact>=15",(p["id"],)).fetchone()["c"]
+            if overdue or high:
+                exists=conn.execute("SELECT id FROM automation_queue_v46 WHERE project_id=? AND status='Queued' AND created_at LIKE ?",(p["id"],today.isoformat()+"%")).fetchone()
+                if not exists:
+                    payload=json.dumps({"overdue":overdue,"high_risks":high})
+                    conn.execute("INSERT INTO automation_queue_v46(project_id,payload_json,status,created_at) VALUES(?,?,?,?)",(p["id"],payload,"Queued",datetime.now().isoformat(timespec="seconds")))
+                    created+=1
+    return created
+
+@app.get("/automation-ops")
+@login_required
+def automation_ops_v46():
+    with db() as conn:
+        q=conn.execute("""SELECT q.*,p.name project_name FROM automation_queue_v46 q LEFT JOIN projects p ON p.id=q.project_id ORDER BY q.id DESC LIMIT 100""").fetchall()
+        channels=conn.execute("SELECT * FROM notification_channels_v46 ORDER BY id DESC").fetchall()
+    return render_template("automation_ops_v46.html",queue=q,channels=channels)
+
+@app.post("/automation-ops/run")
+@login_required
+def automation_run_v46():
+    if current_user()["role"] not in ("admin","pm"): abort(403)
+    n=automation_watch_v46(); flash(f"Automation scan klar: {n} nya köposter.","success")
+    return redirect(url_for("automation_ops_v46"))
+
+@app.post("/automation-ops/process")
+@login_required
+@role_required("admin")
+def automation_process_v46():
+    with db() as conn:
+        rows=conn.execute("SELECT * FROM automation_queue_v46 WHERE status='Queued' ORDER BY id LIMIT 50").fetchall()
+        for r in rows:
+            payload=json.loads(r["payload_json"] or "{}")
+            members=conn.execute("SELECT user_id FROM project_members WHERE project_id=?",(r["project_id"],)).fetchall()
+            for m in members:
+                conn.execute("INSERT INTO notifications(user_id,project_id,title,body,created_at) VALUES(?,?,?,?,?)",
+                             (m["user_id"],r["project_id"],"Project attention needed",f"Overdue: {payload.get('overdue',0)} · High risks: {payload.get('high_risks',0)}",datetime.now().isoformat(timespec="seconds")))
+            conn.execute("UPDATE automation_queue_v46 SET status='Done',attempts=attempts+1,processed_at=? WHERE id=?",(datetime.now().isoformat(timespec="seconds"),r["id"]))
+    return redirect(url_for("automation_ops_v46"))
+
+
+def table_has_column(conn,table,column):
+    try:
+        return column in {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    except Exception:
+        return False
+
+
+@app.route("/admin/enterprise",methods=["GET","POST"])
+@login_required
+@role_required("admin")
+def enterprise_center_v47():
+    with db() as conn:
+        if request.method=="POST":
+            action=request.form.get("action")
+            if action=="role":
+                perms=[x.strip() for x in request.form.get("permissions","").split(",") if x.strip()]
+                conn.execute("INSERT OR IGNORE INTO enterprise_roles_v47(name,permissions_json,created_at) VALUES(?,?,?)",(request.form["name"].strip(),json.dumps(perms),datetime.now().isoformat(timespec="seconds")))
+            elif action=="retention":
+                conn.execute("""INSERT INTO retention_policies_v47(data_type,retention_days,enabled) VALUES(?,?,1)
+                                ON CONFLICT(data_type) DO UPDATE SET retention_days=excluded.retention_days,enabled=1""",(request.form["data_type"],int(request.form["retention_days"])))
+            return redirect(url_for("enterprise_center_v47"))
+        roles=conn.execute("SELECT * FROM enterprise_roles_v47 ORDER BY name").fetchall()
+        retention=conn.execute("SELECT * FROM retention_policies_v47 ORDER BY data_type").fetchall()
+        sessions=conn.execute("SELECT * FROM user_sessions ORDER BY id DESC LIMIT 50").fetchall()
+        logins=conn.execute("SELECT * FROM login_history ORDER BY id DESC LIMIT 50").fetchall()
+    return render_template("enterprise_center_v47.html",roles=roles,retention=retention,sessions=sessions,logins=logins)
+
+@app.post("/admin/backup/verified")
+@login_required
+@role_required("admin")
+def verified_backup_v47():
+    import sqlite3 as _sqlite3, hashlib as _hashlib
+    BACKUP_DIR.mkdir(parents=True,exist_ok=True)
+    name=f"verified-{datetime.now().strftime('%Y%m%d-%H%M%S')}.db"
+    dst=BACKUP_DIR/name
+    src=_sqlite3.connect(str(DB_PATH)); out=_sqlite3.connect(str(dst))
+    try: src.backup(out)
+    finally: out.close(); src.close()
+    digest=_hashlib.sha256(dst.read_bytes()).hexdigest()
+    return jsonify(status="ok",file=name,sha256=digest,size=dst.stat().st_size)
+
+
+def intelligence_answer_v50(project_id,question):
+    p,tasks,risks,changes,progress,overdue=status_report_payload(project_id)
+    q=(question or "").lower()
+    blocked=[t for t in tasks if (t.get("status") or "").lower()=="blockerad"]
+    milestones=[t for t in tasks if t.get("milestone") and int(t.get("progress") or 0)<100]
+    high=[r for r in risks if int(r.get("probability") or 0)*int(r.get("impact") or 0)>=15]
+    if "go-live" in q or "golive" in q or "block" in q:
+        items=blocked+overdue
+        return "Följande kan påverka go-live: " + (", ".join(x["title"] for x in items[:10]) if items else "inga uppenbara blockerare eller försenade aktiviteter.")
+    if "risk" in q:
+        return "Högsta riskerna: " + (", ".join(f"{r['title']} ({int(r.get('probability') or 0)*int(r.get('impact') or 0)})" for r in high[:8]) if high else "inga risker med score ≥15.")
+    if "ändrat" in q or "changed" in q or "vecka" in q:
+        cutoff=(datetime.now()-timedelta(days=7)).isoformat(timespec="seconds")
+        with db() as conn:
+            rows=conn.execute("SELECT * FROM audit_log WHERE project_id=? AND created_at>=? ORDER BY id DESC LIMIT 20",(project_id,cutoff)).fetchall()
+        return f"{len(rows)} ändringar registrerade senaste sju dagarna. " + " ".join(f"{r['action']} {r['entity_type']}." for r in rows[:8])
+    if "milestone" in q or "milstolp" in q:
+        return "Öppna milstolpar: " + (", ".join(f"{t['title']} ({t.get('end_date','')})" for t in milestones[:10]) if milestones else "inga öppna milstolpar.")
+    return f"{p['name']} är {progress}% färdigt. {len(overdue)} aktiviteter är försenade, {len(blocked)} blockerade och {len(high)} höga risker finns."
+
+def extract_meeting_actions_v50(text):
+    actions=[]; decisions=[]
+    for raw in (text or "").splitlines():
+        line=raw.strip()
+        low=line.lower()
+        if low.startswith(("action:","åtgärd:","todo:")):
+            actions.append(line.split(":",1)[1].strip())
+        elif low.startswith(("decision:","beslut:")):
+            decisions.append(line.split(":",1)[1].strip())
+    return {"actions":actions,"decisions":decisions}
+
+@app.route("/projects/<int:project_id>/intelligence",methods=["GET","POST"])
+@login_required
+def intelligence_center_v50(project_id):
+    p=project_or_404(project_id,write=request.method=="POST")
+    answer=None; extracted=None
+    if request.method=="POST":
+        mode=request.form.get("mode","ask")
+        if mode=="ask":
+            answer=intelligence_answer_v50(project_id,request.form.get("question",""))
+            with db() as conn:
+                conn.execute("INSERT INTO assistant_queries(project_id,user_id,question,answer,created_at) VALUES(?,?,?,?,?)",(project_id,current_user()["id"],request.form.get("question",""),answer,datetime.now().isoformat(timespec="seconds")))
+        elif mode=="meeting":
+            text=request.form.get("notes",""); extracted=extract_meeting_actions_v50(text)
+            with db() as conn:
+                conn.execute("INSERT INTO intelligence_notes_v50(project_id,note_type,source_text,generated_json,created_by,created_at) VALUES(?,?,?,?,?,?)",(project_id,"meeting",text,json.dumps(extracted,ensure_ascii=False),current_user()["id"],datetime.now().isoformat(timespec="seconds")))
+    with db() as conn:
+        history=conn.execute("SELECT * FROM assistant_queries WHERE project_id=? ORDER BY id DESC LIMIT 15",(project_id,)).fetchall()
+    return render_template("intelligence_center_v50.html",project=p,answer=answer,extracted=extracted,history=history)
+
+@app.post("/projects/<int:project_id>/intelligence/create-actions")
+@login_required
+def intelligence_create_actions_v50(project_id):
+    project_or_404(project_id,write=True)
+    items=json.loads(request.form.get("items","[]"))
+    with db() as conn:
+        for title in items:
+            if str(title).strip():
+                conn.execute("INSERT INTO action_items(project_id,title,owner,due_date,status,created_at) VALUES(?,?,?,?,?,?)",(project_id,str(title).strip(),current_user()["display_name"],"","Open",datetime.now().isoformat(timespec="seconds")))
+    flash("Actions skapade.","success")
+    return redirect(url_for("intelligence_center_v50",project_id=project_id))
 
 if __name__=="__main__":
     init_db()

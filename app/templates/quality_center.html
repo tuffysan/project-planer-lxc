@@ -1,0 +1,4 @@
+{% extends "base.html" %}{% block title %}Quality Center{% endblock %}
+{% block content %}<div class="page-head"><div><h1>Stability & Quality Center</h1><p>Databas, disk, version och migrationsstatus.</p></div><a href="{{url_for('health_ready')}}">Readiness JSON</a></div>
+<div class="grid-4">{% for name,x in snap.items() %}<div class="metric"><span>{{name}}</span><span class="value">{% if x.ok %}OK{% else %}FAIL{% endif %}</span><small>{{x.detail}}</small></div>{% endfor %}</div>
+<div class="panel"><h2>Schema migrations</h2><table class="compact-table">{% for m in migrations %}<tr><td>{{m.version}}</td><td>{{m.applied_at}}</td></tr>{% else %}<tr><td>Ingen migrationshistorik.</td></tr>{% endfor %}</table></div>{% endblock %}

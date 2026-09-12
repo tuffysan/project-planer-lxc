@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Workspace · {{project.name}}{% endblock %}{% block content %}
+<div class="page-head"><div><h1>{{project.name}}</h1><p>{{project.customer}} · {{project.project_manager}}</p></div><a href="{{url_for('project_cockpit',project_id=project.id)}}">Cockpit</a></div>
+<div class="workspace-tabs">{% for key,label in [('overview','Overview'),('plan','Plan'),('control','RAID & Control'),('resources','Resources'),('finance','Finance'),('documents','Documents'),('meetings','Meetings'),('reports','Reports'),('activity','Activity')] %}<a href="{{url_for('project_workspace',project_id=project.id,tab=key)}}"><b>{% if tab==key %}● {% endif %}</b>{{label}}</a>{% endfor %}</div>
+{% if tab=='overview' %}<div class="grid-4"><div class="metric">Tasks<span class="value">{{tasks|length}}</span></div><div class="metric">Open risks<span class="value">{{risks|length}}</span></div><div class="metric">Documents<span class="value">{{docs|length}}</span></div><div class="metric">Meetings<span class="value">{{meetings|length}}</span></div></div>
+{% elif tab=='plan' %}<div class="panel"><table class="compact-table">{% for t in tasks %}<tr><td>{{t.wbs}}</td><td>{{t.title}}</td><td>{{t.start_date}} → {{t.end_date}}</td><td>{{t.progress}}%</td></tr>{% endfor %}</table></div>
+{% elif tab=='control' %}<div class="panel"><h2>Open risks</h2>{% for r in risks %}<p><span class="pill">{{r.probability*r.impact}}</span> {{r.title}} · {{r.owner}}</p>{% endfor %}</div>
+{% elif tab=='finance' %}<div class="panel"><table class="compact-table">{% for c in costs %}<tr><td>{{c.category}}</td><td>{{c.description}}</td><td>{{c.planned}}</td><td>{{c.actual}}</td></tr>{% endfor %}</table></div>
+{% elif tab=='documents' %}<div class="panel">{% for d in docs %}<p><b>{{d.title}}</b><br><small>{{d.updated_at}}</small></p>{% endfor %}</div>
+{% elif tab=='meetings' %}<div class="panel">{% for m in meetings %}<p><b>{{m.title}}</b> · {{m.meeting_date}}</p>{% endfor %}</div>
+{% elif tab=='reports' %}<div class="panel">{% for r in status_reports %}<p><b>{{r.period}}</b> · {{r.rag_status}} · {{r.created_at}}</p>{% endfor %}</div>
+{% elif tab=='activity' %}<div class="panel timeline">{% for a in audit_rows %}<div class="timeline-item"><b>{{a.action}}</b> · {{a.entity_type}}<br><small>{{a.created_at}} · {{a.details}}</small></div>{% endfor %}</div>
+{% else %}<div class="notice">Resursvyn nås även via Capacity-planeringen och visas här som en del av projektets sammanhållna workspace.</div>{% endif %}
+{% endblock %}
