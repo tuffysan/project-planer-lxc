@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Project Planer</h1><p>{{t('brand_tagline')}}</p></div>
+</div>
+<section class="card brand-showcase">
+  <img src="{{url_for('static',filename='assets/project-planer-branding.png')}}" alt="Project Planer branding and multilingual interface">
+</section>
+{% endblock %}

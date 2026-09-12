@@ -1,7 +1,66 @@
-<!doctype html><html lang="sv"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}Project Planer{% endblock %}</title><link rel="stylesheet" href="{{ url_for('static',filename='style.css') }}"></head>
-<body><header class="topbar"><a class="brand" href="{{ url_for('index') }}">Project Planer <span>v{{app_version}}</span></a>
-{% if current_user %}<nav><a href="{{url_for('index')}}">Dashboard</a><a href="{{url_for('api_docs')}}">API</a><a href="{{url_for('notifications_page')}}">Notiser</a><a href="{{url_for('pmo')}}">PMO</a><a href="{{url_for('resources')}}">Resurser</a><a href="{{url_for('my_work')}}">My Work</a>{% if current_user['role']=='admin' %}<a href="{{url_for('admin_center')}}">Admin</a>{% endif %}
-<a href="{{url_for('change_password')}}">Lösenord</a><span class="user">{{current_user['display_name']}} · {{current_user['role']}}</span><a href="{{url_for('logout')}}">Logga ut</a></nav>{% endif %}</header>
-<main class="shell">{% with messages=get_flashed_messages(with_categories=true) %}{% for category,message in messages %}<div class="flash {{category}}">{{message}}</div>{% endfor %}{% endwith %}{% block content %}{% endblock %}</main>
-<footer>Project Planer · v{{app_version}} · <a href="/health">health</a></footer></body></html>
+<!doctype html>
+<html lang="{{active_lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f4c81">
+  <title>{% block title %}Project Planer{% endblock %}</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="{{url_for('static',filename='assets/project-planer-icon-32.png')}}">
+  <link rel="icon" type="image/png" sizes="192x192" href="{{url_for('static',filename='assets/project-planer-icon-192.png')}}">
+  <link rel="apple-touch-icon" href="{{url_for('static',filename='assets/project-planer-icon.png')}}">
+  <link rel="stylesheet" href="{{url_for('static',filename='style.css')}}">
+</head>
+<body>
+<header class="topbar branded">
+  <a class="brand brand-with-icon" href="{{url_for('index')}}">
+    <img src="{{url_for('static',filename='assets/project-planer-icon-64.png')}}" alt="Project Planer">
+    <span class="brand-copy"><strong>Project Planer</strong><small>{{t('brand_tagline')}}</small></span>
+  </a>
+  <div class="top-actions">
+    <div class="language-menu">
+      <button type="button" class="language-button" onclick="this.parentElement.classList.toggle('open')">
+        <span>{{languages[active_lang]['flag']}}</span> {{languages[active_lang]['name']}} ▾
+      </button>
+      <div class="language-dropdown">
+        <div class="language-title">🌐 {{t('language')}}</div>
+        {% for code,item in languages.items() %}
+          <a class="{% if code==active_lang %}active{% endif %}" href="{{url_for('set_language',lang=code)}}">
+            <span>{{item.flag}}</span><span>{{item.name}}</span>{% if code==active_lang %}<b>✓</b>{% endif %}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% if current_user %}
+    <nav>
+      <a href="{{url_for('index')}}">{{t('dashboard')}}</a>
+      <a href="{{url_for('my_work')}}">{{t('my_work')}}</a>
+      <a href="{{url_for('resources')}}">{{t('resources')}}</a>
+      <a href="{{url_for('pmo')}}">{{t('pmo')}}</a>
+      <a href="{{url_for('notifications_page')}}">{{t('notifications')}}</a>
+      <a href="{{url_for('api_docs')}}">{{t('api')}}</a>
+      {% if current_user['role']=='admin' %}<a href="{{url_for('admin_center')}}">{{t('admin')}}</a>{% endif %}
+      <a href="{{url_for('change_password')}}">{{t('password')}}</a>
+      <span class="user">{{current_user['display_name']}} · {{current_user['role']}}</span>
+      <a href="{{url_for('logout')}}">{{t('logout')}}</a>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+<main class="shell">
+{% with messages=get_flashed_messages(with_categories=true) %}
+  {% for category,message in messages %}<div class="flash {{category}}">{{message}}</div>{% endfor %}
+{% endwith %}
+{% block content %}{% endblock %}
+</main>
+<footer>
+  <img src="{{url_for('static',filename='assets/project-planer-icon-32.png')}}" alt="">
+  Project Planer · v{{app_version}} · <a href="/health">health</a>
+</footer>
+<script>
+document.addEventListener("click", function(e){
+  document.querySelectorAll(".language-menu.open").forEach(function(m){
+    if(!m.contains(e.target)) m.classList.remove("open");
+  });
+});
+</script>
+</body></html>

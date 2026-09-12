@@ -7,3 +7,34 @@
 .rag{font-weight:800;padding:5px 10px;border-radius:20px}.rag.green{background:#dff3e7;color:#17623a}.rag.amber{background:#fff0ce;color:#845700}.rag.red{background:#fee7e7;color:#a11}.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 
 .doc{border-top:1px solid #edf0f3;padding:12px 0}.doc h3{margin:0 0 5px}.doc p{white-space:pre-wrap}
+
+.topbar.branded{min-height:72px;height:auto;gap:20px;flex-wrap:wrap}
+.brand-with-icon{display:flex;align-items:center;gap:10px}
+.brand-with-icon>img{width:42px;height:42px;border-radius:10px;box-shadow:0 4px 12px rgba(15,76,129,.18)}
+.brand-copy{display:flex;flex-direction:column}
+.brand-copy strong{font-size:18px;line-height:1.05}
+.brand-copy small{font-size:9px;letter-spacing:2px;color:#6f7f91;margin-top:4px}
+.top-actions{display:flex;align-items:center;gap:14px;margin-left:auto}
+.language-menu{position:relative}
+.language-button{background:#fff;border:1px solid #d8e1ea;box-shadow:0 2px 7px rgba(15,35,55,.05);min-width:145px}
+.language-dropdown{display:none;position:absolute;right:0;top:calc(100% + 8px);width:220px;background:#fff;border:1px solid #dce4ec;border-radius:12px;padding:8px;box-shadow:0 16px 40px rgba(20,35,55,.16);z-index:50}
+.language-menu.open .language-dropdown{display:block}
+.language-title{padding:8px 10px;font-weight:800;border-bottom:1px solid #edf1f4;margin-bottom:4px}
+.language-dropdown a{display:grid;grid-template-columns:28px 1fr auto;align-items:center;padding:9px 10px;color:#25364b;text-decoration:none;border-radius:8px}
+.language-dropdown a:hover,.language-dropdown a.active{background:#e9f2fa}
+.language-dropdown a b{color:#1f9d63}
+.brand-showcase{padding:0;overflow:hidden}
+.brand-showcase img{display:block;width:100%;height:auto}
+footer{display:flex;align-items:center;justify-content:center;gap:7px}
+footer img{width:22px;height:22px;border-radius:5px}
+@media(max-width:1100px){
+  .top-actions{width:100%;justify-content:space-between}
+  .topbar nav{overflow:auto;max-width:calc(100vw - 210px);padding-bottom:4px}
+}
+@media(max-width:700px){
+  .topbar.branded{align-items:flex-start}
+  .top-actions{align-items:flex-start}
+  .topbar nav{display:flex;max-width:100%;width:100%;order:2}
+  .brand-copy small{display:none}
+  .language-button{min-width:auto}
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 REPO="${REPO:-tuffysan/project-planer-lxc}"
-VERSION="${VERSION:-2.0.0}"
+VERSION="${VERSION:-2.1.0}"
 TAG="v${VERSION}"
 CTID="${CTID:-140}"
 APP_DIR="/opt/project-plan"

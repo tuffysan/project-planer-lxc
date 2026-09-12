@@ -11,7 +11,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.formatting.rule import DataBarRule
 from openpyxl.utils import get_column_letter
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -42,7 +42,105 @@ STATUSES = ["Ej startad", "Pågår", "Blockerad", "Klar", "Pausad"]
 PRIORITIES = ["Låg", "Normal", "Hög", "Kritisk"]
 RISK_STATUSES = ["Öppen", "Bevakas", "Åtgärdas", "Stängd"]
 ROLES = ["admin", "pm", "member", "viewer"]
+
 PROJECT_ROLES = ["pm", "member", "viewer"]
+
+LANGUAGES = {
+    "sv": {"name": "Svenska", "flag": "🇸🇪"},
+    "en": {"name": "English", "flag": "🇬🇧"},
+    "de": {"name": "Deutsch", "flag": "🇩🇪"},
+    "no": {"name": "Norsk", "flag": "🇳🇴"},
+    "da": {"name": "Dansk", "flag": "🇩🇰"},
+    "fi": {"name": "Suomi", "flag": "🇫🇮"},
+}
+
+TRANSLATIONS = {
+    "sv": {
+        "dashboard":"Dashboard","admin":"Admin","password":"Lösenord","logout":"Logga ut","api":"API",
+        "notifications":"Notiser","pmo":"PMO","resources":"Resurser","my_work":"Mina uppgifter",
+        "language":"Språk","projects":"Projekt","new_project":"Nytt projekt","search":"Sök",
+        "welcome":"Välkommen tillbaka!","active_projects":"Aktiva projekt","activities":"Aktiviteter",
+        "milestones":"Milstolpar","risks":"Risker","project_status":"Projektstatus","upcoming_milestones":"Kommande milstolpar",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Tidrapportering",
+        "documents":"Dokument","meetings":"Möten","reports":"Rapporter","settings":"Inställningar",
+        "users":"Användare","system":"System","open":"Öppna","save":"Spara","cancel":"Avbryt",
+        "login":"Logga in","username":"Användarnamn","display_name":"Visningsnamn","current_password":"Nuvarande lösenord",
+        "new_password":"Nytt lösenord","change_password":"Byt lösenord","project_portfolio":"Mina projekt",
+        "only_assigned":"Du ser bara projekt där du är medlem.","admin_all_projects":"Administratörsvy: alla projekt.",
+        "brand_tagline":"PLAN · GENOMFÖR · LYCKAS"
+    },
+    "en": {
+        "dashboard":"Dashboard","admin":"Admin","password":"Password","logout":"Sign out","api":"API",
+        "notifications":"Notifications","pmo":"PMO","resources":"Resources","my_work":"My Work",
+        "language":"Language","projects":"Projects","new_project":"New project","search":"Search",
+        "welcome":"Welcome back!","active_projects":"Active projects","activities":"Activities",
+        "milestones":"Milestones","risks":"Risks","project_status":"Project status","upcoming_milestones":"Upcoming milestones",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Calendar","time_reporting":"Time reporting",
+        "documents":"Documents","meetings":"Meetings","reports":"Reports","settings":"Settings",
+        "users":"Users","system":"System","open":"Open","save":"Save","cancel":"Cancel",
+        "login":"Sign in","username":"Username","display_name":"Display name","current_password":"Current password",
+        "new_password":"New password","change_password":"Change password","project_portfolio":"My projects",
+        "only_assigned":"You only see projects where you are a member.","admin_all_projects":"Administrator view: all projects.",
+        "brand_tagline":"PLAN · EXECUTE · SUCCEED"
+    },
+    "de": {
+        "dashboard":"Dashboard","admin":"Admin","password":"Passwort","logout":"Abmelden","api":"API",
+        "notifications":"Benachrichtigungen","pmo":"PMO","resources":"Ressourcen","my_work":"Meine Aufgaben",
+        "language":"Sprache","projects":"Projekte","new_project":"Neues Projekt","search":"Suchen",
+        "welcome":"Willkommen zurück!","active_projects":"Aktive Projekte","activities":"Aufgaben",
+        "milestones":"Meilensteine","risks":"Risiken","project_status":"Projektstatus","upcoming_milestones":"Kommende Meilensteine",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Zeiterfassung",
+        "documents":"Dokumente","meetings":"Meetings","reports":"Berichte","settings":"Einstellungen",
+        "users":"Benutzer","system":"System","open":"Öffnen","save":"Speichern","cancel":"Abbrechen",
+        "login":"Anmelden","username":"Benutzername","display_name":"Anzeigename","current_password":"Aktuelles Passwort",
+        "new_password":"Neues Passwort","change_password":"Passwort ändern","project_portfolio":"Meine Projekte",
+        "only_assigned":"Sie sehen nur Projekte, denen Sie zugewiesen sind.","admin_all_projects":"Administratoransicht: alle Projekte.",
+        "brand_tagline":"PLANEN · UMSETZEN · ERFOLG"
+    },
+    "no": {
+        "dashboard":"Dashboard","admin":"Admin","password":"Passord","logout":"Logg ut","api":"API",
+        "notifications":"Varsler","pmo":"PMO","resources":"Ressurser","my_work":"Mine oppgaver",
+        "language":"Språk","projects":"Prosjekter","new_project":"Nytt prosjekt","search":"Søk",
+        "welcome":"Velkommen tilbake!","active_projects":"Aktive prosjekter","activities":"Aktiviteter",
+        "milestones":"Milepæler","risks":"Risikoer","project_status":"Prosjektstatus","upcoming_milestones":"Kommende milepæler",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Timeregistrering",
+        "documents":"Dokumenter","meetings":"Møter","reports":"Rapporter","settings":"Innstillinger",
+        "users":"Brukere","system":"System","open":"Åpne","save":"Lagre","cancel":"Avbryt",
+        "login":"Logg inn","username":"Brukernavn","display_name":"Visningsnavn","current_password":"Nåværende passord",
+        "new_password":"Nytt passord","change_password":"Endre passord","project_portfolio":"Mine prosjekter",
+        "only_assigned":"Du ser bare prosjekter du er medlem av.","admin_all_projects":"Administratorvisning: alle prosjekter.",
+        "brand_tagline":"PLANLEGG · GJENNOMFØR · LYKKES"
+    },
+    "da": {
+        "dashboard":"Dashboard","admin":"Admin","password":"Adgangskode","logout":"Log ud","api":"API",
+        "notifications":"Notifikationer","pmo":"PMO","resources":"Ressourcer","my_work":"Mine opgaver",
+        "language":"Sprog","projects":"Projekter","new_project":"Nyt projekt","search":"Søg",
+        "welcome":"Velkommen tilbage!","active_projects":"Aktive projekter","activities":"Aktiviteter",
+        "milestones":"Milepæle","risks":"Risici","project_status":"Projektstatus","upcoming_milestones":"Kommende milepæle",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalender","time_reporting":"Tidsregistrering",
+        "documents":"Dokumenter","meetings":"Møder","reports":"Rapporter","settings":"Indstillinger",
+        "users":"Brugere","system":"System","open":"Åbn","save":"Gem","cancel":"Annuller",
+        "login":"Log ind","username":"Brugernavn","display_name":"Visningsnavn","current_password":"Nuværende adgangskode",
+        "new_password":"Ny adgangskode","change_password":"Skift adgangskode","project_portfolio":"Mine projekter",
+        "only_assigned":"Du ser kun projekter, hvor du er medlem.","admin_all_projects":"Administratorvisning: alle projekter.",
+        "brand_tagline":"PLANLÆG · UDFØR · LYKKES"
+    },
+    "fi": {
+        "dashboard":"Kojelauta","admin":"Ylläpito","password":"Salasana","logout":"Kirjaudu ulos","api":"API",
+        "notifications":"Ilmoitukset","pmo":"PMO","resources":"Resurssit","my_work":"Omat tehtävät",
+        "language":"Kieli","projects":"Projektit","new_project":"Uusi projekti","search":"Haku",
+        "welcome":"Tervetuloa takaisin!","active_projects":"Aktiiviset projektit","activities":"Tehtävät",
+        "milestones":"Välitavoitteet","risks":"Riskit","project_status":"Projektin tila","upcoming_milestones":"Tulevat välitavoitteet",
+        "gantt":"Gantt","kanban":"Kanban","calendar":"Kalenteri","time_reporting":"Työajanseuranta",
+        "documents":"Dokumentit","meetings":"Kokoukset","reports":"Raportit","settings":"Asetukset",
+        "users":"Käyttäjät","system":"Järjestelmä","open":"Avaa","save":"Tallenna","cancel":"Peruuta",
+        "login":"Kirjaudu sisään","username":"Käyttäjänimi","display_name":"Näyttönimi","current_password":"Nykyinen salasana",
+        "new_password":"Uusi salasana","change_password":"Vaihda salasana","project_portfolio":"Omat projektit",
+        "only_assigned":"Näet vain projektit, joissa olet jäsenenä.","admin_all_projects":"Ylläpitäjän näkymä: kaikki projektit.",
+        "brand_tagline":"SUUNNITTELE · TOTEUTA · ONNISTU"
+    },
+}
+
 
 def db():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -520,6 +618,26 @@ def csrf_token():
         token = secrets.token_urlsafe(32)
         session["_csrf"] = token
     return token
+
+
+def active_language():
+    lang = session.get("lang", "sv")
+    return lang if lang in LANGUAGES else "sv"
+
+def tr(key):
+    lang = active_language()
+    return TRANSLATIONS.get(lang, TRANSLATIONS["sv"]).get(key, TRANSLATIONS["sv"].get(key, key))
+
+@app.get("/language/<lang>")
+def set_language(lang):
+    if lang not in LANGUAGES:
+        abort(404)
+    session["lang"] = lang
+    return redirect(request.referrer or url_for("index"))
+
+@app.context_processor
+def inject_i18n():
+    return dict(t=tr, active_lang=active_language(), languages=LANGUAGES)
 
 @app.context_processor
 def inject_globals():
@@ -1636,6 +1754,12 @@ def diagnostics():
 @login_required
 def api_docs():
     return render_template("api_docs.html")
+
+
+@app.get("/about")
+@login_required
+def about():
+    return render_template("about.html")
 
 if __name__=="__main__":
     init_db()
