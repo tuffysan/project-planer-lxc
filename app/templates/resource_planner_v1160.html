@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block title %}Resource Planner 2{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v11.6</div><h1>Resource Planner 2</h1><p>Kapacitetsöversikt med överbeläggning, planerade timmar och resursbehov.</p></section>
+<div class="next-grid"><section class="next-card next-attention"><div class="next-kpi">{{overloaded|length}}</div><div>Överbelagda resursveckor</div></section>
+<section class="next-card"><div class="next-kpi">{{rows|length}}</div><div>Planerade resursveckor</div></section></div>
+<section class="next-card"><table class="next-table"><thead><tr><th>Resurs</th><th>Vecka</th><th>Allokering</th><th>Timmar</th><th>Projekt</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{r.resource}}</td><td>{{r.week_start}}</td><td>{{r.allocation_pct}}%</td><td>{{r.planned_hours}}</td><td>{{r.projects}}</td></tr>{% endfor %}
+</tbody></table></section>{% endblock %}

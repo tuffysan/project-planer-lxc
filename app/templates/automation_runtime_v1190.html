@@ -1,0 +1,6 @@
+{% extends "base.html" %}{% block title %}Automation Runtime{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v11.9</div><h1>Automation Runtime</h1><p>Körbara projektregler med notifieringar för försenade aktiviteter och spårbar körlogg.</p></section>
+<section class="next-card"><form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><button type="submit">Kör regel: försenade aktiviteter</button></form></section>
+<section class="next-card"><h2>Körlogg</h2><table class="next-table"><thead><tr><th>Tid</th><th>Regel</th><th>Status</th><th>Påverkade</th></tr></thead><tbody>
+{% for l in logs %}<tr><td>{{l.created_at}}</td><td>{{l.rule_name}}</td><td>{{l.status}}</td><td>{{l.affected}}</td></tr>{% endfor %}
+</tbody></table></section>{% endblock %}

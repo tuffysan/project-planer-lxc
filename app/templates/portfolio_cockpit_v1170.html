@@ -1,0 +1,5 @@
+{% extends "base.html" %}{% block title %}Portfolio Cockpit{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v11.7</div><h1>Portfolio Cockpit</h1><p>Portfoliohälsa med progress, risk, kostnad, datum och uppmärksamhetsindikatorer.</p></section>
+<section class="next-card"><table class="next-table"><thead><tr><th>Projekt</th><th>Progress</th><th>Försenat</th><th>Höga risker</th><th>Budget</th><th>Utfall</th></tr></thead><tbody>
+{% for p in projects %}<tr><td>{{p.name}}</td><td>{{p.progress|round|int}}%</td><td>{{p.overdue}}</td><td>{{p.high_risks}}</td><td>{{"%.0f"|format(p.planned_cost or 0)}}</td><td>{{"%.0f"|format(p.actual_cost or 0)}}</td></tr>{% endfor %}
+</tbody></table></section>{% endblock %}

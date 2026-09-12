@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% block title %}Mitt arbete 2.0{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v11.2</div><h1>Mitt arbete</h1><p>Personlig arbetsyta för uppgifter, åtgärder, notiser och deadlines.</p></section>
+<div class="next-grid">
+<section class="next-card"><h2>Mina aktiviteter</h2><ul>{% for t in tasks[:12] %}<li><strong>{{t.title}}</strong> · {{t.project_name}} · {{t.end_date or "utan datum"}}</li>{% else %}<li>Inga öppna aktiviteter.</li>{% endfor %}</ul></section>
+<section class="next-card"><h2>Åtgärder</h2><ul>{% for a in actions[:12] %}<li>{{a.title}} · {{a.project_name}} · {{a.due_date or ""}}</li>{% else %}<li>Inga åtgärder.</li>{% endfor %}</ul></section>
+<section class="next-card"><h2>Olästa notiser</h2><div class="next-kpi">{{notifications|length}}</div></section>
+</div>{% endblock %}

@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "11.0.0"
+APP_VERSION = "12.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -3109,6 +3109,269 @@ def mobile_ux_v1084():
 @login_required
 def ux_edition_v1100():
     return render_template("ux_1100.html")
+
+@app.get("/production-audit")
+@login_required
+def production_audit_v1101():
+    if session.get("role") not in ("admin","pm"):
+        abort(403)
+    checks = []
+    with db() as conn:
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+        required = ["projects","tasks","risks","project_members","notifications","audit_log"]
+        for name in required:
+            checks.append({"name": f"Databastabell: {name}", "ok": name in tables})
+        try:
+            mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+        except Exception:
+            mode = "unknown"
+        checks.append({"name":"SQLite journal mode", "ok": str(mode).lower() == "wal", "detail": str(mode)})
+    return render_template("production_audit_v1101.html", checks=checks)
+
+@app.get("/projects/<int:project_id>/home-2")
+@login_required
+def project_home_v1110(project_id):
+    with db() as conn:
+        project = conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not project: abort(404)
+        tasks = conn.execute("""SELECT * FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY end_date,sort_order LIMIT 200""",(project_id,)).fetchall()
+        risks = conn.execute("""SELECT * FROM risks WHERE project_id=? AND status NOT IN ('Closed','Stängd') ORDER BY probability*impact DESC LIMIT 20""",(project_id,)).fetchall()
+        costs = conn.execute("""SELECT COALESCE(SUM(planned),0) planned,COALESCE(SUM(actual),0) actual FROM project_costs WHERE project_id=?""",(project_id,)).fetchone()
+    active=[t for t in tasks if not t["milestone"] and (t["status"] or "").lower() not in ("done","completed","closed","klar")]
+    overdue=[t for t in active if t["end_date"] and t["end_date"] < datetime.utcnow().date().isoformat()]
+    milestones=[t for t in tasks if t["milestone"]][:8]
+    progress = round(sum((t["progress"] or 0) for t in tasks)/len(tasks)) if tasks else 0
+    high_risks=[r for r in risks if (r["probability"] or 0)*(r["impact"] or 0) >= 12]
+    return render_template("project_home_v1110.html",project=project,progress=progress,overdue=overdue,
+                           milestones=milestones,high_risks=high_risks,costs=costs)
+
+@app.get("/my-work-2")
+@login_required
+def my_work_v1120():
+    uid=session.get("user_id")
+    with db() as conn:
+        tasks=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+          WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND t.owner_user_id=? AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
+          ORDER BY CASE WHEN t.end_date IS NULL THEN 1 ELSE 0 END,t.end_date LIMIT 100""",(uid,)).fetchall()
+        notifications=conn.execute("""SELECT * FROM notifications WHERE user_id=? AND is_read=0 ORDER BY created_at DESC LIMIT 30""",(uid,)).fetchall()
+        actions=conn.execute("""SELECT a.*,p.name project_name FROM action_items a JOIN projects p ON p.id=a.project_id
+          WHERE LOWER(COALESCE(a.status,'')) NOT IN ('done','closed','klar') ORDER BY a.due_date LIMIT 50""").fetchall()
+    mine=[a for a in actions if not a["owner"] or str(a["owner"]).lower() in (str(session.get("username","")).lower(),str(uid))]
+    return render_template("my_work_v1120.html",tasks=tasks,notifications=notifications,actions=mine[:30])
+
+@app.get("/projects/<int:project_id>/planning-pro-ux")
+@login_required
+def planning_ux_v1130(project_id):
+    with db() as conn:
+        project=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not project: abort(404)
+        tasks=conn.execute("""SELECT id,wbs,title,owner,start_date,end_date,status,progress,milestone,parent_task_id
+          FROM tasks WHERE project_id=? AND deleted_at IS NULL ORDER BY sort_order,id""",(project_id,)).fetchall()
+        links=conn.execute("""SELECT predecessor_id,successor_id,link_type,lag_days FROM task_links WHERE project_id=?""",(project_id,)).fetchall()
+    return render_template("planning_ux_v1130.html",project=project,tasks=tasks,links=links)
+
+def _ado_json_v1140(method,url,pat,payload=None):
+    import urllib.request, urllib.error, base64, json as _json
+    raw=(":"+pat).encode("utf-8")
+    req=urllib.request.Request(url,method=method)
+    req.add_header("Authorization","Basic "+base64.b64encode(raw).decode("ascii"))
+    req.add_header("Accept","application/json")
+    if payload is not None:
+        req.add_header("Content-Type","application/json")
+        data=_json.dumps(payload).encode("utf-8")
+    else:
+        data=None
+    with urllib.request.urlopen(req,data=data,timeout=20) as resp:
+        return _json.loads(resp.read().decode("utf-8"))
+
+@app.route("/integrations/azure-devops/live",methods=["GET","POST"])
+@login_required
+def devops_live_v1140():
+    if session.get("role") not in ("admin","pm"): abort(403)
+    message=None
+    with db() as conn:
+        ensure_azure_devops_schema_v1010(conn)
+        connections=conn.execute("""SELECT id,name,organization_url,project_name,enabled FROM azure_devops_connections WHERE enabled=1 ORDER BY name""").fetchall()
+        if request.method=="POST":
+            cid=request.form.get("connection_id",type=int)
+            c=conn.execute("SELECT * FROM azure_devops_connections WHERE id=? AND enabled=1",(cid,)).fetchone()
+            if not c: abort(404)
+            if not c["pat_secret"]:
+                flash("Anslutningen saknar PAT.","error")
+            else:
+                try:
+                    from urllib.parse import quote
+                    base=c["organization_url"].rstrip("/")+"/"+quote(c["project_name"])
+                    wiql=_ado_json_v1140("POST",base+"/_apis/wit/wiql?api-version=7.1",c["pat_secret"],
+                        {"query":"SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.ChangedDate] DESC"})
+                    ids=[x["id"] for x in wiql.get("workItems",[])[:200]]
+                    written=0
+                    if ids:
+                        batch=_ado_json_v1140("POST",base+"/_apis/wit/workitemsbatch?api-version=7.1",c["pat_secret"],
+                            {"ids":ids,"fields":["System.Id","System.WorkItemType","System.Title","System.State","System.AssignedTo","System.IterationPath","System.TeamProject"]})
+                        for w in batch.get("value",[]):
+                            f=w.get("fields",{})
+                            assigned=f.get("System.AssignedTo")
+                            if isinstance(assigned,dict): assigned=assigned.get("displayName") or assigned.get("uniqueName")
+                            conn.execute("""INSERT INTO azure_devops_work_item_links
+                              (connection_id,project_id,task_id,work_item_id,work_item_type,title,state,assigned_to,iteration_path,url,last_synced_at)
+                              VALUES(?,?,?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP)
+                              ON CONFLICT(connection_id,work_item_id) DO UPDATE SET
+                              work_item_type=excluded.work_item_type,title=excluded.title,state=excluded.state,
+                              assigned_to=excluded.assigned_to,iteration_path=excluded.iteration_path,url=excluded.url,last_synced_at=CURRENT_TIMESTAMP""",
+                              (cid,0,None,w["id"],f.get("System.WorkItemType"),f.get("System.Title"),f.get("System.State"),
+                               assigned,f.get("System.IterationPath"),w.get("url")))
+                            written+=1
+                    conn.execute("""INSERT INTO azure_devops_sync_log(connection_id,direction,status,message,items_read,items_written)
+                      VALUES(?,?,?,?,?,?)""",(cid,"DevOpsToProjectPlaner","Success","Live Work Item sync",len(ids),written))
+                    conn.commit()
+                    flash(f"Azure DevOps-synk klar: {written} Work Items.","success")
+                except Exception as ex:
+                    conn.execute("""INSERT INTO azure_devops_sync_log(connection_id,direction,status,message)
+                      VALUES(?,?,?,?)""",(cid,"DevOpsToProjectPlaner","Failed",str(ex)[:500]))
+                    conn.commit()
+                    flash("Azure DevOps-synk misslyckades: "+str(ex),"error")
+        syncs=conn.execute("""SELECT s.*,c.name connection_name FROM azure_devops_sync_log s
+          LEFT JOIN azure_devops_connections c ON c.id=s.connection_id ORDER BY s.id DESC LIMIT 30""").fetchall()
+    return render_template("devops_live_v1140.html",connections=connections,syncs=syncs)
+
+def ensure_reporting_presets_v1150(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS reporting_presets(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT NOT NULL,audience TEXT NOT NULL,format TEXT NOT NULL,
+      sections_json TEXT NOT NULL DEFAULT '[]',created_by INTEGER,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+
+@app.route("/reporting-studio-2",methods=["GET","POST"])
+@login_required
+def reporting_studio_v1150():
+    with db() as conn:
+        ensure_reporting_presets_v1150(conn)
+        if request.method=="POST":
+            name=(request.form.get("name") or "").strip()
+            audience=(request.form.get("audience") or "Styrgrupp").strip()
+            fmt=(request.form.get("format") or "PPTX").strip().upper()
+            sections=request.form.getlist("sections")
+            if name:
+                conn.execute("INSERT INTO reporting_presets(name,audience,format,sections_json,created_by) VALUES(?,?,?,?,?)",
+                             (name,audience,fmt,json.dumps(sections,ensure_ascii=False),session.get("user_id")))
+                conn.commit(); flash("Rapportprofil sparad.","success")
+        presets=conn.execute("SELECT * FROM reporting_presets ORDER BY id DESC").fetchall()
+    return render_template("reporting_studio_v1150.html",presets=presets)
+
+@app.get("/resource-planner-2")
+@login_required
+def resource_planner_v1160():
+    with db() as conn:
+        rows=conn.execute("""SELECT COALESCE(NULLIF(resource_name,''),u.display_name,u.username,'Resurs') resource,
+          week_start,SUM(COALESCE(allocation_pct,0)) allocation_pct,SUM(COALESCE(planned_hours,0)) planned_hours,
+          COUNT(DISTINCT project_id) projects
+          FROM resource_allocations ra LEFT JOIN users u ON u.id=ra.user_id
+          GROUP BY resource,week_start ORDER BY week_start,resource LIMIT 500""").fetchall()
+    overloaded=[r for r in rows if (r["allocation_pct"] or 0)>100]
+    return render_template("resource_planner_v1160.html",rows=rows,overloaded=overloaded)
+
+@app.get("/portfolio-cockpit")
+@login_required
+def portfolio_cockpit_v1170():
+    with db() as conn:
+        projects=conn.execute("""SELECT p.*,
+          COALESCE((SELECT AVG(COALESCE(t.progress,0)) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL),0) progress,
+          COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL AND t.end_date<date('now')
+                    AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')),0) overdue,
+          COALESCE((SELECT COUNT(*) FROM risks r WHERE r.project_id=p.id AND COALESCE(r.probability,0)*COALESCE(r.impact,0)>=12
+                    AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd')),0) high_risks,
+          COALESCE((SELECT SUM(planned) FROM project_costs c WHERE c.project_id=p.id),0) planned_cost,
+          COALESCE((SELECT SUM(actual) FROM project_costs c WHERE c.project_id=p.id),0) actual_cost
+          FROM projects p WHERE p.deleted_at IS NULL AND p.archived_at IS NULL ORDER BY p.name""").fetchall()
+    return render_template("portfolio_cockpit_v1170.html",projects=projects)
+
+def ensure_collaboration_v1180(conn):
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS project_comments(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,project_id INTEGER NOT NULL,user_id INTEGER,body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP);
+    CREATE TABLE IF NOT EXISTS project_watchers(
+      project_id INTEGER NOT NULL,user_id INTEGER NOT NULL,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(project_id,user_id));
+    """)
+
+@app.route("/projects/<int:project_id>/collaboration",methods=["GET","POST"])
+@login_required
+def collaboration_ux_v1180(project_id):
+    with db() as conn:
+        ensure_collaboration_v1180(conn)
+        project=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not project: abort(404)
+        if request.method=="POST":
+            action=request.form.get("action")
+            if action=="comment":
+                body=(request.form.get("body") or "").strip()
+                if body:
+                    conn.execute("INSERT INTO project_comments(project_id,user_id,body) VALUES(?,?,?)",(project_id,session.get("user_id"),body))
+                    conn.commit()
+            elif action=="watch":
+                conn.execute("INSERT OR IGNORE INTO project_watchers(project_id,user_id) VALUES(?,?)",(project_id,session.get("user_id"))); conn.commit()
+            elif action=="unwatch":
+                conn.execute("DELETE FROM project_watchers WHERE project_id=? AND user_id=?",(project_id,session.get("user_id"))); conn.commit()
+        comments=conn.execute("""SELECT c.*,COALESCE(u.display_name,u.username,'Användare') author FROM project_comments c
+          LEFT JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY c.id DESC LIMIT 100""",(project_id,)).fetchall()
+        watching=conn.execute("SELECT 1 FROM project_watchers WHERE project_id=? AND user_id=?",(project_id,session.get("user_id"))).fetchone() is not None
+    return render_template("collaboration_ux_v1180.html",project=project,comments=comments,watching=watching)
+
+def ensure_automation_runtime_v1190(conn):
+    conn.execute("""CREATE TABLE IF NOT EXISTS automation_runtime_log(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,rule_name TEXT NOT NULL,status TEXT NOT NULL,affected INTEGER NOT NULL DEFAULT 0,
+      message TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+
+@app.route("/automation-runtime",methods=["GET","POST"])
+@login_required
+def automation_runtime_v1190():
+    if session.get("role") not in ("admin","pm"): abort(403)
+    with db() as conn:
+        ensure_automation_runtime_v1190(conn)
+        if request.method=="POST":
+            rows=conn.execute("""SELECT t.id,t.project_id,t.title,t.owner_user_id,t.end_date,p.name project_name
+              FROM tasks t JOIN projects p ON p.id=t.project_id
+              WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND t.end_date<date('now')
+              AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')""").fetchall()
+            affected=0
+            for t in rows:
+                if t["owner_user_id"]:
+                    exists=conn.execute("""SELECT 1 FROM notifications WHERE user_id=? AND project_id=? AND message=? AND is_read=0""",
+                      (t["owner_user_id"],t["project_id"],f"Försenad aktivitet: {t['title']}")).fetchone()
+                    if not exists:
+                        conn.execute("""INSERT INTO notifications(user_id,project_id,message,link,is_read,created_at)
+                          VALUES(?,?,?,?,0,CURRENT_TIMESTAMP)""",(t["owner_user_id"],t["project_id"],f"Försenad aktivitet: {t['title']}",f"/projects/{t['project_id']}/workspace/tasks"))
+                        affected+=1
+            conn.execute("""INSERT INTO automation_runtime_log(rule_name,status,affected,message)
+              VALUES('Overdue task notification','Success',?,'Created notifications for overdue assigned tasks')""",(affected,))
+            conn.commit(); flash(f"Automation körd. {affected} nya notifieringar skapades.","success")
+        logs=conn.execute("SELECT * FROM automation_runtime_log ORDER BY id DESC LIMIT 50").fetchall()
+    return render_template("automation_runtime_v1190.html",logs=logs)
+
+@app.get("/today")
+@login_required
+def intelligent_pm_v1200():
+    uid=session.get("user_id")
+    today=datetime.utcnow().date().isoformat()
+    with db() as conn:
+        projects=conn.execute("""SELECT p.id,p.name,p.end_date,
+          COALESCE((SELECT AVG(COALESCE(t.progress,0)) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL),0) progress,
+          COALESCE((SELECT COUNT(*) FROM tasks t WHERE t.project_id=p.id AND t.deleted_at IS NULL AND t.end_date<date('now')
+            AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')),0) overdue,
+          COALESCE((SELECT COUNT(*) FROM risks r WHERE r.project_id=p.id AND COALESCE(r.probability,0)*COALESCE(r.impact,0)>=12
+            AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd')),0) risks
+          FROM projects p WHERE p.deleted_at IS NULL AND p.archived_at IS NULL ORDER BY p.name""").fetchall()
+        my_tasks=conn.execute("""SELECT t.*,p.name project_name FROM tasks t JOIN projects p ON p.id=t.project_id
+          WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL AND t.owner_user_id=? AND LOWER(COALESCE(t.status,'')) NOT IN ('done','completed','closed','klar')
+          ORDER BY t.end_date LIMIT 20""",(uid,)).fetchall()
+        unread=conn.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND is_read=0",(uid,)).fetchone()[0]
+        try:
+            devops_failed=conn.execute("SELECT COUNT(*) FROM azure_devops_sync_log WHERE status='Failed'").fetchone()[0]
+        except Exception:
+            devops_failed=0
+    attention=sum(1 for p in projects if (p["overdue"] or 0)>0 or (p["risks"] or 0)>0)
+    return render_template("intelligent_pm_v1200.html",projects=projects,my_tasks=my_tasks,unread=unread,
+                           devops_failed=devops_failed,attention=attention,today=today)
 
 @app.route("/admin")
 @login_required

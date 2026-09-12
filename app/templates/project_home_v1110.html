@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}{{project.name}} · Project Home{% endblock %}
+{% block content %}
+<section class="next-hero"><div class="eyebrow">v11.1 · Project Home 2.0</div><h1>{{project.name}}</h1><p>Ny projektstart som prioriterar hälsa, avvikelser, milstolpar och nästa åtgärd.</p></section>
+<div class="next-grid">
+<section class="next-card"><div class="next-kpi">{{progress}}%</div><div class="next-muted">Projektprogress</div></section>
+<section class="next-card {% if overdue %}next-attention{% else %}next-ok{% endif %}"><div class="next-kpi">{{overdue|length}}</div><div class="next-muted">Försenade aktiviteter</div></section>
+<section class="next-card"><h3>Höga risker</h3><div class="next-kpi">{{high_risks|length}}</div></section>
+<section class="next-card"><h3>Ekonomi</h3><p>Planerat: {{ "%.0f"|format(costs.planned or 0) }} · Utfall: {{ "%.0f"|format(costs.actual or 0) }}</p></section>
+</div>
+<section class="next-card"><h2>Nästa milstolpar</h2>
+<table class="next-table"><thead><tr><th>Milstolpe</th><th>Datum</th><th>Status</th></tr></thead><tbody>
+{% for m in milestones %}<tr><td>{{m.title}}</td><td>{{m.end_date or ""}}</td><td>{{m.status or ""}}</td></tr>{% else %}<tr><td colspan="3">Inga milstolpar.</td></tr>{% endfor %}
+</tbody></table></section>
+{% endblock %}

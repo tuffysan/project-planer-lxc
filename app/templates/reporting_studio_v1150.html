@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}Reporting Studio 2{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v11.5</div><h1>Reporting Studio 2</h1><p>Rapportprofiler för styrgrupp, projektteam och portfolio med återanvändbara presets.</p></section>
+<div class="next-grid"><section class="next-card"><h2>Ny rapportprofil</h2><form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+<label>Namn<input name="name" required placeholder="Månadsrapport styrgrupp"></label>
+<label>Målgrupp<select name="audience"><option>Styrgrupp</option><option>Projektteam</option><option>Portfolio</option><option>Kund</option></select></label>
+<label>Format<select name="format"><option>PPTX</option><option>PDF</option><option>XLSX</option></select></label>
+<label><input type="checkbox" name="sections" value="status" checked> Status</label>
+<label><input type="checkbox" name="sections" value="milestones" checked> Milstolpar</label>
+<label><input type="checkbox" name="sections" value="risks" checked> Risker</label>
+<label><input type="checkbox" name="sections" value="finance"> Ekonomi</label>
+<button type="submit">Spara profil</button></form></section>
+<section class="next-card"><h2>Profiler</h2><ul>{% for p in presets %}<li><strong>{{p.name}}</strong> · {{p.audience}} · {{p.format}}</li>{% else %}<li>Inga profiler ännu.</li>{% endfor %}</ul></section></div>{% endblock %}

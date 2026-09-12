@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}{{project.name}} · Planning UX Pro{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v11.3</div><h1>Planning UX Pro</h1><p>Planering, dependencies, baseline och Gantt-kontext samlat runt projektets plan.</p></section>
+<div class="next-actions">
+<a class="button" href="{{url_for('planning_hub')}}">Planeringscenter</a>
+{% if 'gantt_next' %}<span class="next-badge">{{links|length}} dependencies</span>{% endif %}
+</div>
+<section class="next-card"><table class="next-table"><thead><tr><th>WBS</th><th>Aktivitet</th><th>Start</th><th>Slut</th><th>Progress</th></tr></thead><tbody>
+{% for t in tasks %}<tr><td>{{t.wbs or ""}}</td><td>{{t.title}}</td><td>{{t.start_date or ""}}</td><td>{{t.end_date or ""}}</td><td>{{t.progress or 0}}%</td></tr>{% endfor %}
+</tbody></table></section>{% endblock %}

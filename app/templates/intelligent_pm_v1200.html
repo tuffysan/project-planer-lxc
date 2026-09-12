@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block title %}Idag · Project Planer{% endblock %}
+{% block content %}<section class="next-hero"><div class="eyebrow">v12.0 · Intelligent Project Manager</div><h1>God morgon</h1><p>En handlingsorienterad morgonvy som sammanför projekt, risker, ekonomi, DevOps och beslut.</p></section>
+<div class="next-grid">
+<section class="next-card {% if attention %}next-attention{% else %}next-ok{% endif %}"><div class="next-kpi">{{attention}}</div><div>projekt behöver uppmärksamhet</div></section>
+<section class="next-card"><div class="next-kpi">{{my_tasks|length}}</div><div>öppna aktiviteter för dig</div></section>
+<section class="next-card"><div class="next-kpi">{{unread}}</div><div>olästa notiser</div></section>
+<section class="next-card"><div class="next-kpi">{{devops_failed}}</div><div>misslyckade DevOps-synkningar</div></section>
+</div>
+<section class="next-card"><h2>Portfolio attention</h2><table class="next-table"><thead><tr><th>Projekt</th><th>Progress</th><th>Försenat</th><th>Höga risker</th></tr></thead><tbody>
+{% for p in projects %}<tr><td>{{p.name}}</td><td>{{p.progress|round|int}}%</td><td>{{p.overdue}}</td><td>{{p.risks}}</td></tr>{% endfor %}
+</tbody></table></section>
+<section class="next-card"><h2>Din dag</h2><ul>{% for t in my_tasks[:12] %}<li><strong>{{t.title}}</strong> · {{t.project_name}} · {{t.end_date or "utan datum"}}</li>{% else %}<li>Inga öppna aktiviteter.</li>{% endfor %}</ul></section>
+{% endblock %}
