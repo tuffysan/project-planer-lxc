@@ -11,7 +11,7 @@ resolve_version() {
     local tag
     tag="$(
       curl -fsSL -H 'Accept: application/vnd.github+json' \
-        "https://api.github.com/repos/${REPO}/releases/latest" \
+        "https://api.github.com/repos/${REPO}/releases/latest?nocache=$(date +%s)" \
       | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
       | head -1
     )"
