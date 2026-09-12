@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="{{ url_for('index') }}">← Alla projekt</a>
+    <h1>{{ project.name }}</h1>
+    <p class="muted">{{ project.customer }}{% if project.project_manager %} · Projektledare: {{ project.project_manager }}{% endif %}</p>
+  </div>
+  <div class="actions">
+    <a class="btn ghost" href="{{ url_for('edit_project', project_id=project.id) }}">Redigera projekt</a>
+    <a class="btn excel" href="{{ url_for('export_project', project_id=project.id) }}">Exportera Excel</a>
+    <a class="btn" href="{{ url_for('new_task', project_id=project.id) }}">+ Aktivitet</a>
+  </div>
+</div>
+
+<div class="summary-grid">
+  <div class="card metric"><span>Progress</span><strong>{{ avg }}%</strong><div class="progress"><span style="width:{{ avg }}%"></span></div></div>
+  <div class="card metric"><span>Aktiviteter</span><strong>{{ tasks|length }}</strong></div>
+  <div class="card metric"><span>Klara</span><strong>{{ done }}</strong></div>
+  <div class="card metric"><span>Blockerade</span><strong class="{% if blocked %}danger{% endif %}">{{ blocked }}</strong></div>
+</div>
+
+{% if project.description %}<div class="card description">{{ project.description }}</div>{% endif %}
+
+<div class="card table-card">
+  {% if not tasks %}
+  <div class="empty">
+    <h2>Projektplanen är tom</h2>
+    <p>Lägg till första aktiviteten eller milstolpen.</p>
+    <a class="btn" href="{{ url_for('new_task', project_id=project.id) }}">Lägg till aktivitet</a>
+  </div>
+  {% else %}
+  <div class="table-wrap">
+  <table>
+    <thead><tr>
+      <th>WBS</th><th>Aktivitet</th><th>Ansvarig</th><th>Start</th><th>Slut</th>
+      <th>Status</th><th>Progress</th><th>Prioritet</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for t in tasks %}
+    <tr class="{% if t.milestone %}milestone{% endif %}">
+      <td>{{ t.wbs }}</td>
+      <td><a href="{{ url_for('edit_task', project_id=project.id, task_id=t.id) }}"><b>{% if t.milestone %}◆ {% endif %}{{ t.title }}</b></a>{% if t.dependencies %}<small>Beroende: {{ t.dependencies }}</small>{% endif %}</td>
+      <td>{{ t.owner }}</td><td>{{ t.start_date }}</td><td>{{ t.end_date }}</td>
+      <td>
+        <form class="quick" method="post" action="{{ url_for('quick_task', project_id=project.id, task_id=t.id) }}">
+          <select name="status" onchange="this.form.submit()">{% for s in statuses %}<option {% if t.status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+          <input type="hidden" name="progress" value="{{ t.progress }}">
+        </form>
+      </td>
+      <td><div class="mini-progress"><span style="width:{{ t.progress }}%"></span></div><small>{{ t.progress }}%</small></td>
+      <td><span class="tag">{{ t.priority }}</span></td>
+      <td class="right">
+        <form method="post" action="{{ url_for('delete_task', project_id=project.id, task_id=t.id) }}" onsubmit="return confirm('Ta bort aktiviteten?')">
+          <button class="icon danger-text" title="Ta bort">×</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+</div>
+
+<div class="danger-zone">
+<form method="post" action="{{ url_for('delete_project', project_id=project.id) }}" onsubmit="return confirm('Ta bort hela projektet och alla aktiviteter?')">
+  <button class="link-danger">Ta bort projektet</button>
+</form>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+[Unit]
+Description=Project Plan Web App
+After=network.target
+
+[Service]
+Type=simple
+User=projectplan
+Group=projectplan
+WorkingDirectory=/opt/project-plan
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/project-plan/venv/bin/gunicorn --workers 2 --bind 0.0.0.0:8080 --timeout 120 app.app:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

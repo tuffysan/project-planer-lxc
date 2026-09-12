@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}{{ "Redigera projekt" if project else "Nytt projekt" }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ "Redigera projekt" if project else "Nytt projekt" }}</h1></div>
+</div>
+<form method="post" class="card form-card">
+  <div class="form-grid">
+    <label>Projektnamn<input required name="name" value="{{ project.name if project else '' }}"></label>
+    <label>Kund<input name="customer" value="{{ project.customer if project else '' }}"></label>
+    <label>Projektledare<input name="project_manager" value="{{ project.project_manager if project else '' }}"></label>
+    <label>Startdatum<input type="date" name="start_date" value="{{ project.start_date if project else '' }}"></label>
+    <label>Slutdatum<input type="date" name="end_date" value="{{ project.end_date if project else '' }}"></label>
+    <label class="wide">Beskrivning<textarea name="description" rows="5">{{ project.description if project else '' }}</textarea></label>
+  </div>
+  <div class="actions">
+    <button class="btn" type="submit">Spara</button>
+    <a class="btn ghost" href="{{ url_for('project', project_id=project.id) if project else url_for('index') }}">Avbryt</a>
+  </div>
+</form>
+{% endblock %}
