@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "10.7.0"
+APP_VERSION = "11.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -3079,6 +3079,36 @@ def automation_integrations_v1060():
 @login_required
 def pm_intelligence_v1070():
     return render_template("roadmap_1070.html")
+
+@app.get("/ux")
+@login_required
+def ux_consolidation_v1080():
+    return render_template("ux_1080.html")
+
+@app.get("/workspace-pro")
+@login_required
+def workspace_pro_v1081():
+    return render_template("ux_1081.html")
+
+@app.get("/devops-ux")
+@login_required
+def devops_ux_v1082():
+    return render_template("ux_1082.html")
+
+@app.get("/excel-reporting-ux")
+@login_required
+def excel_reporting_ux_v1083():
+    return render_template("ux_1083.html")
+
+@app.get("/mobile-workspace")
+@login_required
+def mobile_ux_v1084():
+    return render_template("ux_1084.html")
+
+@app.get("/ux-edition")
+@login_required
+def ux_edition_v1100():
+    return render_template("ux_1100.html")
 
 @app.route("/admin")
 @login_required

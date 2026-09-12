@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Mobile & Tablet UX · Project Planer{% endblock %}
+{% block content %}
+<section class="ux-hero"><div class="eyebrow">v10.8.4</div><h1>Mobile & Tablet UX</h1><p>Mobil och tablet prioriterar arbete, status, risker, approvals och snabb uppdatering.</p></section>
+<nav class="ux-primary" aria-label="Primär arbetsnavigation">
+<a href="{{url_for('enterprise_ux_v1000')}}">Hem</a>
+<a href="{{url_for('my_work')}}">Mitt arbete</a>
+<a href="{{url_for('index')}}">Projekt</a>
+<a href="{{url_for('pmo')}}">Portfolio</a>
+</nav>
+<section class="ux-grid"><a class="ux-card" href="{{url_for('my_work')}}"><h3>Mitt arbete</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('focus_v56')}}"><h3>Fokus</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('action_inbox_v78')}}"><h3>Action Inbox</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('notifications_page')}}"><h3>Notiser</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a></section>
+{% endblock %}

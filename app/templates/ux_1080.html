@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}UI/UX Consolidation · Project Planer{% endblock %}
+{% block content %}
+<section class="ux-hero"><div class="eyebrow">v10.8.0</div><h1>UI/UX Consolidation</h1><p>Ny sammanhållen navigering och startpunkt: Hem, Mitt arbete, Projekt och Portfolio.</p></section>
+<nav class="ux-primary" aria-label="Primär arbetsnavigation">
+<a href="{{url_for('enterprise_ux_v1000')}}">Hem</a>
+<a href="{{url_for('my_work')}}">Mitt arbete</a>
+<a href="{{url_for('index')}}">Projekt</a>
+<a href="{{url_for('pmo')}}">Portfolio</a>
+</nav>
+<section class="ux-grid"><a class="ux-card" href="{{url_for('enterprise_ux_v1000')}}"><h3>Hem</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('my_work')}}"><h3>Mitt arbete</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('index')}}"><h3>Projekt</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('pmo')}}"><h3>Portfolio</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a></section>
+{% endblock %}

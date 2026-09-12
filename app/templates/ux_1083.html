@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Excel & Reporting UX · Project Planer{% endblock %}
+{% block content %}
+<section class="ux-hero"><div class="eyebrow">v10.8.3</div><h1>Excel & Reporting UX</h1><p>Excel Pro och rapportering blir kontextuella och lättare att förstå.</p></section>
+<nav class="ux-primary" aria-label="Primär arbetsnavigation">
+<a href="{{url_for('enterprise_ux_v1000')}}">Hem</a>
+<a href="{{url_for('my_work')}}">Mitt arbete</a>
+<a href="{{url_for('index')}}">Projekt</a>
+<a href="{{url_for('pmo')}}">Portfolio</a>
+</nav>
+<section class="ux-grid"><a class="ux-card" href="{{url_for('excel_portfolio_v902')}}"><h3>Portfolio Excel</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('report_center')}}"><h3>Rapporter</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('scheduled_reports')}}"><h3>Schemalagda rapporter</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('visual_dashboard_v503')}}"><h3>Dashboard</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a></section>
+{% endblock %}

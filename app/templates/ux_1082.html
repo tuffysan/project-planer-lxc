@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}DevOps UX · Project Planer{% endblock %}
+{% block content %}
+<section class="ux-hero"><div class="eyebrow">v10.8.2</div><h1>DevOps UX</h1><p>Azure DevOps flyttas in i projektledarens vardagsflöde med sprint, work items och integrationsstatus.</p></section>
+<nav class="ux-primary" aria-label="Primär arbetsnavigation">
+<a href="{{url_for('enterprise_ux_v1000')}}">Hem</a>
+<a href="{{url_for('my_work')}}">Mitt arbete</a>
+<a href="{{url_for('index')}}">Projekt</a>
+<a href="{{url_for('pmo')}}">Portfolio</a>
+</nav>
+<section class="ux-grid"><a class="ux-card" href="{{url_for('azure_devops_v1010')}}"><h3>Azure DevOps</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('pm_intelligence_v1070')}}"><h3>PM Intelligence</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('control_engine_v79')}}"><h3>Control Engine</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a><a class="ux-card" href="{{url_for('action_inbox_v78')}}"><h3>Action Inbox</h3><p>Öppna arbetsområdet</p><strong>Öppna →</strong></a></section>
+{% endblock %}
