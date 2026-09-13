@@ -219,3 +219,7 @@ Fixar 500-felet på `/start`, korrigerar Projektöversikt och tar bort den dubbl
 
 ## v16.2.0 – Excel Visual UX
 Förbättrar Multi-Project Excel med datumvalidering, tydlig färglegend, statusfärger, progress bars, förseningsmarkering och visuellt tydligare Kontroll/Gantt. Ingen makro-/ActiveX-kalender används; Excel använder sin egen datum-UX där den stöds.
+
+
+## v16.2.1 – Excel Visual UX Runtime Fix
+Fixar v16.2.0-installationsfelet där Multi-Project-datumvalidering felaktigt hamnade i single-project-generatorn. Installationssmoketestet har förstärkts för att förhindra samma regression.

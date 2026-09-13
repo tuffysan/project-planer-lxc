@@ -120,4 +120,20 @@ grep -Fq 'def add_date_validation' app/app.py || { echo "ERROR: date validation 
 grep -Fq 'DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color="5B9BD5")' app/app.py || { echo "ERROR: progress data bar missing" >&2; exit 1; }
 grep -Fq 'Försenad aktivitet' app/app.py || { echo "ERROR: overdue activity visual rule missing" >&2; exit 1; }
 grep -Fq 'Färgkodning' app/app.py || { echo "ERROR: color legend missing" >&2; exit 1; }
-grep -Fq 'visual_ux_version","16.2.0' app/app.py || { echo "ERROR: Visual UX metadata missing" >&2; exit 1; }
+grep -Fq 'visual_ux_version","16.2.1' app/app.py || { echo "ERROR: Visual UX metadata missing" >&2; exit 1; }
+
+echo "[v16.2.1] Verifying Excel Visual UX runtime scope fix..."
+python3 - <<'PY'
+from pathlib import Path
+src=Path("app/app.py").read_text(encoding="utf-8")
+a=src.index("def excel_blank_complete_workbook_v1525")
+b=src.index("def excel_new_project_from_workbook_v1525")
+single=src[a:b]
+assert "for _sheet_name,_headers,_dates,_money in core:" not in single
+m=src.index("def excel_multi_project_workbook_v1530")
+n=src.index("def excel_multi_project_import_v1530")
+multi=src[m:n]
+assert "for _sheet_name,_headers,_dates,_money in core:" in multi
+assert '("visual_ux_version","16.2.1")' in multi
+print("v16.2.1 scope regression checks OK")
+PY

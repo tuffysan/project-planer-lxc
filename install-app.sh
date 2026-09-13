@@ -162,8 +162,25 @@ grep -Fq 'excel_multi_connected_template_v1610' "$RELEASE_DIR/app/app.py" || { e
 
 echo "Verifierar v16.2 Excel Visual UX-källkod..."
 grep -Fq 'def add_date_validation' "$RELEASE_DIR/app/app.py" || { echo "Datumvalidering saknas."; exit 1; }
-grep -Fq 'visual_ux_version","16.2.0' "$RELEASE_DIR/app/app.py" || { echo "Visual UX metadata saknas."; exit 1; }
+grep -Fq 'visual_ux_version","16.2.1' "$RELEASE_DIR/app/app.py" || { echo "Visual UX metadata saknas."; exit 1; }
 grep -Fq 'Försenad aktivitet' "$RELEASE_DIR/app/app.py" || { echo "Förseningsmarkering saknas."; exit 1; }
+
+python3 - "$RELEASE_DIR/app/app.py" <<'PY'
+import sys
+from pathlib import Path
+src=Path(sys.argv[1]).read_text(encoding="utf-8")
+a=src.index("def excel_blank_complete_workbook_v1525")
+b=src.index("def excel_new_project_from_workbook_v1525")
+single=src[a:b]
+if "for _sheet_name,_headers,_dates,_money in core:" in single:
+    raise SystemExit("Single-project Excel innehåller felaktig 4-fälts core-loop.")
+m=src.index("def excel_multi_project_workbook_v1530")
+n=src.index("def excel_multi_project_import_v1530")
+multi=src[m:n]
+if "for _sheet_name,_headers,_dates,_money in core:" not in multi:
+    raise SystemExit("Multi-Project datumvalidering saknas.")
+print("Excel Visual UX scope check OK")
+PY
 
 echo "Verifierar Excel-mallen med riktig runtime..."
 (

@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "16.2.0"
+APP_VERSION = "16.2.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -5158,17 +5158,6 @@ def excel_blank_complete_workbook_v1525():
         plain_sheet(name,headers,editable=True,date_headers=dates,money_headers=money,percent_headers=pct)
 
     # Helpful data validation only on simple literal lists. No defined names or cross-sheet formulas.
-    # Datumvalidering på övriga arbetsblad med datumkolumner.
-    for _sheet_name,_headers,_dates,_money in core:
-        if not _dates:
-            continue
-        _ws=wb[_sheet_name]
-        _hdr={excel_text(c.value):c.column for c in _ws[1]}
-        for _date_header in _dates:
-            if _date_header in _hdr:
-                _col=get_column_letter(_hdr[_date_header])
-                add_date_validation(_ws,f"{_col}2:{_col}501",_date_header)
-
     validations={
       "Uppgifter":{"Status":["Ej påbörjad","Pågår","Blockerad","Klar"],"Prioritet":["Låg","Medium","Hög","Kritisk"],"Milstolpe":["Nej","Ja"]},
       "Beroenden":{"Typ":["FS","SS","FF","SF"]},
@@ -5872,6 +5861,19 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
             "Project Planer"
         )
 
+    # v16.2.1: datumvalidering på övriga Multi-Project-blad.
+    # `core` här består av exakt fyra värden:
+    # (sheet_name, headers, date_headers, money_headers).
+    for _sheet_name,_headers,_dates,_money in core:
+        if not _dates:
+            continue
+        _ws=wb[_sheet_name]
+        _hdr={excel_text(c.value):c.column for c in _ws[1]}
+        for _date_header in _dates:
+            if _date_header in _hdr:
+                _col=get_column_letter(_hdr[_date_header])
+                add_date_validation(_ws,f"{_col}2:{_col}501",_date_header)
+
     validations={
       "Uppgifter":{"Status":["Ej påbörjad","Pågår","Blockerad","Klar"],"Prioritet":["Låg","Medium","Hög","Kritisk"],"Milstolpe":["Nej","Ja"]},
       "Beroenden":{"Typ":["FS","SS","FF","SF"]},
@@ -6053,7 +6055,7 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
       ("template_kind","multi_project_complete"),
       ("multi_project_version","3"),
       ("connected_projects","1" if existing_projects else "0"),
-      ("visual_ux_version","16.2.0")
+      ("visual_ux_version","16.2.1")
     ]:
         meta.append([k,v])
     meta.sheet_state="hidden"
