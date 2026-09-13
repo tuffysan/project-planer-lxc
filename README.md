@@ -145,3 +145,8 @@ Nytt val **Komplett Excel-mall** exporterar en enda arbetsbok med hela projektet
 ## v15.2.3 – Create Project Fix
 
 Fixar HTTP 500 på **Skapa projekt** genom att rätta den felaktiga CSRF-renderingen i äldre mallar. Skapaflödet är dessutom ombyggt med v15-UX, validering, automatisk projektroll och audit-logg.
+
+
+## v15.2.4 – Excel Discoverability
+
+Excel är nu en förstaklassfunktion i projektvyn med tydlig **Excel ▾**-meny, permanent Excel-flik, snabbpanel och rekommenderad komplett Excel-export högst upp i Excel Center.

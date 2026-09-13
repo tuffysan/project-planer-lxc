@@ -9,7 +9,7 @@
 
 <div class="feature-hero excel-pro-hero">
   <div>
-    <div class="eyebrow">EXCEL PRO · v15.2.2</div>
+    <div class="eyebrow">EXCEL PRO · v15.2.4</div>
     <h1>Vad vill du göra i Excel?</h1>
     <p class="lead">Välj arbetsbok för fortsatt projektarbete, rapport för presentation eller portfolio för en ledningsöversikt över flera projekt.</p>
   </div>
@@ -21,14 +21,22 @@
 </div>
 
 <section class="panel">
-  <div class="excel-purpose-grid">
+  <div class="excel-primary-bar">
+  <div>
+    <span class="eyebrow">REKOMMENDERAT</span>
+    <h2>Vill du ha allt? Börja här.</h2>
+    <p>Komplett Excel-mall laddar ner hela projektet i en och samma arbetsbok.</p>
+  </div>
+  <a class="button primary large" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">↓ Ladda ner komplett Excel</a>
+</div>
+<div class="excel-purpose-grid">
     <a class="excel-purpose-card primary-card" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">
       <div class="excel-purpose-icon">▣</div>
       <div>
         <div class="eyebrow">ALLT I EN FIL</div>
-        <h2>Komplett Excel-mall</h2>
+        <h2>1. Komplett Excel-mall</h2>
         <p>Den mest kompletta arbetsboken: dashboard, projektplan, beroenden, risker, ändringar, resurser, ekonomi, beslut, möten, actions, nyttor, team, statusrapporter, RAID, tid, dokument, baselines, anpassade fält, leverabler, interfaces, test, spårbarhet, cutover, DevOps och omplaneringshistorik.</p>
-        <strong>Ladda ner komplett mall →</strong>
+        <strong>Ladda ner komplett Excel →</strong>
       </div>
     </a>
 

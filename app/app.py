@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.3"
+APP_VERSION = "15.2.4"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -4840,6 +4840,12 @@ def devops_pull_link_v1520(link_id):
         except Exception as ex:
             flash("Pull från Azure DevOps misslyckades: "+str(ex),"error")
     return redirect(url_for("devops_bidirectional_v1520"))
+
+@app.get("/projects/<int:project_id>/excel")
+@login_required
+def project_excel_hub_v1524(project_id):
+    project_or_404(project_id)
+    return redirect(url_for("excel_center_v810",project_id=project_id))
 
 @app.get("/ultimate/compare")
 @login_required
