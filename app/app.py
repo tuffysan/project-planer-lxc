@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "16.1.1"
+APP_VERSION = "16.2.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -5158,6 +5158,17 @@ def excel_blank_complete_workbook_v1525():
         plain_sheet(name,headers,editable=True,date_headers=dates,money_headers=money,percent_headers=pct)
 
     # Helpful data validation only on simple literal lists. No defined names or cross-sheet formulas.
+    # Datumvalidering på övriga arbetsblad med datumkolumner.
+    for _sheet_name,_headers,_dates,_money in core:
+        if not _dates:
+            continue
+        _ws=wb[_sheet_name]
+        _hdr={excel_text(c.value):c.column for c in _ws[1]}
+        for _date_header in _dates:
+            if _date_header in _hdr:
+                _col=get_column_letter(_hdr[_date_header])
+                add_date_validation(_ws,f"{_col}2:{_col}501",_date_header)
+
     validations={
       "Uppgifter":{"Status":["Ej påbörjad","Pågår","Blockerad","Klar"],"Prioritet":["Låg","Medium","Hög","Kritisk"],"Milstolpe":["Nej","Ja"]},
       "Beroenden":{"Typ":["FS","SS","FF","SF"]},
@@ -5480,6 +5491,8 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
     wb.remove(wb.active)
 
     navy="0F4C81"; green="E9F6EE"; grey="F4F6F8"; border="D0D7DE"; text="172B4D"; muted="667085"
+    blue="EAF3FA"; yellow="FFF4CC"; red="FDE2E2"; orange="FCE8D5"
+    status_blue="DCEAF7"; status_green="DDF3E4"; status_red="F8D7DA"; status_orange="FCE8D5"; status_grey="EEF1F4"
     thin=Side(style="thin",color=border)
 
     def title(ws, heading, subtitle=None):
@@ -5537,6 +5550,26 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
     def add_sheet_hint(ws,text_value):
         ws["A1"].comment=Comment(text_value,"Project Planer")
 
+    def add_date_validation(ws, cell_range, title_text="Välj datum"):
+        """Strict Excel date validation. Modern Excel builds can expose their date selector;
+        older desktop builds still get validation, ISO formatting and an input hint."""
+        dv=DataValidation(
+            type="date",
+            operator="between",
+            formula1="DATE(2000,1,1)",
+            formula2="DATE(2100,12,31)",
+            allow_blank=True
+        )
+        dv.error="Ange ett giltigt datum mellan 2000-01-01 och 2100-12-31."
+        dv.errorTitle="Ogiltigt datum"
+        dv.prompt="Välj eller ange datum. Format: ÅÅÅÅ-MM-DD."
+        dv.promptTitle=title_text
+        dv.showInputMessage=True
+        dv.showErrorMessage=True
+        ws.add_data_validation(dv)
+        dv.add(cell_range)
+        return dv
+
     def create_start_sheet():
         ws=wb.create_sheet("Start")
         ws.sheet_view.showGridLines=False
@@ -5592,20 +5625,27 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
                 ws.cell(rr,c.column).fill=PatternFill("solid",fgColor="F7F9FC")
                 ws.cell(rr,c.column).border=Border(left=thin,right=thin,top=thin,bottom=thin)
 
-        ws["B19"]="Så läser du färgerna"
+        ws["B19"]="Färgkodning"
         ws["B19"].font=Font(size=13,bold=True,color=text)
-        for cell,label,fill in [
+        legend_items=[
             ("B21","Fyll i","E9F6EE"),
-            ("C21","Beräknas automatiskt","F4F6F8"),
-            ("D21","Kontroll/varning","FFF4E5"),
-        ]:
+            ("C21","Från Project Planer","EAF3FA"),
+            ("D21","Automatiskt","F4F6F8"),
+            ("E21","Varning","FFF4CC"),
+            ("F21","Fel / blockerad","FDE2E2"),
+            ("B22","Pågår","DCEAF7"),
+            ("C22","Klar","DDF3E4"),
+            ("D22","I riskzonen","FCE8D5"),
+            ("E22","Ej påbörjad","EEF1F4"),
+        ]
+        for cell,label,fill in legend_items:
             ws[cell]=label
             ws[cell].fill=PatternFill("solid",fgColor=fill)
             ws[cell].border=Border(left=thin,right=thin,top=thin,bottom=thin)
-            ws[cell].alignment=Alignment(horizontal="center")
+            ws[cell].alignment=Alignment(horizontal="center",vertical="center")
         ws["B24"]="Tips"
         ws["B24"].font=Font(size=12,bold=True,color=navy)
-        ws["B25"]="För de flesta projekt räcker det att arbeta i Projekt och Uppgifter. Risker, Resurser, Kostnader och Beroenden är valfria."
+        ws["B25"]="Grönt = du fyller i. Blått = hämtat från Project Planer. Grått = beräknas automatiskt. Statusfärger är en visuell förstärkning – texten är alltid styrande."
         ws["B25"].alignment=Alignment(wrap_text=True)
         ws.merge_cells("B25:F26")
         ws.freeze_panes="B4"
@@ -5714,12 +5754,76 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
     _level_dv.add("C2:C501")
 
     _tasks["B1"].comment=Comment("Skriv aktivitetens namn, t.ex. 'Installera server'.","Project Planer")
-    _tasks["F1"].comment=Comment("Planerad start.","Project Planer")
+    _tasks["F1"].comment=Comment(
+        "Planerad start. Klicka i cellen och välj datum om din Excel-version visar datumväljaren, "
+        "eller skriv datum som ÅÅÅÅ-MM-DD.",
+        "Project Planer"
+    )
     _tasks["G1"].comment=Comment("Valfritt antal kalenderdagar. Plan slut beräknas automatiskt.","Project Planer")
-    _tasks["H1"].comment=Comment("Beräknas från Plan start + Varaktighet dagar. Kan skrivas över.","Project Planer")
+    _tasks["H1"].comment=Comment(
+        "Beräknas från Plan start + Varaktighet dagar. Du kan skriva över formeln med ett eget datum.",
+        "Project Planer"
+    )
+
+    # Datumvalidering ger datumväljare i de Excel-versioner som stöder den
+    # och strikt datumkontroll i övriga.
+    add_date_validation(_tasks,"F2:F501","Plan start")
+    add_date_validation(_tasks,"H2:H501","Plan slut")
+    add_date_validation(_tasks,"K2:K501","Faktisk start")
+    add_date_validation(_tasks,"L2:L501","Faktiskt slut")
+
     for _row in range(2,502):
         _tasks.cell(_row,_task_hdr["Plan slut"]).value=f'=IF(OR(F{_row}="",G{_row}=""),"",F{_row}+G{_row}-1)'
         _tasks.cell(_row,_task_hdr["Plan slut"]).fill=PatternFill("solid",fgColor=grey)
+    # v16.2.0: tydlig statusfärgning och progressindikator.
+    _status_col=get_column_letter(_task_hdr["Status"])
+    _progress_col=get_column_letter(_task_hdr["Progress %"])
+    _end_col=get_column_letter(_task_hdr["Plan slut"])
+    _title_col=get_column_letter(_task_hdr["Aktivitet"])
+
+    _status_range=f"{_status_col}2:{_status_col}501"
+    _tasks.conditional_formatting.add(
+        _status_range,
+        FormulaRule(formula=[f'OR(${_status_col}2="Ej påbörjad",${_status_col}2="Not started")'],
+                    fill=PatternFill("solid",fgColor=status_grey))
+    )
+    _tasks.conditional_formatting.add(
+        _status_range,
+        FormulaRule(formula=[f'OR(${_status_col}2="Pågår",${_status_col}2="In progress")'],
+                    fill=PatternFill("solid",fgColor=status_blue))
+    )
+    _tasks.conditional_formatting.add(
+        _status_range,
+        FormulaRule(formula=[f'OR(${_status_col}2="Klar",${_status_col}2="Done",${_status_col}2="Completed")'],
+                    fill=PatternFill("solid",fgColor=status_green))
+    )
+    _tasks.conditional_formatting.add(
+        _status_range,
+        FormulaRule(formula=[f'OR(${_status_col}2="Blockerad",${_status_col}2="Blocked")'],
+                    fill=PatternFill("solid",fgColor=status_red))
+    )
+    _tasks.conditional_formatting.add(
+        _status_range,
+        FormulaRule(formula=[f'OR(${_status_col}2="I riskzonen",${_status_col}2="At risk")'],
+                    fill=PatternFill("solid",fgColor=status_orange))
+    )
+
+    _tasks.conditional_formatting.add(
+        f"{_progress_col}2:{_progress_col}501",
+        DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color="5B9BD5")
+    )
+
+    # Försenad aktivitet: markera aktivitet och slutdatum i ljusrött om datum passerat och status inte är Klar.
+    _overdue_formula=f'AND(${_end_col}2<TODAY(),${_end_col}2<>"",NOT(OR(${_status_col}2="Klar",${_status_col}2="Done",${_status_col}2="Completed")))'
+    _tasks.conditional_formatting.add(
+        f"{_title_col}2:{_title_col}501",
+        FormulaRule(formula=[_overdue_formula],fill=PatternFill("solid",fgColor=red))
+    )
+    _tasks.conditional_formatting.add(
+        f"{_end_col}2:{_end_col}501",
+        FormulaRule(formula=[_overdue_formula],fill=PatternFill("solid",fgColor=red))
+    )
+
     for _name in ("Faktisk start","Faktiskt slut","Prioritet","Milstolpe","Kommentar"):
         _tasks.column_dimensions[get_column_letter(_task_hdr[_name])].hidden=True
     _tasks.column_dimensions[get_column_letter(_task_hdr["Aktivitet"])].width=38
@@ -5730,7 +5834,7 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
     set_tab(_tasks,"70AD47")
     add_sheet_hint(_tasks,
         "Enkel planering: välj Projekt, skriv Aktivitet, välj Nivå och fyll i Start. "
-        "Aktivitetsnummer och Plan slut beräknas automatiskt."
+        "Aktivitetsnummer och Plan slut beräknas automatiskt. Datum valideras och status/progress färgkodas."
     )
 
     # Beroenden kan anges med aktivitetsnummer eller exakt aktivitetsnamn.
@@ -5825,7 +5929,8 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
             _letter=get_column_letter(_col)
             gantt.cell(_row,_col).value=f'=IF(OR($E{_row}="",$F{_row}=""),"",IF(AND({_letter}$4<=$F{_row},{_letter}$4+6>=$E{_row}),"■",""))'
             gantt.cell(_row,_col).alignment=Alignment(horizontal="center")
-            gantt.cell(_row,_col).font=Font(color="5B9BD5")
+            gantt.cell(_row,_col).font=Font(color="5B9BD5",bold=True)
+            gantt.cell(_row,_col).fill=PatternFill("solid",fgColor="EAF3FA")
     gantt.auto_filter.ref="A4:AF104"
     set_tab(gantt,"5B9BD5")
 
@@ -5862,6 +5967,18 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
     check.column_dimensions["A"].width=42
     check.column_dimensions["B"].width=12
     check.column_dimensions["C"].width=16
+    check.conditional_formatting.add(
+        "C6:C15",
+        FormulaRule(formula=['$C6="OK"'],fill=PatternFill("solid",fgColor=status_green))
+    )
+    check.conditional_formatting.add(
+        "C6:C15",
+        FormulaRule(formula=['$C6="VARNING"'],fill=PatternFill("solid",fgColor=yellow))
+    )
+    check.conditional_formatting.add(
+        "C6:C15",
+        FormulaRule(formula=['$C6="FEL"'],fill=PatternFill("solid",fgColor=red))
+    )
     for _row,_label,_target in [
         (19,"Öppna Projekt","#Projekt!A1"),
         (20,"Öppna Uppgifter","#Uppgifter!A1"),
@@ -5934,8 +6051,9 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
       ("app_version",APP_VERSION),
       ("exported_at",datetime.now().isoformat(timespec="seconds")),
       ("template_kind","multi_project_complete"),
-      ("multi_project_version","2"),
-      ("connected_projects","1" if existing_projects else "0")
+      ("multi_project_version","3"),
+      ("connected_projects","1" if existing_projects else "0"),
+      ("visual_ux_version","16.2.0")
     ]:
         meta.append([k,v])
     meta.sheet_state="hidden"

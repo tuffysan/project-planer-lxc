@@ -215,3 +215,7 @@ Projekt som skapas på Projekt-bladet blir direkt valbara som `Projektkod – Pr
 
 ## v16.1.1 – Unified UI Hotfix
 Fixar 500-felet på `/start`, korrigerar Projektöversikt och tar bort den dubbla huvudmenyn. Den befintliga Project Planer-topbaren är åter den enda navigeringen och leder till den nya Start-sidan.
+
+
+## v16.2.0 – Excel Visual UX
+Förbättrar Multi-Project Excel med datumvalidering, tydlig färglegend, statusfärger, progress bars, förseningsmarkering och visuellt tydligare Kontroll/Gantt. Ingen makro-/ActiveX-kalender används; Excel använder sin egen datum-UX där den stöds.

@@ -114,3 +114,10 @@ echo "[v16.1.1] Verifying Unified UI hotfix..."
 grep -Fq '<a href="/start">Start</a>' app/templates/base.html || { echo "ERROR: Start nav link missing" >&2; exit 1; }
 grep -Fq 'def unified_start_v1600' app/app.py || { echo "ERROR: unified start route missing" >&2; exit 1; }
 grep -Fq 'project=project_or_404(project_id)' app/app.py || { echo "ERROR: project overview access fix missing" >&2; exit 1; }
+
+echo "[v16.2.0] Verifying Excel Visual UX..."
+grep -Fq 'def add_date_validation' app/app.py || { echo "ERROR: date validation helper missing" >&2; exit 1; }
+grep -Fq 'DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color="5B9BD5")' app/app.py || { echo "ERROR: progress data bar missing" >&2; exit 1; }
+grep -Fq 'Försenad aktivitet' app/app.py || { echo "ERROR: overdue activity visual rule missing" >&2; exit 1; }
+grep -Fq 'Färgkodning' app/app.py || { echo "ERROR: color legend missing" >&2; exit 1; }
+grep -Fq 'visual_ux_version","16.2.0' app/app.py || { echo "ERROR: Visual UX metadata missing" >&2; exit 1; }

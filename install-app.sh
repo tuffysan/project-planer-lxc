@@ -160,6 +160,11 @@ grep -Fq 'def excel_project_ref_code_v1610' "$RELEASE_DIR/app/app.py" || { echo 
 grep -Fq '_Projektlista' "$RELEASE_DIR/app/app.py" || { echo "Connected Projects dropdown-helper saknas."; exit 1; }
 grep -Fq 'excel_multi_connected_template_v1610' "$RELEASE_DIR/app/app.py" || { echo "Connected Projects route saknas."; exit 1; }
 
+echo "Verifierar v16.2 Excel Visual UX-källkod..."
+grep -Fq 'def add_date_validation' "$RELEASE_DIR/app/app.py" || { echo "Datumvalidering saknas."; exit 1; }
+grep -Fq 'visual_ux_version","16.2.0' "$RELEASE_DIR/app/app.py" || { echo "Visual UX metadata saknas."; exit 1; }
+grep -Fq 'Försenad aktivitet' "$RELEASE_DIR/app/app.py" || { echo "Förseningsmarkering saknas."; exit 1; }
+
 echo "Verifierar Excel-mallen med riktig runtime..."
 (
   cd "$RELEASE_DIR"
