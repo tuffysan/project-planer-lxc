@@ -155,3 +155,8 @@ Excel är nu en förstaklassfunktion i projektvyn med tydlig **Excel ▾**-meny,
 ## v15.2.5 – Excel Start Center
 
 Excel kan nu användas utan ett befintligt projekt. Huvudmenyn har en permanent **Excel**-genväg för tom komplett mall och för att importera en ifylld mall som ett nytt projekt.
+
+
+## v15.2.6 – Excel Navigation Fix
+
+Den globala **Excel**-genvägen ligger nu direkt i huvudnavigationen mellan **Portfolio** och **Sök** och visas för alla inloggade användare. `/health/ui` kan användas för att verifiera att rätt UI-template är installerad.

@@ -1106,3 +1106,12 @@ body{background:var(--v15-bg)}
 .excel-new-project-form input[type=file]{padding:18px;border:2px dashed var(--v15-border);border-radius:12px;background:#f8fafb}
 @media(max-width:900px){.excel-start-grid{grid-template-columns:1fr}.excel-start-steps{grid-template-columns:1fr 1fr}}
 @media(max-width:600px){.excel-start-steps{grid-template-columns:1fr}}
+
+/* v15.2.6 - global Excel navigation */
+.ultimate-primary-nav a[data-nav-excel]{
+  font-weight:800;
+}
+.ultimate-primary-nav a[data-nav-excel]:hover{
+  background:rgba(31,111,67,.10);
+  color:#185b37;
+}

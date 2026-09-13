@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.5"
+APP_VERSION = "15.2.6"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -5013,6 +5013,22 @@ def excel_create_project_v1525():
         except Exception as ex:
             flash("Kunde inte skapa projekt från Excel: "+str(ex),"error")
     return render_template("excel_create_project_v1525.html")
+
+@app.get("/health/ui")
+@login_required
+def health_ui_v1526():
+    base_path = os.path.join(app.template_folder or "templates", "base.html")
+    try:
+        text = open(base_path, "r", encoding="utf-8").read()
+        excel_nav = 'data-nav-excel="v15.2.6"' in text
+    except Exception:
+        excel_nav = False
+    return jsonify({
+        "status": "ok" if excel_nav else "degraded",
+        "version": APP_VERSION,
+        "excel_nav": excel_nav,
+        "excel_start_center": True
+    }), (200 if excel_nav else 503)
 
 @app.get("/ultimate/compare")
 @login_required

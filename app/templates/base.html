@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="{{url_for('static',filename='assets/project-planer-icon-32.png')}}">
   <link rel="icon" type="image/png" sizes="192x192" href="{{url_for('static',filename='assets/project-planer-icon-192.png')}}">
   <link rel="apple-touch-icon" href="{{url_for('static',filename='assets/project-planer-icon.png')}}">
-  <link rel="stylesheet" href="{{url_for('static',filename='style.css')}}">
+  <link rel="stylesheet" href="{{url_for('static',filename='style.css')}}?v={{app_version}}">
 </head>
 <body>
 <a class="ux-skip" href="#main-content">Hoppa till innehåll</a>
@@ -27,10 +27,10 @@
     <a href="/my-work-2">{{ui("my_work")}}</a>
     <a href="/">{{ui("projects")}}</a>
     <a href="/portfolio-cockpit">{{ui("portfolio")}}</a>
+    <a href="/excel" data-nav-excel="v15.2.6">Excel</a>
     <button class="ultimate-search-trigger" type="button" data-command-open aria-label="{{ui('search')}}">⌘ {{ui("search")}}</button>
     {% if current_user['role'] in ['admin','pm'] %}
       <a class="nav-accent" href="/projects/new-guided">＋ {{ui("create")}}</a>
-      <a class="excel-global-shortcut" href="/excel">Excel</a>
     {% endif %}
     {% if current_user['role']=='admin' %}
       <a href="/admin">{{ui("admin")}}</a>

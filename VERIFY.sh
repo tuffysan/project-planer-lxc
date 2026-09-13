@@ -18,3 +18,14 @@ APP_VERSION="$(sed -n 's/^APP_VERSION = "\([^"]*\)".*/\1/p' "$ROOT/app/app.py" |
 python3 "$ROOT/VERIFY-PYTHON.py"
 
 echo "VERIFY OK: v$EXPECTED"
+
+
+echo "[v15.2.6] Verifying global Excel navigation..."
+grep -Fq 'data-nav-excel="v15.2.6"' app/templates/base.html || {
+  echo "ERROR: Global Excel navigation is missing from app/templates/base.html" >&2
+  exit 1
+}
+grep -Fq 'href="/excel"' app/templates/base.html || {
+  echo "ERROR: /excel navigation link is missing from app/templates/base.html" >&2
+  exit 1
+}
