@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="ux-shell">
+  <section class="ux-hero">
+    <div>
+      <div class="ux-eyebrow">Projektöversikt</div>
+      <h1>{{ project.name }}</h1>
+      <p class="ux-lead">{{ project.customer or "Ingen kund" }} · {{ project.project_manager or "Ingen projektledare" }}</p>
+    </div>
+    <div class="ux-actions">
+      <a class="btn btn-primary" href="/projects/{{ project.id }}/tasks">Uppgifter</a>
+      <a class="btn" href="/projects/{{ project.id }}/gantt">Gantt</a>
+      <a class="btn" href="/projects/{{ project.id }}/excel">Excel</a>
+    </div>
+  </section>
+
+  <nav class="ux-project-tabs">
+    <a class="active" href="/projects/{{ project.id }}/overview">Översikt</a>
+    <a href="/projects/{{ project.id }}/tasks">Uppgifter</a>
+    <a href="/projects/{{ project.id }}/gantt">Gantt</a>
+    <a href="/projects/{{ project.id }}/risks">Risker</a>
+    <a href="/projects/{{ project.id }}/resources">Resurser</a>
+    <a href="/projects/{{ project.id }}/finance">Kostnader</a>
+    <details>
+      <summary>Avancerat</summary>
+      <div class="ux-advanced-menu">
+        <a href="/projects/{{ project.id }}/raid">RAID</a>
+        <a href="/projects/{{ project.id }}/changes">Ändringar</a>
+        <a href="/projects/{{ project.id }}/documents">Dokument</a>
+        <a href="/projects/{{ project.id }}/delivery">Leverans</a>
+      </div>
+    </details>
+  </nav>
+
+  <section class="ux-kpis">
+    <div class="ux-card ux-kpi"><span>Progress</span><strong>{{ avg_progress }}%</strong></div>
+    <div class="ux-card ux-kpi"><span>Aktiviteter</span><strong>{{ total_tasks }}</strong></div>
+    <div class="ux-card ux-kpi"><span>Klara</span><strong>{{ done_tasks }}</strong></div>
+    <div class="ux-card ux-kpi"><span>Öppna risker</span><strong>{{ risks|length }}</strong></div>
+  </section>
+
+  <section class="ux-grid-2">
+    <div class="ux-card">
+      <div class="ux-card-head"><h2>Nästa milstolpar</h2><a href="/projects/{{ project.id }}/gantt">Gantt</a></div>
+      {% if upcoming %}
+      <div class="ux-list">
+        {% for t in upcoming %}
+        <a class="ux-list-row" href="/projects/{{ project.id }}/tasks">
+          <div>
+            <strong>{{ t.title }}</strong>
+            <small>{{ ux_task_number(t) }} · {{ t.end_date or "Inget datum" }}</small>
+          </div>
+          <span class="ux-status">{{ t.status or "Ej påbörjad" }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ux-empty">Inga kommande milstolpar.</div>
+      {% endif %}
+    </div>
+
+    <div class="ux-card">
+      <div class="ux-card-head"><h2>Projektteam</h2><a href="/projects/{{ project.id }}/members">Hantera</a></div>
+      {% if members %}
+      <div class="ux-list">
+        {% for m in members[:8] %}
+          <div class="ux-list-row">
+            <div><strong>{{ m.name or m.username }}</strong><small>{{ m.project_role or "Medlem" }}</small></div>
+          </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ux-empty">Inga projektmedlemmar ännu.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="ux-grid-2">
+    <div class="ux-card">
+      <div class="ux-card-head"><h2>Risker</h2><a href="/projects/{{ project.id }}/risks">Visa alla</a></div>
+      {% if risks %}
+      <div class="ux-list">
+        {% for r in risks[:5] %}
+          <a class="ux-list-row" href="/projects/{{ project.id }}/risks">
+            <div><strong>{{ r.title }}</strong><small>{{ r.owner or "Ingen ansvarig" }}</small></div>
+            <span class="ux-status ux-status-warn">{{ r.status or "Öppen" }}</span>
+          </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ux-empty">Inga öppna risker.</div>
+      {% endif %}
+    </div>
+    <div class="ux-card">
+      <div class="ux-card-head"><h2>Kostnader</h2><a href="/projects/{{ project.id }}/finance">Detaljer</a></div>
+      <div class="ux-money-row"><span>Planerat</span><strong>{{ "%.0f"|format(costs.planned or 0) }}</strong></div>
+      <div class="ux-money-row"><span>Utfall</span><strong>{{ "%.0f"|format(costs.actual or 0) }}</strong></div>
+    </div>
+  </section>
+</div>
+{% endblock %}

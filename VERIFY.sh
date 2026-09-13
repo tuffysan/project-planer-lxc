@@ -71,3 +71,26 @@ grep -Fq 'from openpyxl.comments import Comment' app/app.py || {
   echo "ERROR: Multi-Project Excel uses Comment but openpyxl Comment import is missing." >&2
   exit 1
 }
+
+echo "[v15.4.0] Verifying simplified Excel planning..."
+grep -Fq 'def excel_generate_wbs_from_levels_v1540' app/app.py || { echo "ERROR: WBS generation helper missing" >&2; exit 1; }
+grep -Fq '"Aktivitetsnummer"' app/app.py || { echo "ERROR: Aktivitetsnummer column missing" >&2; exit 1; }
+grep -Fq '"Nivå"' app/app.py || { echo "ERROR: Nivå column missing" >&2; exit 1; }
+grep -Fq '"Föregående aktivitet"' app/app.py || { echo "ERROR: simplified dependency column missing" >&2; exit 1; }
+grep -Fq 'excel_resolve_activity_ref_v1540' app/app.py || { echo "ERROR: activity dependency resolver missing" >&2; exit 1; }
+
+echo "[v15.5.0] Verifying Excel UX Edition..."
+grep -Fq 'wb.create_sheet("Start")' app/app.py || { echo "ERROR: Start sheet missing" >&2; exit 1; }
+grep -Fq 'wb.create_sheet("Gantt")' app/app.py || { echo "ERROR: Gantt sheet missing" >&2; exit 1; }
+grep -Fq 'wb.create_sheet("Kontroll")' app/app.py || { echo "ERROR: Kontroll sheet missing" >&2; exit 1; }
+grep -Fq 'Varaktighet dagar' app/app.py || { echo "ERROR: duration UX missing" >&2; exit 1; }
+grep -Fq 'Huvudaktivitet' app/app.py || { echo "ERROR: friendly level labels missing" >&2; exit 1; }
+grep -Fq 'wb_values=load_workbook' app/app.py || { echo "ERROR: formula-value workbook missing" >&2; exit 1; }
+
+echo "[v16.0.0] Verifying Unified UX Edition..."
+grep -Fq '@app.route("/start")' app/app.py || { echo "ERROR: unified start route missing" >&2; exit 1; }
+grep -Fq '/projects/<int:project_id>/overview' app/app.py || { echo "ERROR: project overview route missing" >&2; exit 1; }
+test -f app/templates/unified_start_v1600.html || { echo "ERROR: unified start template missing" >&2; exit 1; }
+test -f app/templates/project_overview_v1600.html || { echo "ERROR: project overview template missing" >&2; exit 1; }
+grep -Fq 'ux-v1600-nav' app/templates/base.html || { echo "ERROR: unified navigation missing" >&2; exit 1; }
+grep -Fq 'Unified UX Edition' README.md || { echo "ERROR: README not updated" >&2; exit 1; }

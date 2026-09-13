@@ -188,3 +188,18 @@ I Multi-Project Excel genereras Projektkod automatiskt som `PRJ-001`, `PRJ-002` 
 ## v15.3.2 – Excel Comment Runtime Fix
 
 Fixar v15.3.1-installationen där Multi-Project Excel använde `Comment` utan att importera `openpyxl.comments.Comment`. Installations-smoketestet måste fortfarande passera för både single- och multi-project Excel innan aktivering.
+
+
+## v15.4.0 – Simple Excel Planning
+
+Multi-Project Excel kräver inte längre att användaren skriver WBS. På bladet **Uppgifter** anges **Aktivitet** och **Nivå 1–3**; **Aktivitetsnummer** genereras automatiskt per projekt. Vid import räknar Project Planer själv fram den tekniska WBS-strukturen. Beroenden kan anges med aktivitetsnummer eller exakt aktivitetsnamn.
+
+
+## v15.5.0 – Excel UX Edition
+
+Multi-Project Excel har fått Start-dashboard, enklare aktivitetsnivåer, varaktighet och automatiskt slutdatum, Gantt, Kontroll före import samt en renare standardflikordning. Avancerade blad finns kvar men är dolda som standard.
+
+
+## v16.0.0 – Unified UX Edition
+
+Webbapp och Excel följer nu samma mentala modell. Ny Start, ny Projektöversikt, förenklad primärnavigation, samma begrepp som i Excel och avancerade projektfunktioner samlade under Avancerat.

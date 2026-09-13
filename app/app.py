@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.3.2"
+APP_VERSION = "16.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1145,6 +1145,35 @@ def force_utf8_charset_v1521(response):
         response.headers["Content-Type"] = content_type + "; charset=utf-8"
     return response
 
+
+def ux_project_label_v1600(project):
+    """Consistent project label for Unified UX."""
+    if not project:
+        return ""
+    try:
+        code=excel_text(project["project_code"] if "project_code" in project.keys() else "").strip()
+    except Exception:
+        code=""
+    try:
+        name=excel_text(project["name"]).strip()
+    except Exception:
+        name=excel_text(project).strip()
+    return f"{code} · {name}" if code else name
+
+def ux_task_level_label_v1600(wbs):
+    """Translate technical WBS depth into the same user language as Excel."""
+    text_value=excel_text(wbs).strip()
+    depth=text_value.count(".")+1 if text_value else 1
+    return {1:"Huvudaktivitet",2:"Underaktivitet",3:"Detaljaktivitet"}.get(depth,"Detaljaktivitet")
+
+def ux_task_number_v1600(task):
+    """Expose WBS as Aktivitetsnummer in the UI while preserving storage model."""
+    try:
+        return excel_text(task["wbs"]).strip()
+    except Exception:
+        return ""
+
+
 @app.context_processor
 def inject_i18n():
     return dict(t=tr, ui=ui152, active_lang=active_language(), languages=LANGUAGES)
@@ -1238,6 +1267,105 @@ def derived_status(task):
 
 def task_health(task):
     return {"Försenad":"danger","Blockerad":"warning","Klar":"success","Pågår":"info"}.get(derived_status(task),"muted")
+
+
+
+@app.route("/projects/<int:project_id>/overview")
+@login_required
+def project_overview_v1600(project_id):
+    require_project_access(project_id)
+    with db_connect() as conn:
+        project=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
+        if not project:
+            abort(404)
+        tasks=conn.execute("""
+            SELECT * FROM tasks
+            WHERE project_id=? AND deleted_at IS NULL
+            ORDER BY COALESCE(sort_order,999999), wbs, id
+        """,(project_id,)).fetchall()
+        risks=conn.execute("""
+            SELECT * FROM risks WHERE project_id=?
+            ORDER BY CASE WHEN LOWER(COALESCE(status,'')) IN ('closed','stängd','klar','done') THEN 1 ELSE 0 END,
+                     impact DESC, probability DESC, id DESC
+            LIMIT 10
+        """,(project_id,)).fetchall()
+        members=conn.execute("""
+            SELECT pm.*, u.name, u.username
+            FROM project_members pm
+            LEFT JOIN users u ON u.id=pm.user_id
+            WHERE pm.project_id=?
+            ORDER BY u.name, u.username
+        """,(project_id,)).fetchall()
+        costs=conn.execute("""
+            SELECT COALESCE(SUM(planned),0) planned, COALESCE(SUM(actual),0) actual
+            FROM project_costs WHERE project_id=?
+        """,(project_id,)).fetchone()
+        upcoming=conn.execute("""
+            SELECT * FROM tasks
+            WHERE project_id=? AND deleted_at IS NULL
+              AND milestone=1
+              AND LOWER(COALESCE(status,'')) NOT IN ('done','completed','klar')
+            ORDER BY end_date
+            LIMIT 5
+        """,(project_id,)).fetchall()
+    total=len(tasks)
+    done=sum(1 for t in tasks if excel_text(t["status"]).lower() in ("done","completed","klar"))
+    progress=round(sum(int(t["progress"] or 0) for t in tasks)/total) if total else 0
+    return render_template(
+        "project_overview_v1600.html",
+        project=project,tasks=tasks,risks=risks,members=members,costs=costs,
+        upcoming=upcoming,total_tasks=total,done_tasks=done,avg_progress=progress,
+        page_title="Projektöversikt",ux_v1600=True,
+    )
+
+@app.route("/start")
+@login_required
+def unified_start_v1600():
+    """Unified UX start page. Uses existing data model, no schema changes."""
+    uid=session.get("user_id")
+    role=excel_text(session.get("role") or "").lower()
+    with db_connect() as conn:
+        projects=conn.execute("""
+            SELECT p.*
+            FROM projects p
+            LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
+            WHERE p.deleted_at IS NULL
+              AND (p.created_by=? OR pm.user_id=? OR ? IN ('admin','administrator'))
+            GROUP BY p.id
+            ORDER BY COALESCE(p.end_date,'9999-12-31'), p.name
+            LIMIT 12
+        """,(uid,uid,uid,role)).fetchall()
+        my_tasks=conn.execute("""
+            SELECT t.*, p.name AS project_name
+            FROM tasks t
+            JOIN projects p ON p.id=t.project_id
+            LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
+            WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL
+              AND (t.owner_user_id=? OR LOWER(COALESCE(t.owner,''))=LOWER(COALESCE((SELECT name FROM users WHERE id=?),'')))
+            ORDER BY CASE WHEN t.end_date IS NULL THEN 1 ELSE 0 END, t.end_date, t.priority DESC
+            LIMIT 20
+        """,(uid,uid,uid)).fetchall()
+        risks=conn.execute("""
+            SELECT r.*, p.name AS project_name
+            FROM risks r
+            JOIN projects p ON p.id=r.project_id
+            LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
+            WHERE p.deleted_at IS NULL
+              AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd','klar','done')
+              AND (p.created_by=? OR pm.user_id=? OR ? IN ('admin','administrator'))
+            ORDER BY r.impact DESC, r.probability DESC
+            LIMIT 10
+        """,(uid,uid,uid,role)).fetchall()
+        unread=conn.execute("SELECT COUNT(*) c FROM notifications WHERE user_id=? AND is_read=0",(uid,)).fetchone()["c"]
+    return render_template(
+        "unified_start_v1600.html",
+        projects=projects,
+        my_tasks=my_tasks,
+        risks=risks,
+        unread=unread,
+        page_title="Start",
+        ux_v1600=True,
+    )
 
 @app.route("/setup",methods=["GET","POST"])
 def setup():
@@ -5097,7 +5225,15 @@ def excel_blank_complete_workbook_v1525():
       ("template_kind","new_project_complete")
     ]: meta.append([k,v])
     meta.sheet_state="hidden"
+    dm.sheet_state="hidden"
 
+    _preferred=["Start","Projekt","Uppgifter","Gantt","Risker","Resurser","Kostnader","Beroenden","Kontroll"]
+    _ordered=[]
+    for _name in _preferred:
+        if _name in wb.sheetnames:
+            _ordered.append(wb[_name])
+    _ordered += [ws for ws in wb.worksheets if ws.title not in _preferred]
+    wb._sheets=_ordered
     wb.active=0
     wb.properties.creator="Project Planer"
     wb.properties.title="Project Planer – Komplett projektmall"
@@ -5123,6 +5259,7 @@ def excel_new_project_from_workbook_v1525(file_storage):
         raise ValueError("Excel-filen är större än 15 MB.")
     try:
         wb=load_workbook(BytesIO(payload),data_only=False)
+        wb_values=load_workbook(BytesIO(payload),data_only=True)
     except Exception as ex:
         raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
 
@@ -5216,6 +5353,97 @@ def excel_project_code_formula_v1531(row):
     """
     return f'=IF(B{row}="","","PRJ-"&TEXT(ROW()-1,"000"))'
 
+
+def excel_activity_number_formula_v1540(row):
+    """Visible activity number from hidden counters P/Q/R."""
+    lvl=f'VALUE(LEFT(C{row},1))'
+    return (
+        f'=IF(OR(A{row}="",B{row}="",C{row}=""),"",'
+        f'IF({lvl}=1,P{row},IF({lvl}=2,P{row}&"."&Q{row},'
+        f'IF({lvl}=3,P{row}&"."&Q{row}&"."&R{row},""))))'
+    )
+
+def excel_activity_counter_formulas_v1540(row):
+    """Return formulas for hidden level counters P/Q/R."""
+    lvl=f'VALUE(LEFT(C{row},1))'
+    if row == 2:
+        l1=f'=IF(A{row}="","",IF({lvl}=1,1,0))'
+        l2=f'=IF(A{row}="","",IF({lvl}=2,1,0))'
+        l3=f'=IF(A{row}="","",IF({lvl}=3,1,0))'
+    else:
+        prev=row-1
+        l1=(f'=IF(A{row}="","",IF(A{row}<>A{prev},IF({lvl}=1,1,0),'
+            f'P{prev}+IF({lvl}=1,1,0)))')
+        l2=(f'=IF(A{row}="","",IF(A{row}<>A{prev},IF({lvl}=2,1,0),'
+            f'IF({lvl}=1,0,Q{prev}+IF({lvl}=2,1,0))))')
+        l3=(f'=IF(A{row}="","",IF(A{row}<>A{prev},IF({lvl}=3,1,0),'
+            f'IF({lvl}<=2,0,R{prev}+IF({lvl}=3,1,0))))')
+    return l1,l2,l3
+
+def excel_level_value_v1550(value):
+    """Accept numeric levels and friendly Excel labels."""
+    txt=excel_text(value).strip()
+    if not txt:
+        return None
+    m=re.match(r"^([123])(?:\s|$|[-–—])",txt)
+    if m:
+        return int(m.group(1))
+    try:
+        level=int(float(txt))
+        return level if level in (1,2,3) else None
+    except Exception:
+        return None
+
+def excel_generate_wbs_from_levels_v1540(task_rows):
+    """Generate authoritative WBS numbers per project from ordered task rows.
+    task_rows is a list of dicts containing code, level, title and row_no.
+    """
+    state={}
+    result=[]
+    for item in task_rows:
+        code=item["code"]
+        level=int(item["level"])
+        if level not in (1,2,3):
+            raise ValueError(f"Uppgifter, rad {item['row_no']}: Nivå måste vara 1, 2 eller 3.")
+        counters=state.setdefault(code,[0,0,0])
+        if level==1:
+            counters[0]+=1; counters[1]=0; counters[2]=0
+            wbs=f"{counters[0]}"
+        elif level==2:
+            if counters[0] <= 0:
+                raise ValueError(f"Uppgifter, rad {item['row_no']}: Nivå 2 måste ligga under en tidigare Nivå 1 i samma projekt.")
+            counters[1]+=1; counters[2]=0
+            wbs=f"{counters[0]}.{counters[1]}"
+        else:
+            if counters[0] <= 0 or counters[1] <= 0:
+                raise ValueError(f"Uppgifter, rad {item['row_no']}: Nivå 3 måste ligga under en tidigare Nivå 2 i samma projekt.")
+            counters[2]+=1
+            wbs=f"{counters[0]}.{counters[1]}.{counters[2]}"
+        out=dict(item)
+        out["wbs"]=wbs
+        result.append(out)
+    return result
+
+def excel_resolve_activity_ref_v1540(ref, task_map, title_map, project_code, row_no):
+    """Resolve a dependency reference by generated activity number OR title."""
+    value=excel_text(ref).strip()
+    if not value:
+        return None
+    if value in task_map:
+        return task_map[value]
+    matches=title_map.get(value.lower(),[])
+    if len(matches)==1:
+        return matches[0]
+    if len(matches)>1:
+        raise ValueError(
+            f"Beroenden, rad {row_no}: aktiviteten '{value}' finns flera gånger i projekt {project_code}. "
+            "Använd aktivitetsnumret i stället."
+        )
+    raise ValueError(
+        f"Beroenden, rad {row_no}: aktiviteten '{value}' hittades inte i projekt {project_code}. "
+        "Använd aktivitetsnummer eller exakt aktivitetsnamn."
+    )
+
 def excel_multi_project_workbook_v1530():
     """Create a clean, Microsoft Excel-friendly workbook for many projects.
 
@@ -5278,20 +5506,102 @@ def excel_multi_project_workbook_v1530():
         ws.auto_filter.ref=f"A1:{get_column_letter(len(headers))}{rows+1}"
         return ws
 
+    def set_tab(ws,color):
+        ws.sheet_properties.tabColor=color
+
+    def add_sheet_hint(ws,text_value):
+        ws["A1"].comment=Comment(text_value,"Project Planer")
+
+    def create_start_sheet():
+        ws=wb.create_sheet("Start")
+        ws.sheet_view.showGridLines=False
+        for col,width in {"A":4,"B":24,"C":24,"D":24,"E":24,"F":24}.items():
+            ws.column_dimensions[col].width=width
+        ws["B2"]="Project Planer"
+        ws["B2"].font=Font(size=12,bold=True,color="FFFFFF")
+        ws["B2"].fill=PatternFill("solid",fgColor=navy)
+        ws["C2"]=f"Excel UX Edition · v{APP_VERSION}"
+        ws["C2"].font=Font(size=12,color="FFFFFF")
+        ws["C2"].fill=PatternFill("solid",fgColor=navy)
+        ws.merge_cells("C2:F2")
+        ws["B4"]="Kom igång på tre steg"
+        ws["B4"].font=Font(size=22,bold=True,color=text)
+        ws.merge_cells("B4:F4")
+
+        cards=[
+            ("B6","1","Skapa projekt","Fyll i Projektnamn. Projektkod skapas automatiskt.","EAF3FA","Projekt!B2"),
+            ("D6","2","Planera aktiviteter","Välj projekt, skriv aktivitet och välj nivå. Aktivitetsnummer skapas automatiskt.","E9F6EE","Uppgifter!A1"),
+            ("F6","3","Kontrollera & importera","Öppna Kontroll och rätta eventuella fel före import.","FFF4E5","Kontroll!A1"),
+        ]
+        for cell,num,title_txt,body,fill,link in cards:
+            col=ws[cell].column
+            row=ws[cell].row
+            for rr in range(row,row+4):
+                ws.cell(rr,col).fill=PatternFill("solid",fgColor=fill)
+            ws.cell(row,col,num).font=Font(size=18,bold=True,color=navy)
+            ws.cell(row+1,col,title_txt).font=Font(size=12,bold=True,color=text)
+            ws.cell(row+2,col,body).alignment=Alignment(wrap_text=True,vertical="top")
+            ws.cell(row+3,col,"Öppna →").hyperlink=f"#{link}"
+            ws.cell(row+3,col).font=Font(color="0563C1",underline="single")
+            ws.row_dimensions[row+2].height=48
+
+        ws["B12"]="Översikt"
+        ws["B12"].font=Font(size=15,bold=True,color=text)
+        metrics=[
+            ("B14","Projekt",'=COUNTIF(Projekt!B2:B101,"<>")'),
+            ("C14","Aktiviteter",'=COUNTIF(Uppgifter!B2:B501,"<>")'),
+            ("D14","Risker",'=COUNTIF(Risker!B2:B501,"<>")'),
+            ("E14","Resurser",'=COUNTIF(Resurser!B2:B501,"<>")'),
+            ("F14","Kontrollfel",'=Kontroll!B11+Kontroll!B12+Kontroll!B13+Kontroll!B14'),
+        ]
+        for cell,label,formula in metrics:
+            c=ws[cell]
+            c.value=label
+            c.font=Font(size=10,bold=True,color=muted)
+            c.alignment=Alignment(horizontal="center")
+            val=ws.cell(c.row+1,c.column)
+            val.value=formula
+            val.font=Font(size=22,bold=True,color=text)
+            val.alignment=Alignment(horizontal="center")
+            for rr in (c.row,c.row+1):
+                ws.cell(rr,c.column).fill=PatternFill("solid",fgColor="F7F9FC")
+                ws.cell(rr,c.column).border=Border(left=thin,right=thin,top=thin,bottom=thin)
+
+        ws["B19"]="Så läser du färgerna"
+        ws["B19"].font=Font(size=13,bold=True,color=text)
+        for cell,label,fill in [
+            ("B21","Fyll i","E9F6EE"),
+            ("C21","Beräknas automatiskt","F4F6F8"),
+            ("D21","Kontroll/varning","FFF4E5"),
+        ]:
+            ws[cell]=label
+            ws[cell].fill=PatternFill("solid",fgColor=fill)
+            ws[cell].border=Border(left=thin,right=thin,top=thin,bottom=thin)
+            ws[cell].alignment=Alignment(horizontal="center")
+        ws["B24"]="Tips"
+        ws["B24"].font=Font(size=12,bold=True,color=navy)
+        ws["B25"]="För de flesta projekt räcker det att arbeta i Projekt och Uppgifter. Risker, Resurser, Kostnader och Beroenden är valfria."
+        ws["B25"].alignment=Alignment(wrap_text=True)
+        ws.merge_cells("B25:F26")
+        ws.freeze_panes="B4"
+        set_tab(ws,"2E75B6")
+        return ws
+
+    start_ws=create_start_sheet()
     readme=wb.create_sheet("LÄS MIG")
-    title(readme,"Multi-Project Excel","Planera och importera flera projekt i samma Excel-fil. Projektkod kopplar varje rad till rätt projekt.")
+    title(readme,"Hjälp & detaljer","Detaljerad hjälp för Multi-Project Excel. Börja normalt på fliken Start.")
     steps=[
-        ("1","Lägg in projektnamnen på bladet Projekt. Projektkod skapas automatiskt som PRJ-001, PRJ-002 osv. och kan skrivas över manuellt."),
-        ("2","På Uppgifter, Risker, Resurser, Kostnader m.fl. väljer du Projektkod från rullistan i första kolumnen."),
-        ("3","WBS behöver bara vara unik inom respektive projekt. PRJ-001 och PRJ-002 kan båda ha WBS 1.1."),
-        ("4","I Project Planer: Excel → Importera flera projekt."),
-        ("5","Importen är atomisk: om validering misslyckas skapas inga delvisa projekt.")
+        ("1","Lägg in projektnamnen på bladet Projekt. Projektkod skapas automatiskt som PRJ-001, PRJ-002 osv."),
+        ("2","På Uppgifter väljer du Projektkod, skriver Aktivitet och väljer Nivå 1, 2 eller 3. Aktivitetsnummer skapas automatiskt."),
+        ("3","Du behöver inte känna till WBS. Project Planer skapar den tekniska projektstrukturen vid import."),
+        ("4","På Beroenden kan du ange aktivitetsnummer eller exakt aktivitetsnamn, t.ex. 2.1 eller Installera server."),
+        ("5","I Project Planer: Excel → Importera flera projekt. Hela importen rullas tillbaka om något är fel.")
     ]
     for row,(n,txt) in enumerate(steps,7):
         readme.cell(row,1,n).font=Font(bold=True,color=navy)
         readme.cell(row,2,txt).alignment=Alignment(wrap_text=True,vertical="top")
     readme["A14"]="Viktigt"
-    readme["B14"]="Projektkod är nyckeln i hela arbetsboken. Rader på importbladen utan Projektkod ignoreras endast om resten av raden också är tom; annars stoppas importen."
+    readme["B14"]="Lägg aktiviteterna i den ordning de ska visas. Nivå 1 = huvudaktivitet, Nivå 2 = underaktivitet, Nivå 3 = ytterligare detaljnivå. Aktivitetsnummer beräknas automatiskt per projekt."
     readme["B14"].alignment=Alignment(wrap_text=True,vertical="top")
     readme.column_dimensions["A"].width=12
     readme.column_dimensions["B"].width=105
@@ -5309,9 +5619,11 @@ def excel_multi_project_workbook_v1530():
         "Project Planer"
     )
 
+    task_headers=["Projektkod","Aktivitet","Nivå","Aktivitetsnummer","Ansvarig","Plan start","Varaktighet dagar","Plan slut","Status","Progress %","Faktisk start","Faktiskt slut","Prioritet","Milstolpe","Kommentar","_L1","_L2","_L3"]
+    dependency_headers=["Projektkod","Föregående aktivitet","Efterföljande aktivitet","Typ","Förskjutning dagar"]
     core=[
-      ("Uppgifter",["Projektkod"]+list(EXCEL_SPECS["Uppgifter"]["headers"].keys()),{"Plan start","Plan slut","Faktisk start","Faktiskt slut"},set()),
-      ("Beroenden",["Projektkod","Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"],set(),set()),
+      ("Uppgifter",task_headers,{"Plan start","Plan slut","Faktisk start","Faktiskt slut"},set()),
+      ("Beroenden",dependency_headers,set(),set()),
       ("Risker",["Projektkod"]+list(EXCEL_SPECS["Risker"]["headers"].keys()),{"Förfallodatum"},set()),
       ("Ändringsärenden",["Projektkod"]+list(EXCEL_SPECS["Ändringsärenden"]["headers"].keys()),set(),{"Kostnad"}),
       ("Resurser",["Projektkod"]+list(EXCEL_SPECS["Resurser"]["headers"].keys()),{"Vecka"},set()),
@@ -5323,6 +5635,64 @@ def excel_multi_project_workbook_v1530():
     ]
     for name,headers,dates,money in core:
         entry_sheet(name,headers,editable=True,rows=500,date_headers=dates,money_headers=money)
+
+    # v15.4.0: användaren arbetar med Aktivitet + Nivå. WBS är intern.
+    _tasks=wb["Uppgifter"]
+    _task_hdr={excel_text(c.value):c.column for c in _tasks[1]}
+    for _row in range(2,502):
+        _l1,_l2,_l3=excel_activity_counter_formulas_v1540(_row)
+        _tasks.cell(_row,_task_hdr["_L1"]).value=_l1
+        _tasks.cell(_row,_task_hdr["_L2"]).value=_l2
+        _tasks.cell(_row,_task_hdr["_L3"]).value=_l3
+        _tasks.cell(_row,_task_hdr["Aktivitetsnummer"]).value=excel_activity_number_formula_v1540(_row)
+        _tasks.cell(_row,_task_hdr["Aktivitetsnummer"]).fill=PatternFill("solid",fgColor=grey)
+    for _name in ("_L1","_L2","_L3"):
+        _tasks.column_dimensions[get_column_letter(_task_hdr[_name])].hidden=True
+    _tasks["C1"].comment=Comment(
+        "Välj 1, 2 eller 3. 1 = huvudaktivitet, 2 = underaktivitet, 3 = detaljnivå. "
+        "Aktivitetsnummer skapas automatiskt.",
+        "Project Planer"
+    )
+    _tasks["D1"].comment=Comment(
+        "Skapas automatiskt från Nivå och radordning. Detta motsvarar teknisk WBS i Project Planer.",
+        "Project Planer"
+    )
+    _level_dv=DataValidation(type="list",formula1='"1 - Huvudaktivitet,2 - Underaktivitet,3 - Detaljaktivitet"',allow_blank=True)
+    _level_dv.error="Välj Huvudaktivitet, Underaktivitet eller Detaljaktivitet."
+    _level_dv.errorTitle="Ogiltig nivå"
+    _tasks.add_data_validation(_level_dv)
+    _level_dv.add("C2:C501")
+
+    _tasks["B1"].comment=Comment("Skriv aktivitetens namn, t.ex. 'Installera server'.","Project Planer")
+    _tasks["F1"].comment=Comment("Planerad start.","Project Planer")
+    _tasks["G1"].comment=Comment("Valfritt antal kalenderdagar. Plan slut beräknas automatiskt.","Project Planer")
+    _tasks["H1"].comment=Comment("Beräknas från Plan start + Varaktighet dagar. Kan skrivas över.","Project Planer")
+    for _row in range(2,502):
+        _tasks.cell(_row,_task_hdr["Plan slut"]).value=f'=IF(OR(F{_row}="",G{_row}=""),"",F{_row}+G{_row}-1)'
+        _tasks.cell(_row,_task_hdr["Plan slut"]).fill=PatternFill("solid",fgColor=grey)
+    for _name in ("Faktisk start","Faktiskt slut","Prioritet","Milstolpe","Kommentar"):
+        _tasks.column_dimensions[get_column_letter(_task_hdr[_name])].hidden=True
+    _tasks.column_dimensions[get_column_letter(_task_hdr["Aktivitet"])].width=38
+    _tasks.column_dimensions[get_column_letter(_task_hdr["Nivå"])].width=24
+    _tasks.column_dimensions[get_column_letter(_task_hdr["Aktivitetsnummer"])].width=18
+    _tasks.column_dimensions[get_column_letter(_task_hdr["Varaktighet dagar"])].width=18
+    _tasks.freeze_panes="E2"
+    set_tab(_tasks,"70AD47")
+    add_sheet_hint(_tasks,
+        "Enkel planering: välj Projektkod, skriv Aktivitet, välj Nivå och fyll i Start. "
+        "Aktivitetsnummer och Plan slut beräknas automatiskt."
+    )
+
+    # Beroenden kan anges med aktivitetsnummer eller exakt aktivitetsnamn.
+    _deps=wb["Beroenden"]
+    _deps["B1"].comment=Comment(
+        "Ange aktivitetsnummer (t.ex. 2.1) eller exakt aktivitetsnamn från Uppgifter.",
+        "Project Planer"
+    )
+    _deps["C1"].comment=Comment(
+        "Ange aktivitetsnummer (t.ex. 2.2) eller exakt aktivitetsnamn från Uppgifter.",
+        "Project Planer"
+    )
 
     # Projektkod på importbladen väljs från Projekt-bladet. Detta minskar
     # felskrivningar och gör multi-project-mallen snabbare att fylla i.
@@ -5357,9 +5727,93 @@ def excel_multi_project_workbook_v1530():
             ws.add_data_validation(dv)
             dv.add(f"{col}2:{col}501")
 
+    # Gantt: enkel automatisk planvy.
+    gantt=wb.create_sheet("Gantt")
+    gantt.sheet_view.showGridLines=False
+    gantt.freeze_panes="G5"
+    gantt["A1"]="Gantt · automatisk planvy"
+    gantt["A1"].font=Font(size=18,bold=True,color=text)
+    gantt.merge_cells("A1:F1")
+    gantt["A2"]="Visar de första 100 aktiviteterna. Filtrera Projektkod för att fokusera på ett projekt."
+    gantt["A2"].font=Font(color=muted)
+    gantt.merge_cells("A2:F2")
+    for _c,_h in enumerate(["Projektkod","Nr","Aktivitet","Nivå","Start","Slut"],1):
+        gantt.cell(4,_c,_h)
+        gantt.cell(4,_c).fill=PatternFill("solid",fgColor=navy)
+        gantt.cell(4,_c).font=Font(bold=True,color="FFFFFF")
+    for _col,_width in {"A":16,"B":12,"C":38,"D":20,"E":13,"F":13}.items():
+        gantt.column_dimensions[_col].width=_width
+    gantt["G4"]='=IFERROR(MIN(Uppgifter!F2:F501)-WEEKDAY(MIN(Uppgifter!F2:F501),2)+1,TODAY())'
+    gantt["G4"].number_format="dd-mmm"
+    for _col in range(8,33):
+        _prev=get_column_letter(_col-1)
+        gantt.cell(4,_col).value=f"={_prev}4+7"
+        gantt.cell(4,_col).number_format="dd-mmm"
+        gantt.column_dimensions[get_column_letter(_col)].width=5
+    for _row in range(5,105):
+        _src=_row-3
+        gantt.cell(_row,1).value=f'=IF(Uppgifter!A{_src}="","",Uppgifter!A{_src})'
+        gantt.cell(_row,2).value=f'=IF(Uppgifter!D{_src}="","",Uppgifter!D{_src})'
+        gantt.cell(_row,3).value=f'=IF(Uppgifter!B{_src}="","",REPT("   ",MAX(0,VALUE(LEFT(Uppgifter!C{_src},1))-1))&Uppgifter!B{_src})'
+        gantt.cell(_row,4).value=f'=IF(Uppgifter!C{_src}="","",Uppgifter!C{_src})'
+        gantt.cell(_row,5).value=f'=IF(Uppgifter!F{_src}="","",Uppgifter!F{_src})'
+        gantt.cell(_row,6).value=f'=IF(Uppgifter!H{_src}="","",Uppgifter!H{_src})'
+        gantt.cell(_row,5).number_format="yyyy-mm-dd"
+        gantt.cell(_row,6).number_format="yyyy-mm-dd"
+        for _col in range(7,33):
+            _letter=get_column_letter(_col)
+            gantt.cell(_row,_col).value=f'=IF(OR($E{_row}="",$F{_row}=""),"",IF(AND({_letter}$4<=$F{_row},{_letter}$4+6>=$E{_row}),"■",""))'
+            gantt.cell(_row,_col).alignment=Alignment(horizontal="center")
+            gantt.cell(_row,_col).font=Font(color="5B9BD5")
+    gantt.auto_filter.ref="A4:AF104"
+    set_tab(gantt,"5B9BD5")
+
+    # Kontroll: pre-flight före import.
+    check=wb.create_sheet("Kontroll")
+    check.sheet_view.showGridLines=False
+    check["A1"]="Kontrollera före import"
+    check["A1"].font=Font(size=20,bold=True,color=text)
+    check.merge_cells("A1:D1")
+    check["A2"]="Rätta fel innan import. Varningar är rekommendationer."
+    check["A2"].font=Font(color=muted)
+    check.merge_cells("A2:D2")
+    check["A5"]="Kontroll"; check["B5"]="Antal"; check["C5"]="Status"
+    for _c in check[5]:
+        _c.fill=PatternFill("solid",fgColor=navy)
+        _c.font=Font(bold=True,color="FFFFFF")
+    _checks=[
+        (6,"Projekt",'=COUNTIF(Projekt!B2:B101,"<>")','=IF(B6>0,"OK","FEL")'),
+        (7,"Aktiviteter",'=COUNTIF(Uppgifter!B2:B501,"<>")','=IF(B7>0,"OK","FEL")'),
+        (8,"Aktiviteter utan ansvarig",'=COUNTIFS(Uppgifter!B2:B501,"<>",Uppgifter!E2:E501,"")','=IF(B8=0,"OK","VARNING")'),
+        (9,"Aktiviteter utan startdatum",'=COUNTIFS(Uppgifter!B2:B501,"<>",Uppgifter!F2:F501,"")','=IF(B9=0,"OK","VARNING")'),
+        (10,"Aktiviteter utan slutdatum/varaktighet",'=SUMPRODUCT(--(Uppgifter!B2:B501<>""),--(Uppgifter!G2:G501=""),--(Uppgifter!H2:H501=""))','=IF(B10=0,"OK","VARNING")'),
+        (11,"Aktiviteter utan projektkod",'=COUNTIFS(Uppgifter!B2:B501,"<>",Uppgifter!A2:A501,"")','=IF(B11=0,"OK","FEL")'),
+        (12,"Slutdatum före startdatum",'=SUMPRODUCT(--(Uppgifter!F2:F501<>""),--(Uppgifter!H2:H501<>""),--(Uppgifter!H2:H501<Uppgifter!F2:F501))','=IF(B12=0,"OK","FEL")'),
+        (13,"Nivå 2 utan korrekt struktur",'=SUMPRODUCT(--(LEFT(Uppgifter!C2:C501,1)="2"),--(Uppgifter!B2:B501<>""),--(Uppgifter!D2:D501=""))','=IF(B13=0,"OK","FEL")'),
+        (14,"Nivå 3 utan korrekt struktur",'=SUMPRODUCT(--(LEFT(Uppgifter!C2:C501,1)="3"),--(Uppgifter!B2:B501<>""),--(Uppgifter!D2:D501=""))','=IF(B14=0,"OK","FEL")'),
+        (15,"Projekt utan projektnamn men med kod",'=COUNTIFS(Projekt!A2:A101,"<>",Projekt!B2:B101,"")','=IF(B15=0,"OK","FEL")'),
+    ]
+    for _row,_label,_count,_status in _checks:
+        check.cell(_row,1,_label)
+        check.cell(_row,2,_count)
+        check.cell(_row,3,_status)
+        check.cell(_row,3).alignment=Alignment(horizontal="center")
+    check.column_dimensions["A"].width=42
+    check.column_dimensions["B"].width=12
+    check.column_dimensions["C"].width=16
+    for _row,_label,_target in [
+        (19,"Öppna Projekt","#Projekt!A1"),
+        (20,"Öppna Uppgifter","#Uppgifter!A1"),
+        (21,"Öppna Gantt","#Gantt!A1"),
+    ]:
+        check.cell(_row,1,_label)
+        check.cell(_row,1).hyperlink=_target
+        check.cell(_row,1).font=Font(color="0563C1",underline="single")
+    set_tab(check,"ED7D31")
+
     # Read-only reference sheets also use Projektkod so users can keep a full portfolio workbook.
     reference_specs=[
-      ("Milstolpar",["Projektkod","WBS","Milstolpe","Ansvarig","Plan slut","Status","Progress %"]),
+      ("Milstolpar",["Projektkod","Aktivitetsnummer","Milstolpe","Ansvarig","Plan slut","Status","Progress %"]),
       ("Medlemmar",["Projektkod","display_name","username","project_role","added_at","added_by"]),
       ("Statusrapporter",["Projektkod","report_date","overall_rag","scope_rag","schedule_rag","budget_rag","resources_rag","summary","achievements","next_steps","created_by","created_at"]),
       ("RAID",["Projektkod","item_type","title","owner","status","due_date","details"]),
@@ -5384,13 +5838,23 @@ def excel_multi_project_workbook_v1530():
       ("Finanssammanfattning",["Projektkod","metric","value"])
     ]
     for name,headers in reference_specs:
-        entry_sheet(name,headers,editable=False,rows=120)
+        _ref=entry_sheet(name,headers,editable=False,rows=120)
+        set_tab(_ref,"A5A5A5")
+        _ref.sheet_state="hidden"
+
+    set_tab(project_ws,"2E75B6")
+    for _name in ("Risker","Resurser","Kostnader","Beroenden"):
+        set_tab(wb[_name],"70AD47")
+    for _name in ("Ändringsärenden","Beslut","Möten","Åtgärder","Nyttor"):
+        set_tab(wb[_name],"A5A5A5")
+        wb[_name].sheet_state="hidden"
+    readme.sheet_state="hidden"
 
     dm=wb.create_sheet("Datamodell")
     dm.append(["Blad","Nyckel","Importeras","Beskrivning"])
     for c in dm[1]:
         c.fill=PatternFill("solid",fgColor=navy); c.font=Font(bold=True,color="FFFFFF")
-    dm.append(["Projekt","Projektkod","Ja","En rad per projekt. Projektkod är unik i arbetsboken."])
+    dm.append(["Projekt","Projektkod","Ja","En rad per projekt. Projektkod skapas automatiskt och är unik i arbetsboken."])
     for sheet_name in [x[0] for x in core]:
         dm.append([sheet_name,"Projektkod","Ja",f"Varje rad kopplas till ett projekt med Projektkod."])
     for name,_headers in reference_specs:
@@ -5508,7 +5972,80 @@ def excel_multi_project_import_v1530(file_storage):
     # Validate all importable rows before touching the database.
     normalized_rows={}
     total_rows=0
+
+    # v15.4.0 Uppgifter: användaren behöver inte ange WBS.
+    # Vi läser Aktivitet + Nivå och genererar WBS deterministiskt per projekt.
+    task_rows=[]
+    if "Uppgifter" in wb.sheetnames:
+        sheet=wb["Uppgifter"]
+        h=excel_headers(sheet)
+        task_required=["Projektkod","Aktivitet","Nivå","Aktivitetsnummer","Ansvarig","Plan start","Varaktighet dagar","Plan slut","Status","Progress %","Faktisk start","Faktiskt slut","Prioritet","Milstolpe","Kommentar"]
+        missing=[name for name in task_required if name not in h]
+        if missing:
+            raise ValueError("Uppgifter: saknar kolumner: "+", ".join(missing))
+        for row_no in range(2,sheet.max_row+1):
+            code_raw=sheet.cell(row_no,h["Projektkod"]).value
+            code=excel_text(code_raw).strip()
+            if isinstance(code_raw,str) and code_raw.startswith("="):
+                try:
+                    code=excel_text(wb_values["Uppgifter"].cell(row_no,h["Projektkod"]).value).strip()
+                except Exception:
+                    code=""
+            title=excel_text(sheet.cell(row_no,h["Aktivitet"]).value).strip()
+            level_raw=sheet.cell(row_no,h["Nivå"]).value
+            other_values=[sheet.cell(row_no,h[x]).value for x in task_required[4:]]
+            if not code and not title and level_raw in (None,"") and all(v in (None,"") for v in other_values):
+                continue
+            if not code:
+                raise ValueError(f"Uppgifter, rad {row_no}: Projektkod krävs.")
+            key=code.lower()
+            if key not in known:
+                raise ValueError(f"Uppgifter, rad {row_no}: okänd Projektkod '{code}'.")
+            if not title:
+                raise ValueError(f"Uppgifter, rad {row_no}: Aktivitet krävs.")
+            level=excel_level_value_v1550(level_raw)
+            if level not in (1,2,3):
+                raise ValueError(f"Uppgifter, rad {row_no}: välj Huvudaktivitet, Underaktivitet eller Detaljaktivitet.")
+            start_value=excel_date(sheet.cell(row_no,h["Plan start"]).value)
+            duration=max(0,excel_int(sheet.cell(row_no,h["Varaktighet dagar"]).value))
+            end_raw=sheet.cell(row_no,h["Plan slut"]).value
+            if isinstance(end_raw,str) and end_raw.startswith("="):
+                end_value=None
+                if start_value and duration>0:
+                    try:
+                        _sd=_v15_date(start_value)
+                        _d=datetime.strptime(_sd,"%Y-%m-%d").date()
+                        end_value=(_d+timedelta(days=duration-1)).isoformat()
+                    except Exception:
+                        end_value=None
+            else:
+                end_value=excel_date(end_raw)
+            data={
+                "title":title,
+                "owner":excel_text(sheet.cell(row_no,h["Ansvarig"]).value),
+                "start_date":start_value,
+                "end_date":end_value,
+                "actual_start":excel_date(sheet.cell(row_no,h["Faktisk start"]).value),
+                "actual_end":excel_date(sheet.cell(row_no,h["Faktiskt slut"]).value),
+                "status":excel_text(sheet.cell(row_no,h["Status"]).value),
+                "priority":excel_text(sheet.cell(row_no,h["Prioritet"]).value),
+                "progress":max(0,min(100,excel_int(sheet.cell(row_no,h["Progress %"]).value))),
+                "milestone":excel_bool(sheet.cell(row_no,h["Milstolpe"]).value),
+                "notes":excel_text(sheet.cell(row_no,h["Kommentar"]).value),
+            }
+            task_rows.append({"code":key,"display_code":code,"level":level,"title":title,"row_no":row_no,"data":data})
+            total_rows+=1
+
+    generated_tasks=excel_generate_wbs_from_levels_v1540(task_rows)
+    normalized_rows["Uppgifter"]=[]
+    for item in generated_tasks:
+        data=dict(item["data"])
+        data["wbs"]=item["wbs"]
+        normalized_rows["Uppgifter"].append((item["code"],data,item["row_no"]))
+
     for sheet_name,spec in EXCEL_SPECS.items():
+        if sheet_name=="Uppgifter":
+            continue
         if sheet_name not in wb.sheetnames:
             continue
         sheet=wb[sheet_name]
@@ -5546,14 +6083,14 @@ def excel_multi_project_import_v1530(file_storage):
     dep_rows=[]
     if "Beroenden" in wb.sheetnames:
         sheet=wb["Beroenden"]; h=excel_headers(sheet)
-        needed=["Projektkod","Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"]
+        needed=["Projektkod","Föregående aktivitet","Efterföljande aktivitet","Typ","Förskjutning dagar"]
         missing=[x for x in needed if x not in h]
         if missing:
             raise ValueError("Beroenden: saknar kolumner: "+", ".join(missing))
         for row_no in range(2,sheet.max_row+1):
             code=excel_text(sheet.cell(row_no,h["Projektkod"]).value).strip()
-            pred=excel_text(sheet.cell(row_no,h["Föregående WBS"]).value).strip()
-            succ=excel_text(sheet.cell(row_no,h["Efterföljande WBS"]).value).strip()
+            pred=excel_text(sheet.cell(row_no,h["Föregående aktivitet"]).value).strip()
+            succ=excel_text(sheet.cell(row_no,h["Efterföljande aktivitet"]).value).strip()
             typ=excel_text(sheet.cell(row_no,h["Typ"]).value).strip() or "FS"
             lag=excel_int(sheet.cell(row_no,h["Förskjutning dagar"]).value)
             if not code and not pred and not succ:
@@ -5563,7 +6100,7 @@ def excel_multi_project_import_v1530(file_storage):
             if code.lower() not in known:
                 raise ValueError(f"Beroenden, rad {row_no}: okänd Projektkod '{code}'.")
             if not pred or not succ:
-                raise ValueError(f"Beroenden, rad {row_no}: både Föregående WBS och Efterföljande WBS krävs.")
+                raise ValueError(f"Beroenden, rad {row_no}: både föregående och efterföljande aktivitet krävs.")
             if typ not in ("FS","SS","FF","SF"):
                 raise ValueError(f"Beroenden, rad {row_no}: ogiltig typ '{typ}'.")
             dep_rows.append((code.lower(),pred,succ,typ,lag,row_no))
@@ -5603,18 +6140,27 @@ def excel_multi_project_import_v1530(file_storage):
                     summary["items"]+=count
 
             # Resolve dependencies independently inside each project.
+            # Användaren kan referera med aktivitetsnummer eller exakt aktivitetsnamn.
             task_maps={}
+            title_maps={}
             for code,pid in project_ids.items():
-                rows=conn.execute("SELECT id,wbs FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall()
+                rows=conn.execute("SELECT id,wbs,title FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall()
                 task_maps[code]={excel_text(r["wbs"]):int(r["id"]) for r in rows if excel_text(r["wbs"])}
+                tm={}
+                for r in rows:
+                    title_key=excel_text(r["title"]).strip().lower()
+                    if title_key:
+                        tm.setdefault(title_key,[]).append(int(r["id"]))
+                title_maps[code]=tm
             for code,pred,succ,typ,lag,row_no in dep_rows:
-                id_by_wbs=task_maps.get(code,{})
-                if pred not in id_by_wbs or succ not in id_by_wbs:
-                    display=known[code]["code"]
-                    raise ValueError(f"Beroenden, rad {row_no}: WBS {pred} eller {succ} finns inte i projekt {display}.")
+                display=known[code]["code"]
+                pred_id=excel_resolve_activity_ref_v1540(pred,task_maps.get(code,{}),title_maps.get(code,{}),display,row_no)
+                succ_id=excel_resolve_activity_ref_v1540(succ,task_maps.get(code,{}),title_maps.get(code,{}),display,row_no)
+                if pred_id==succ_id:
+                    raise ValueError(f"Beroenden, rad {row_no}: en aktivitet kan inte bero på sig själv.")
                 conn.execute("""INSERT INTO task_links(
                     project_id,predecessor_id,successor_id,link_type,lag_days
-                ) VALUES(?,?,?,?,?)""",(project_ids[code],id_by_wbs[pred],id_by_wbs[succ],typ,lag))
+                ) VALUES(?,?,?,?,?)""",(project_ids[code],pred_id,succ_id,typ,lag))
                 summary["dependencies"]+=1
             if summary["dependencies"]:
                 summary["by_sheet"]["Beroenden"]=summary["dependencies"]
@@ -7881,7 +8427,10 @@ def project_visual_v503(project_id):
 
 @app.context_processor
 def visual_context_v503():
-    return {"today_iso": date.today().isoformat()}
+    return {
+        "ux_project_label": ux_project_label_v1600,
+        "ux_task_level_label": ux_task_level_label_v1600,
+        "ux_task_number": ux_task_number_v1600,"today_iso": date.today().isoformat()}
 
 
 @app.route("/quick-add",methods=["GET","POST"])

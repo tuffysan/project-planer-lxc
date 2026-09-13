@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="ux-shell">
+  <section class="ux-hero">
+    <div>
+      <div class="ux-eyebrow">Start</div>
+      <h1>Vad behöver du göra idag?</h1>
+      <p class="ux-lead">Fokus på nästa steg, inte på menyer.</p>
+    </div>
+    <div class="ux-actions">
+      <a class="btn btn-primary" href="/projects/new-guided">+ Skapa projekt</a>
+      <a class="btn" href="/excel">Excel</a>
+    </div>
+  </section>
+
+  <section class="ux-kpis">
+    <div class="ux-card ux-kpi"><span>Projekt</span><strong>{{ projects|length }}</strong></div>
+    <div class="ux-card ux-kpi"><span>Mina aktiviteter</span><strong>{{ my_tasks|length }}</strong></div>
+    <div class="ux-card ux-kpi"><span>Öppna risker</span><strong>{{ risks|length }}</strong></div>
+    <div class="ux-card ux-kpi"><span>Notiser</span><strong>{{ unread }}</strong></div>
+  </section>
+
+  <section class="ux-grid-2">
+    <div class="ux-card">
+      <div class="ux-card-head">
+        <h2>Mitt arbete</h2>
+        <a href="/my-work">Visa allt</a>
+      </div>
+      {% if my_tasks %}
+      <div class="ux-list">
+        {% for t in my_tasks[:8] %}
+        <a class="ux-list-row" href="/projects/{{ t.project_id }}/tasks">
+          <div>
+            <strong>{{ t.title }}</strong>
+            <small>{{ t.project_name }} · {{ ux_task_level_label(t.wbs) }} · {{ ux_task_number(t) }}</small>
+          </div>
+          <span class="ux-status">{{ t.status or "Ej påbörjad" }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+        <div class="ux-empty">Du har inga aktiviteter som kräver din uppmärksamhet.</div>
+      {% endif %}
+    </div>
+
+    <div class="ux-card">
+      <div class="ux-card-head">
+        <h2>Projekt</h2>
+        <a href="/projects">Alla projekt</a>
+      </div>
+      {% if projects %}
+      <div class="ux-list">
+        {% for p in projects[:8] %}
+        <a class="ux-list-row" href="/projects/{{ p.id }}/overview">
+          <div>
+            <strong>{{ p.name }}</strong>
+            <small>{{ p.customer or "Ingen kund" }} · {{ p.project_manager or "Ingen projektledare" }}</small>
+          </div>
+          <span>→</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+        <div class="ux-empty">Inga projekt ännu. Skapa ditt första projekt.</div>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="ux-card">
+    <div class="ux-card-head">
+      <h2>Behöver uppmärksamhet</h2>
+      <span class="ux-muted">Risker och blockerare</span>
+    </div>
+    {% if risks %}
+      <div class="ux-list">
+      {% for r in risks[:6] %}
+        <a class="ux-list-row" href="/projects/{{ r.project_id }}/risks">
+          <div>
+            <strong>{{ r.title }}</strong>
+            <small>{{ r.project_name }} · {{ r.owner or "Ingen ansvarig" }}</small>
+          </div>
+          <span class="ux-status ux-status-warn">{{ r.status or "Öppen" }}</span>
+        </a>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="ux-empty">Inga öppna risker i dina projekt.</div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

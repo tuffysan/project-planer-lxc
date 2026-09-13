@@ -1137,3 +1137,98 @@ body{background:var(--v15-bg)}
   .excel-multi-actions{justify-content:flex-start}
   .excel-import-summary{grid-template-columns:1fr}
 }
+
+
+/* =========================================================
+   v16.0.0 Unified UX Edition
+   ========================================================= */
+.ux-v1600 { background:#f5f7fa; }
+.ux-v1600-nav{
+  position:sticky; top:0; z-index:1000;
+  display:flex; align-items:center; gap:28px;
+  padding:12px 22px;
+  background:#fff; border-bottom:1px solid #e5e9ef;
+  box-shadow:0 1px 4px rgba(15,76,129,.04);
+}
+.ux-v1600-nav a{ text-decoration:none; color:#26364a; font-weight:600; }
+.ux-v1600-nav a:hover{ color:#0f4c81; }
+.ux-brand{ font-size:18px; color:#0f4c81!important; }
+.ux-nav-primary{ display:flex; gap:18px; align-items:center; flex:1; }
+.ux-nav-secondary{ display:flex; gap:14px; align-items:center; }
+
+.ux-shell{ max-width:1280px; margin:0 auto; padding:28px 24px 56px; }
+.ux-hero{
+  display:flex; justify-content:space-between; gap:24px; align-items:flex-start;
+  margin-bottom:24px;
+}
+.ux-eyebrow{ color:#0f4c81; font-weight:700; font-size:13px; text-transform:uppercase; letter-spacing:.04em; }
+.ux-hero h1{ margin:4px 0 6px; font-size:32px; line-height:1.15; color:#172235; }
+.ux-lead{ margin:0; color:#667085; font-size:16px; }
+.ux-actions{ display:flex; gap:10px; flex-wrap:wrap; }
+.ux-actions .btn{ min-height:40px; display:inline-flex; align-items:center; }
+
+.ux-kpis{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin:0 0 20px; }
+.ux-card{
+  background:#fff; border:1px solid #e4e9f0; border-radius:14px; padding:18px;
+  box-shadow:0 2px 10px rgba(15,76,129,.04);
+}
+.ux-kpi span{ display:block; color:#667085; font-size:13px; margin-bottom:6px; }
+.ux-kpi strong{ font-size:28px; color:#172235; }
+.ux-grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:18px; }
+.ux-card-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.ux-card-head h2{ margin:0; font-size:18px; color:#172235; }
+.ux-card-head a{ color:#0f4c81; text-decoration:none; font-weight:600; font-size:13px; }
+
+.ux-list{ display:flex; flex-direction:column; gap:2px; }
+.ux-list-row{
+  display:flex; justify-content:space-between; align-items:center; gap:16px;
+  padding:11px 8px; border-radius:8px; text-decoration:none; color:inherit;
+}
+.ux-list-row:hover{ background:#f6f9fc; }
+.ux-list-row strong{ display:block; color:#172235; }
+.ux-list-row small{ display:block; margin-top:2px; color:#788496; }
+.ux-status{
+  flex:0 0 auto; font-size:12px; padding:5px 9px; border-radius:999px;
+  background:#edf3f8; color:#365269; font-weight:700;
+}
+.ux-status-warn{ background:#fff3dc; color:#875b00; }
+.ux-empty{ padding:22px 8px; color:#788496; text-align:center; }
+.ux-muted{ color:#788496; font-size:13px; }
+
+.ux-project-tabs{
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  background:#fff; border:1px solid #e4e9f0; border-radius:12px;
+  padding:8px; margin-bottom:18px;
+}
+.ux-project-tabs>a,.ux-project-tabs summary{
+  padding:8px 11px; border-radius:8px; color:#435268; text-decoration:none;
+  font-weight:600; font-size:14px; cursor:pointer; list-style:none;
+}
+.ux-project-tabs>a:hover,.ux-project-tabs>a.active,.ux-project-tabs summary:hover{ background:#edf4fb; color:#0f4c81; }
+.ux-project-tabs details{ position:relative; }
+.ux-advanced-menu{
+  position:absolute; top:38px; right:0; min-width:180px; z-index:20;
+  background:#fff; border:1px solid #e4e9f0; border-radius:10px; box-shadow:0 10px 30px rgba(23,34,53,.12);
+  padding:8px;
+}
+.ux-advanced-menu a{ display:block; padding:8px 10px; border-radius:7px; text-decoration:none; color:#435268; }
+.ux-advanced-menu a:hover{ background:#f4f7fb; color:#0f4c81; }
+.ux-money-row{ display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #edf0f4; }
+.ux-money-row:last-child{ border-bottom:0; }
+
+@media (max-width:900px){
+  .ux-v1600-nav{ gap:12px; padding:10px 12px; overflow-x:auto; }
+  .ux-nav-primary{ gap:12px; }
+  .ux-nav-secondary{ display:none; }
+  .ux-shell{ padding:20px 14px 42px; }
+  .ux-hero{ flex-direction:column; }
+  .ux-kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ux-grid-2{ grid-template-columns:1fr; }
+}
+@media (max-width:560px){
+  .ux-kpis{ grid-template-columns:1fr 1fr; gap:10px; }
+  .ux-card{ padding:14px; }
+  .ux-hero h1{ font-size:26px; }
+  .ux-project-tabs{ overflow-x:auto; flex-wrap:nowrap; }
+  .ux-project-tabs>a,.ux-project-tabs summary{ white-space:nowrap; }
+}

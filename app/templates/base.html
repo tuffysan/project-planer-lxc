@@ -10,7 +10,27 @@
   <link rel="apple-touch-icon" href="{{url_for('static',filename='assets/project-planer-icon.png')}}">
   <link rel="stylesheet" href="{{url_for('static',filename='style.css')}}?v={{app_version}}">
 </head>
-<body>
+<body class="{% if ux_v1600 %}ux-v1600{% endif %}">
+
+{% if session.get("user_id") %}
+<nav class="ux-v1600-nav" aria-label="Huvudnavigation">
+  <a href="/start" class="ux-brand">Project Planer</a>
+  <div class="ux-nav-primary">
+    <a href="/start">Start</a>
+    <a href="/my-work">Mitt arbete</a>
+    <a href="/projects">Projekt</a>
+    <a href="/portfolio">Portfolio</a>
+    <a href="/excel">Excel</a>
+  </div>
+  <div class="ux-nav-secondary">
+    <a href="/search">Sök</a>
+    {% if session.get("role","")|lower in ["admin","administrator"] %}
+      <a href="/admin">Admin</a>
+    {% endif %}
+  </div>
+</nav>
+{% endif %}
+
 <a class="ux-skip" href="#main-content">Hoppa till innehåll</a>
 <header class="topbar branded nav-v401">
   <a class="brand brand-with-icon" href="/home">

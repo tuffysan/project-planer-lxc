@@ -163,6 +163,13 @@ for label,builder in [
     payload=excel_serialize_workbook_v1527(wb)
     if len(payload) < 5000:
         raise SystemExit(f"XLSX SMOKE TEST FAILED ({label}): generated workbook is unexpectedly small")
+    if label=="multi":
+        required={"Start","Projekt","Uppgifter","Gantt","Kontroll"}
+        missing=required-set(wb.sheetnames)
+        if missing:
+            raise SystemExit("XLSX UX SMOKE TEST FAILED: missing sheets "+", ".join(sorted(missing)))
+        if wb["Start"].sheet_state!="visible" or wb["Uppgifter"].sheet_state!="visible":
+            raise SystemExit("XLSX UX SMOKE TEST FAILED: primary sheets are hidden")
     print(f"XLSX smoke test OK ({label}):", len(payload), "bytes,", len(wb.sheetnames), "sheets")
 PY
 )
