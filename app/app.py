@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.8"
+APP_VERSION = "15.2.9"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -4995,7 +4995,9 @@ def excel_blank_complete_workbook_v1525():
     info=wb.create_sheet("Projektinformation")
     title(info,"Projektinformation","Projektnamn är obligatoriskt när Excel-filen ska skapa ett nytt projekt.")
     info_rows=[("Projektnamn",""),("Kund",""),("Projektledare",""),("Beskrivning",""),("Plan start",""),("Plan slut","")]
-    for r,(label,value) in enumerate(info_rows,4):
+    # Rows 4-5 are merged by title(..., subtitle=...). Start editable project
+    # information at row 7 so no write can target an openpyxl MergedCell.
+    for r,(label,value) in enumerate(info_rows,7):
         info.cell(r,1,label).font=Font(bold=True,color=text)
         info.cell(r,2,value).fill=PatternFill("solid",fgColor=green)
         info.cell(r,2).border=Border(bottom=thin)
@@ -5099,6 +5101,14 @@ def excel_blank_complete_workbook_v1525():
     wb.properties.title="Project Planer – Komplett projektmall"
     wb.properties.subject="Ny projektmall"
     wb.properties.description=f"Project Planer v{APP_VERSION} · ren Microsoft Excel-kompatibel mall byggd från grunden."
+    # v15.2.9 defensive layout validation: Projectinformation inputs must
+    # never overlap merged title/subtitle cells.
+    if "Projektinformation" in wb.sheetnames:
+        _info=wb["Projektinformation"]
+        for _row in range(7,13):
+            _cell=_info.cell(_row,2)
+            if _cell.__class__.__name__ == "MergedCell":
+                raise RuntimeError(f"Excel template layout error: B{_row} is merged/read-only")
     return wb
 
 def excel_new_project_from_workbook_v1525(file_storage):

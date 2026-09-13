@@ -43,3 +43,14 @@ grep -Fq 'ws.auto_filter.ref=None' app/app.py || {
   echo "ERROR: Blank-sheet AutoFilter cleanup missing" >&2
   exit 1
 }
+
+
+echo "[v15.2.9] Verifying Projectinformation does not overlap merged subtitle..."
+grep -Fq 'enumerate(info_rows,7)' app/app.py || {
+  echo "ERROR: Projectinformation must start at row 7; rows 4-5 are merged." >&2
+  exit 1
+}
+if grep -Fq 'enumerate(info_rows,4)' app/app.py; then
+  echo "ERROR: Regression: Projectinformation starts inside merged subtitle rows." >&2
+  exit 1
+fi

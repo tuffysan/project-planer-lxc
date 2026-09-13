@@ -168,3 +168,8 @@ Den kompletta tomma Excel-mallen normaliseras och valideras innan den skickas ti
 
 ## v15.2.8 – Clean Excel Template Rebuild
 Den globala tomma Excel-mallen byggs nu från en helt ny workbook utan Excel Tables, charts eller defined names. Det minimerar Microsoft Excel-specifika reparationsproblem och behåller full importkompatibilitet för de centrala projektbladen.
+
+
+## v15.2.9 – Excel MergedCell Fix
+
+Fixar installationsfelet i v15.2.8 där `Projektinformation` försökte skriva till `B4/B5`, som ingick i den sammanslagna underrubriken `A4:F5`. Projektfälten börjar nu på rad 7 och kontrolleras innan XLSX-filen skapas.
