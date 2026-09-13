@@ -148,6 +148,10 @@ grep -Fq 'def excel_multi_project_workbook_v1530(existing_projects=None, include
 grep -Fq 'Project-Planer-Excel-TOM.xlsx' "$RELEASE_DIR/app/app.py" || { echo "Tom Excel är inte Unified."; exit 1; }
 grep -Fq 'excel_export_projects_v1710' "$RELEASE_DIR/app/app.py" || { echo "Export av befintliga projekt saknas."; exit 1; }
 
+echo "Verifierar v17.1.2 versionsoberoende regressionskontroller..."
+grep -Fq '("visual_ux_version",' "$RELEASE_DIR/app/app.py" || { echo "Visual UX metadata saknas."; exit 1; }
+grep -Fq '("unified_excel","1")' "$RELEASE_DIR/app/app.py" || { echo "Unified Excel metadata saknas."; exit 1; }
+
 echo "Verifierar kandidat innan aktivering..."
 test -x "$VENV_DIR/bin/python"
 test -x "$VENV_DIR/bin/gunicorn"
@@ -172,7 +176,7 @@ grep -Fq 'excel_multi_connected_template_v1610' "$RELEASE_DIR/app/app.py" || { e
 
 echo "Verifierar v16.2 Excel Visual UX-källkod..."
 grep -Fq 'def add_date_validation' "$RELEASE_DIR/app/app.py" || { echo "Datumvalidering saknas."; exit 1; }
-grep -Fq 'visual_ux_version","16.2.1' "$RELEASE_DIR/app/app.py" || { echo "Visual UX metadata saknas."; exit 1; }
+grep -Fq 'visual_ux_version' "$RELEASE_DIR/app/app.py" || { echo "Visual UX metadata saknas."; exit 1; }
 grep -Fq 'Försenad aktivitet' "$RELEASE_DIR/app/app.py" || { echo "Förseningsmarkering saknas."; exit 1; }
 
 python3 - "$RELEASE_DIR/app/app.py" <<'PY'

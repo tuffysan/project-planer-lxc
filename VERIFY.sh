@@ -120,9 +120,9 @@ grep -Fq 'def add_date_validation' app/app.py || { echo "ERROR: date validation 
 grep -Fq 'DataBarRule(start_type="num",start_value=0,end_type="num",end_value=100,color="5B9BD5")' app/app.py || { echo "ERROR: progress data bar missing" >&2; exit 1; }
 grep -Fq 'Försenad aktivitet' app/app.py || { echo "ERROR: overdue activity visual rule missing" >&2; exit 1; }
 grep -Fq 'Färgkodning' app/app.py || { echo "ERROR: color legend missing" >&2; exit 1; }
-grep -Fq 'visual_ux_version","16.2.1' app/app.py || { echo "ERROR: Visual UX metadata missing" >&2; exit 1; }
+grep -Fq 'visual_ux_version' app/app.py || { echo "ERROR: Visual UX metadata missing" >&2; exit 1; }
 
-echo "[v16.2.1] Verifying Excel Visual UX runtime scope fix..."
+echo "[compat] Verifying Excel Visual UX runtime scope fix..."
 python3 - <<'PY'
 from pathlib import Path
 src=Path("app/app.py").read_text(encoding="utf-8")
@@ -134,8 +134,8 @@ m=src.index("def excel_multi_project_workbook_v1530")
 n=src.index("def excel_multi_project_import_v1530")
 multi=src[m:n]
 assert "for _sheet_name,_headers,_dates,_money in core:" in multi
-assert '("visual_ux_version","16.2.1")' in multi
-print("v16.2.1 scope regression checks OK")
+assert '("visual_ux_version",' in multi
+print("Visual UX scope regression checks OK")
 PY
 
 echo "[v17.0.0] Verifying Simple Planning Edition..."
@@ -157,3 +157,8 @@ grep -Fq 'existing_row_id=excel_int' app/app.py || { echo "ERROR: row IDs not im
 grep -Fq 'excel_update(conn,spec["table"]' app/app.py || { echo "ERROR: existing child rows are not updated" >&2; exit 1; }
 grep -Fq 'Exportera projekt till Excel' app/templates/excel_start_v1525.html || { echo "ERROR: export existing projects UI missing" >&2; exit 1; }
 test -f app/templates/excel_export_projects_v1710.html || { echo "ERROR: export picker template missing" >&2; exit 1; }
+
+echo "[v17.1.2] Verifying version-independent validators..."
+grep -Fq "grep -Fq 'visual_ux_version' app/app.py" VERIFY.sh || { echo "ERROR: generic Visual UX validator missing" >&2; exit 1; }
+grep -Fq "grep -Fq 'visual_ux_version' "\$RELEASE_DIR/app/app.py"" install-app.sh || { echo "ERROR: generic installer Visual UX validator missing" >&2; exit 1; }
+grep -Fq 'APP_VERSION = "17.1.2"' app/app.py || { echo "ERROR: APP_VERSION mismatch" >&2; exit 1; }

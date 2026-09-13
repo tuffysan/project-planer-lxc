@@ -235,3 +235,7 @@ Project Planer har nu ett primärt Excel-format som alltid stöder flera projekt
 
 ## v17.1.1 – Unified Excel Installer Hotfix
 Fixar en gammal verifieringsregel från v17.0 som felaktigt stoppade installationen efter att Excel Center-texten ändrades i v17.1.0.
+
+
+## v17.1.2 – Validator Hotfix
+Tar bort en föråldrad installationskontroll som låste `visual_ux_version` till 16.2.1 och därmed stoppade nyare Unified Excel-versioner före aktivering.
