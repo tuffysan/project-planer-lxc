@@ -133,6 +133,11 @@ python3 -m venv "$VENV_DIR"
 "$VENV_DIR/bin/python" -m pip install --upgrade pip
 "$VENV_DIR/bin/pip" install -r "$RELEASE_DIR/requirements.txt"
 
+echo "Verifierar v16.1.1 Unified UI-fixar..."
+! grep -Fq 'db_connect()' "$RELEASE_DIR/app/app.py" || { echo "Ogiltig db_connect-referens finns kvar."; exit 1; }
+! grep -Fq 'class="ux-v1600-nav"' "$RELEASE_DIR/app/templates/base.html" || { echo "Dubbla menyer finns kvar."; exit 1; }
+grep -Fq '<a href="/start">Start</a>' "$RELEASE_DIR/app/templates/base.html" || { echo "Start-länk saknas."; exit 1; }
+
 echo "Verifierar kandidat innan aktivering..."
 test -x "$VENV_DIR/bin/python"
 test -x "$VENV_DIR/bin/gunicorn"

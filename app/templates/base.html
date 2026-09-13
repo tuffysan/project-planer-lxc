@@ -12,28 +12,10 @@
 </head>
 <body class="{% if ux_v1600 %}ux-v1600{% endif %}">
 
-{% if session.get("user_id") %}
-<nav class="ux-v1600-nav" aria-label="Huvudnavigation">
-  <a href="/start" class="ux-brand">Project Planer</a>
-  <div class="ux-nav-primary">
-    <a href="/start">Start</a>
-    <a href="/my-work">Mitt arbete</a>
-    <a href="/projects">Projekt</a>
-    <a href="/portfolio">Portfolio</a>
-    <a href="/excel">Excel</a>
-  </div>
-  <div class="ux-nav-secondary">
-    <a href="/search">Sök</a>
-    {% if session.get("role","")|lower in ["admin","administrator"] %}
-      <a href="/admin">Admin</a>
-    {% endif %}
-  </div>
-</nav>
-{% endif %}
 
 <a class="ux-skip" href="#main-content">Hoppa till innehåll</a>
 <header class="topbar branded nav-v401">
-  <a class="brand brand-with-icon" href="/home">
+  <a class="brand brand-with-icon" href="/start">
     <img src="{{url_for('static',filename='assets/project-planer-icon-64.png')}}" alt="Project Planer">
     <span class="brand-copy"><strong>Project Planer</strong><small>{{t('brand_tagline')}}</small></span>
   </a>
@@ -43,7 +25,7 @@
           onclick="document.body.classList.toggle('nav-open');this.setAttribute('aria-expanded',document.body.classList.contains('nav-open')?'true':'false')">☰</button>
 
   <nav class="primary-nav nav-clean ultimate-primary-nav" aria-label="Huvudnavigation">
-    <a href="/home">{{ui("today")}}</a>
+    <a href="/start">Start</a>
     <a href="/my-work-2">{{ui("my_work")}}</a>
     <a href="/">{{ui("projects")}}</a>
     <a href="/portfolio-cockpit">{{ui("portfolio")}}</a>

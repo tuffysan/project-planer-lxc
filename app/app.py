@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "16.1.0"
+APP_VERSION = "16.1.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1273,28 +1273,25 @@ def task_health(task):
 @app.route("/projects/<int:project_id>/overview")
 @login_required
 def project_overview_v1600(project_id):
-    require_project_access(project_id)
-    with db_connect() as conn:
-        project=conn.execute("SELECT * FROM projects WHERE id=? AND deleted_at IS NULL",(project_id,)).fetchone()
-        if not project:
-            abort(404)
+    project=project_or_404(project_id)
+    with db() as conn:
         tasks=conn.execute("""
             SELECT * FROM tasks
-            WHERE project_id=? AND deleted_at IS NULL
+            WHERE project_id=? AND COALESCE(deleted_at,'')=''
             ORDER BY COALESCE(sort_order,999999), wbs, id
         """,(project_id,)).fetchall()
         risks=conn.execute("""
             SELECT * FROM risks WHERE project_id=?
             ORDER BY CASE WHEN LOWER(COALESCE(status,'')) IN ('closed','stängd','klar','done') THEN 1 ELSE 0 END,
-                     impact DESC, probability DESC, id DESC
+                     COALESCE(impact,0) DESC, COALESCE(probability,0) DESC, id DESC
             LIMIT 10
         """,(project_id,)).fetchall()
         members=conn.execute("""
-            SELECT pm.*, u.name, u.username
+            SELECT pm.*, u.display_name AS name, u.username
             FROM project_members pm
             LEFT JOIN users u ON u.id=pm.user_id
             WHERE pm.project_id=?
-            ORDER BY u.name, u.username
+            ORDER BY u.display_name, u.username
         """,(project_id,)).fetchall()
         costs=conn.execute("""
             SELECT COALESCE(SUM(planned),0) planned, COALESCE(SUM(actual),0) actual
@@ -1302,10 +1299,10 @@ def project_overview_v1600(project_id):
         """,(project_id,)).fetchone()
         upcoming=conn.execute("""
             SELECT * FROM tasks
-            WHERE project_id=? AND deleted_at IS NULL
+            WHERE project_id=? AND COALESCE(deleted_at,'')=''
               AND milestone=1
               AND LOWER(COALESCE(status,'')) NOT IN ('done','completed','klar')
-            ORDER BY end_date
+            ORDER BY CASE WHEN end_date IS NULL OR end_date='' THEN 1 ELSE 0 END, end_date
             LIMIT 5
         """,(project_id,)).fetchall()
     total=len(tasks)
@@ -1321,42 +1318,52 @@ def project_overview_v1600(project_id):
 @app.route("/start")
 @login_required
 def unified_start_v1600():
-    """Unified UX start page. Uses existing data model, no schema changes."""
-    uid=session.get("user_id")
-    role=excel_text(session.get("role") or "").lower()
-    with db_connect() as conn:
-        projects=conn.execute("""
-            SELECT p.*
-            FROM projects p
-            LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-            WHERE p.deleted_at IS NULL
-              AND (p.created_by=? OR pm.user_id=? OR ? IN ('admin','administrator'))
-            GROUP BY p.id
-            ORDER BY COALESCE(p.end_date,'9999-12-31'), p.name
-            LIMIT 12
-        """,(uid,uid,uid,role)).fetchall()
+    """Unified UX start page using the application's established DB/access helpers."""
+    u=current_user()
+    if not u:
+        return redirect(url_for("login"))
+    uid=int(u["id"])
+
+    projects=list(visible_projects_for_user())[:12]
+    project_ids=[int(p["id"]) for p in projects]
+
+    with db() as conn:
+        # Match both modern owner_user_id and the legacy text owner field.
         my_tasks=conn.execute("""
             SELECT t.*, p.name AS project_name
             FROM tasks t
             JOIN projects p ON p.id=t.project_id
-            LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-            WHERE t.deleted_at IS NULL AND p.deleted_at IS NULL
-              AND (t.owner_user_id=? OR LOWER(COALESCE(t.owner,''))=LOWER(COALESCE((SELECT name FROM users WHERE id=?),'')))
-            ORDER BY CASE WHEN t.end_date IS NULL THEN 1 ELSE 0 END, t.end_date, t.priority DESC
+            WHERE COALESCE(t.deleted_at,'')=''
+              AND COALESCE(p.deleted_at,'')=''
+              AND (
+                    t.owner_user_id=?
+                 OR LOWER(COALESCE(t.owner,''))=LOWER(?)
+                 OR LOWER(COALESCE(t.owner,''))=LOWER(?)
+              )
+            ORDER BY CASE WHEN t.end_date IS NULL OR t.end_date='' THEN 1 ELSE 0 END,
+                     t.end_date, t.priority DESC
             LIMIT 20
-        """,(uid,uid,uid)).fetchall()
-        risks=conn.execute("""
-            SELECT r.*, p.name AS project_name
-            FROM risks r
-            JOIN projects p ON p.id=r.project_id
-            LEFT JOIN project_members pm ON pm.project_id=p.id AND pm.user_id=?
-            WHERE p.deleted_at IS NULL
-              AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd','klar','done')
-              AND (p.created_by=? OR pm.user_id=? OR ? IN ('admin','administrator'))
-            ORDER BY r.impact DESC, r.probability DESC
-            LIMIT 10
-        """,(uid,uid,uid,role)).fetchall()
-        unread=conn.execute("SELECT COUNT(*) c FROM notifications WHERE user_id=? AND is_read=0",(uid,)).fetchone()["c"]
+        """,(uid, excel_text(u["display_name"]), excel_text(u["username"]))).fetchall()
+
+        if project_ids:
+            placeholders=",".join("?" for _ in project_ids)
+            risks=conn.execute(f"""
+                SELECT r.*, p.name AS project_name
+                FROM risks r
+                JOIN projects p ON p.id=r.project_id
+                WHERE r.project_id IN ({placeholders})
+                  AND LOWER(COALESCE(r.status,'')) NOT IN ('closed','stängd','klar','done')
+                ORDER BY COALESCE(r.impact,0) DESC, COALESCE(r.probability,0) DESC, r.id DESC
+                LIMIT 10
+            """,project_ids).fetchall()
+        else:
+            risks=[]
+
+        unread_row=conn.execute(
+            "SELECT COUNT(*) c FROM notifications WHERE user_id=? AND is_read=0",(uid,)
+        ).fetchone()
+        unread=int(unread_row["c"] if unread_row else 0)
+
     return render_template(
         "unified_start_v1600.html",
         projects=projects,
@@ -1406,7 +1413,7 @@ def login():
                     conn.execute("UPDATE users SET failed_logins=0,locked_until='',last_login=? WHERE id=?",
                                  (datetime.now().isoformat(timespec="seconds"),u["id"]))
                     session.clear(); session["user_id"]=u["id"]; session["_csrf"]=secrets.token_urlsafe(32); session.permanent=True
-                    return redirect(request.args.get("next") or url_for("ultimate_home_v140"))
+                    return redirect(request.args.get("next") or url_for("unified_start_v1600"))
                 attempts=int(u["failed_logins"] or 0)+1
                 limit=int(setting("lockout_attempts","5"))
                 lock_until=""

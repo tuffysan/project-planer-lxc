@@ -1143,19 +1143,6 @@ body{background:var(--v15-bg)}
    v16.0.0 Unified UX Edition
    ========================================================= */
 .ux-v1600 { background:#f5f7fa; }
-.ux-v1600-nav{
-  position:sticky; top:0; z-index:1000;
-  display:flex; align-items:center; gap:28px;
-  padding:12px 22px;
-  background:#fff; border-bottom:1px solid #e5e9ef;
-  box-shadow:0 1px 4px rgba(15,76,129,.04);
-}
-.ux-v1600-nav a{ text-decoration:none; color:#26364a; font-weight:600; }
-.ux-v1600-nav a:hover{ color:#0f4c81; }
-.ux-brand{ font-size:18px; color:#0f4c81!important; }
-.ux-nav-primary{ display:flex; gap:18px; align-items:center; flex:1; }
-.ux-nav-secondary{ display:flex; gap:14px; align-items:center; }
-
 .ux-shell{ max-width:1280px; margin:0 auto; padding:28px 24px 56px; }
 .ux-hero{
   display:flex; justify-content:space-between; gap:24px; align-items:flex-start;
@@ -1217,10 +1204,7 @@ body{background:var(--v15-bg)}
 .ux-money-row:last-child{ border-bottom:0; }
 
 @media (max-width:900px){
-  .ux-v1600-nav{ gap:12px; padding:10px 12px; overflow-x:auto; }
-  .ux-nav-primary{ gap:12px; }
-  .ux-nav-secondary{ display:none; }
-  .ux-shell{ padding:20px 14px 42px; }
+    .ux-shell{ padding:20px 14px 42px; }
   .ux-hero{ flex-direction:column; }
   .ux-kpis{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .ux-grid-2{ grid-template-columns:1fr; }

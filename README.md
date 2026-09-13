@@ -211,3 +211,7 @@ Fixar Excel-smoketestet som stoppade v16.0.0 före aktivering, slutför korrekt 
 
 ## v16.1.0 – Excel Connected Projects
 Projekt som skapas på Projekt-bladet blir direkt valbara som `Projektkod – Projektnamn` på övriga blad. Excel Center kan också ladda ner en Connected Projects-fil med befintliga projekt och dolda ProjectID:n.
+
+
+## v16.1.1 – Unified UI Hotfix
+Fixar 500-felet på `/start`, korrigerar Projektöversikt och tar bort den dubbla huvudmenyn. Den befintliga Project Planer-topbaren är åter den enda navigeringen och leder till den nya Start-sidan.

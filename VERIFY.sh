@@ -106,3 +106,11 @@ grep -Fq '/excel/template/multi/connected' app/app.py || { echo "ERROR: connecte
 grep -Fq '_ProjectID' app/app.py || { echo "ERROR: ProjectID support missing" >&2; exit 1; }
 grep -Fq '_Projektlista' app/app.py || { echo "ERROR: same-sheet project dropdown helper missing" >&2; exit 1; }
 grep -Fq 'updated_projects' app/app.py || { echo "ERROR: existing project update support missing" >&2; exit 1; }
+
+echo "[v16.1.1] Verifying Unified UI hotfix..."
+! grep -Fq 'db_connect()' app/app.py || { echo "ERROR: db_connect regression remains" >&2; exit 1; }
+! grep -Fq 'require_project_access(project_id)' app/app.py || { echo "ERROR: invalid project access helper remains" >&2; exit 1; }
+! grep -Fq 'class="ux-v1600-nav"' app/templates/base.html || { echo "ERROR: duplicate v16 navigation remains" >&2; exit 1; }
+grep -Fq '<a href="/start">Start</a>' app/templates/base.html || { echo "ERROR: Start nav link missing" >&2; exit 1; }
+grep -Fq 'def unified_start_v1600' app/app.py || { echo "ERROR: unified start route missing" >&2; exit 1; }
+grep -Fq 'project=project_or_404(project_id)' app/app.py || { echo "ERROR: project overview access fix missing" >&2; exit 1; }
