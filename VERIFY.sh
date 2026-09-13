@@ -65,3 +65,9 @@ echo "[v15.3.1] Verifying automatic Excel project codes..."
 grep -Fq 'def excel_project_code_formula_v1531' app/app.py || { echo "ERROR: project code formula helper missing" >&2; exit 1; }
 grep -Fq 'PRJ-' app/app.py || { echo "ERROR: PRJ code format missing" >&2; exit 1; }
 grep -Fq "formula1=\"'Projekt'!\\$A\\$2:\\$A\\$101\"" app/app.py || { echo "ERROR: project-code dropdown missing" >&2; exit 1; }
+
+echo "[v15.3.2] Verifying openpyxl Comment import..."
+grep -Fq 'from openpyxl.comments import Comment' app/app.py || {
+  echo "ERROR: Multi-Project Excel uses Comment but openpyxl Comment import is missing." >&2
+  exit 1
+}

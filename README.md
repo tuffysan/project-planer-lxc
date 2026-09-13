@@ -183,3 +183,8 @@ Project Planer kan nu planera och importera flera projekt från samma Excel-arbe
 ## v15.3.1 – Automatiska projektkoder i Excel
 
 I Multi-Project Excel genereras Projektkod automatiskt som `PRJ-001`, `PRJ-002` osv. när Projektnamn fylls i. Koden kan skrivas över manuellt. Övriga importblad använder rullista mot Projekt-bladets projektkoder.
+
+
+## v15.3.2 – Excel Comment Runtime Fix
+
+Fixar v15.3.1-installationen där Multi-Project Excel använde `Comment` utan att importera `openpyxl.comments.Comment`. Installations-smoketestet måste fortfarande passera för både single- och multi-project Excel innan aktivering.
