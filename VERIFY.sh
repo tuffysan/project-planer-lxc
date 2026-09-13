@@ -94,3 +94,8 @@ test -f app/templates/unified_start_v1600.html || { echo "ERROR: unified start t
 test -f app/templates/project_overview_v1600.html || { echo "ERROR: project overview template missing" >&2; exit 1; }
 grep -Fq 'ux-v1600-nav' app/templates/base.html || { echo "ERROR: unified navigation missing" >&2; exit 1; }
 grep -Fq 'Unified UX Edition' README.md || { echo "ERROR: README not updated" >&2; exit 1; }
+
+echo "[v16.0.1] Verifying Excel runtime regression fixes..."
+grep -Fq 'dd.sheet_state="hidden"' app/app.py || { echo "ERROR: single Datamodell fix missing" >&2; exit 1; }
+grep -Fq 'wb_values=load_workbook(BytesIO(payload),data_only=True)' app/app.py || { echo "ERROR: wb_values load missing" >&2; exit 1; }
+grep -Fq 'wb.sheetnames[0]!="Start"' install-app.sh || { echo "ERROR: multi Start order smoke check missing" >&2; exit 1; }

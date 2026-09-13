@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "16.0.0"
+APP_VERSION = "16.0.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -5225,15 +5225,8 @@ def excel_blank_complete_workbook_v1525():
       ("template_kind","new_project_complete")
     ]: meta.append([k,v])
     meta.sheet_state="hidden"
-    dm.sheet_state="hidden"
+    dd.sheet_state="hidden"
 
-    _preferred=["Start","Projekt","Uppgifter","Gantt","Risker","Resurser","Kostnader","Beroenden","Kontroll"]
-    _ordered=[]
-    for _name in _preferred:
-        if _name in wb.sheetnames:
-            _ordered.append(wb[_name])
-    _ordered += [ws for ws in wb.worksheets if ws.title not in _preferred]
-    wb._sheets=_ordered
     wb.active=0
     wb.properties.creator="Project Planer"
     wb.properties.title="Project Planer – Komplett projektmall"
@@ -5877,7 +5870,15 @@ def excel_multi_project_workbook_v1530():
     ]:
         meta.append([k,v])
     meta.sheet_state="hidden"
+    dm.sheet_state="hidden"
 
+    _preferred=["Start","Projekt","Uppgifter","Gantt","Risker","Resurser","Kostnader","Beroenden","Kontroll"]
+    _ordered=[]
+    for _name in _preferred:
+        if _name in wb.sheetnames:
+            _ordered.append(wb[_name])
+    _ordered += [ws for ws in wb.worksheets if ws.title not in _preferred]
+    wb._sheets=_ordered
     wb.active=0
     wb.properties.creator="Project Planer"
     wb.properties.title="Project Planer – Multi-Project Excel"
@@ -5896,6 +5897,7 @@ def excel_multi_project_import_v1530(file_storage):
         raise ValueError("Excel-filen är större än 25 MB.")
     try:
         wb=load_workbook(BytesIO(payload),data_only=False)
+        wb_values=load_workbook(BytesIO(payload),data_only=True)
     except Exception as ex:
         raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
 

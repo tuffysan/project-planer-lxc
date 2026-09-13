@@ -203,3 +203,7 @@ Multi-Project Excel har fått Start-dashboard, enklare aktivitetsnivåer, varakt
 ## v16.0.0 – Unified UX Edition
 
 Webbapp och Excel följer nu samma mentala modell. Ny Start, ny Projektöversikt, förenklad primärnavigation, samma begrepp som i Excel och avancerade projektfunktioner samlade under Avancerat.
+
+
+## v16.0.1 – Unified UX Runtime Fix
+Fixar Excel-smoketestet som stoppade v16.0.0 före aktivering, slutför korrekt Start-flikordning i Multi-Project Excel och säkrar formelvärdesläsning vid Multi-Project-import.

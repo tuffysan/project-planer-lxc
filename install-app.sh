@@ -163,6 +163,11 @@ for label,builder in [
     payload=excel_serialize_workbook_v1527(wb)
     if len(payload) < 5000:
         raise SystemExit(f"XLSX SMOKE TEST FAILED ({label}): generated workbook is unexpectedly small")
+    if label=="single":
+        if "Datamodell" not in wb.sheetnames:
+            raise SystemExit("XLSX SINGLE SMOKE TEST FAILED: Datamodell missing")
+        if wb["Datamodell"].sheet_state!="hidden":
+            raise SystemExit("XLSX SINGLE SMOKE TEST FAILED: Datamodell must be hidden")
     if label=="multi":
         required={"Start","Projekt","Uppgifter","Gantt","Kontroll"}
         missing=required-set(wb.sheetnames)
@@ -170,6 +175,10 @@ for label,builder in [
             raise SystemExit("XLSX UX SMOKE TEST FAILED: missing sheets "+", ".join(sorted(missing)))
         if wb["Start"].sheet_state!="visible" or wb["Uppgifter"].sheet_state!="visible":
             raise SystemExit("XLSX UX SMOKE TEST FAILED: primary sheets are hidden")
+        if wb.sheetnames[0]!="Start":
+            raise SystemExit("XLSX UX SMOKE TEST FAILED: Start is not the first sheet")
+        if "Datamodell" in wb.sheetnames and wb["Datamodell"].sheet_state!="hidden":
+            raise SystemExit("XLSX UX SMOKE TEST FAILED: Datamodell must be hidden")
     print(f"XLSX smoke test OK ({label}):", len(payload), "bytes,", len(wb.sheetnames), "sheets")
 PY
 )
