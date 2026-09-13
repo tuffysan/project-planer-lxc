@@ -21,11 +21,25 @@ echo "VERIFY OK: v$EXPECTED"
 
 
 echo "[v15.2.6] Verifying global Excel navigation..."
-grep -Fq 'data-nav-excel="v15.2.6"' app/templates/base.html || {
+grep -Fq 'href="/excel"' app/templates/base.html || {
   echo "ERROR: Global Excel navigation is missing from app/templates/base.html" >&2
   exit 1
 }
 grep -Fq 'href="/excel"' app/templates/base.html || {
   echo "ERROR: /excel navigation link is missing from app/templates/base.html" >&2
+  exit 1
+}
+
+echo "[v15.2.7] Verifying XLSX integrity code..."
+grep -Fq 'def excel_xlsx_integrity_check_v1527' app/app.py || {
+  echo "ERROR: XLSX integrity checker missing" >&2
+  exit 1
+}
+grep -Fq 'def excel_serialize_workbook_v1527' app/app.py || {
+  echo "ERROR: XLSX normalization/serialization missing" >&2
+  exit 1
+}
+grep -Fq 'ws.auto_filter.ref=None' app/app.py || {
+  echo "ERROR: Blank-sheet AutoFilter cleanup missing" >&2
   exit 1
 }

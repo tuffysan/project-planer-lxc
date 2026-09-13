@@ -160,3 +160,8 @@ Excel kan nu användas utan ett befintligt projekt. Huvudmenyn har en permanent 
 ## v15.2.6 – Excel Navigation Fix
 
 Den globala **Excel**-genvägen ligger nu direkt i huvudnavigationen mellan **Portfolio** och **Sök** och visas för alla inloggade användare. `/health/ui` kan användas för att verifiera att rätt UI-template är installerad.
+
+
+## v15.2.7 – XLSX Integrity
+
+Den kompletta tomma Excel-mallen normaliseras och valideras innan den skickas till webbläsaren. Installationen kör dessutom ett riktigt XLSX-smoketest med release-versionens Python/openpyxl-miljö.

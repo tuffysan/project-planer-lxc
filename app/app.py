@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.6"
+APP_VERSION = "15.2.7"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -4847,7 +4847,67 @@ def project_excel_hub_v1524(project_id):
     project_or_404(project_id)
     return redirect(url_for("excel_center_v810",project_id=project_id))
 
+def excel_xlsx_integrity_check_v1527(payload):
+    """Validate the XLSX container and the XML parts Excel is strict about."""
+    import zipfile as _zipfile
+    import xml.etree.ElementTree as _ET
+    from io import BytesIO as _BytesIO
+
+    if not payload:
+        raise ValueError("Tom XLSX-fil.")
+    try:
+        with _zipfile.ZipFile(_BytesIO(payload), "r") as zf:
+            bad=zf.testzip()
+            if bad:
+                raise ValueError(f"Skadad ZIP-post i XLSX: {bad}")
+            names=set(zf.namelist())
+            required={"[Content_Types].xml","xl/workbook.xml","xl/styles.xml"}
+            missing=required-names
+            if missing:
+                raise ValueError("XLSX saknar obligatoriska delar: "+", ".join(sorted(missing)))
+
+            # Parse every XML/rels part. This catches malformed package content.
+            for name in names:
+                if name.endswith(".xml") or name.endswith(".rels"):
+                    try:
+                        _ET.fromstring(zf.read(name))
+                    except Exception as ex:
+                        raise ValueError(f"Ogiltig XML i {name}: {ex}")
+
+            # Validate table references. A table must include header + at least one data row.
+            ns={"m":"http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+            for name in names:
+                if name.startswith("xl/tables/table") and name.endswith(".xml"):
+                    root=_ET.fromstring(zf.read(name))
+                    ref=root.attrib.get("ref","")
+                    m=re.fullmatch(r"\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)",ref)
+                    if not m:
+                        raise ValueError(f"Ogiltigt tabellområde i {name}: {ref}")
+                    r1=int(m.group(2)); r2=int(m.group(4))
+                    if r2 <= r1:
+                        raise ValueError(f"Tabell utan datarad i {name}: {ref}")
+    except _zipfile.BadZipFile as ex:
+        raise ValueError(f"Ogiltig XLSX-container: {ex}")
+    return True
+
+def excel_serialize_workbook_v1527(wb):
+    """Normalize through a save/reload/save cycle and verify the final XLSX package."""
+    first=BytesIO()
+    wb.save(first)
+    payload=first.getvalue()
+    excel_xlsx_integrity_check_v1527(payload)
+
+    # Re-open and save once more. openpyxl normalizes relationships, names,
+    # data validations and drawing/table package parts during this pass.
+    check=load_workbook(BytesIO(payload),data_only=False)
+    second=BytesIO()
+    check.save(second)
+    final_payload=second.getvalue()
+    excel_xlsx_integrity_check_v1527(final_payload)
+    return final_payload
+
 def excel_blank_complete_workbook_v1525():
+    """v15.2.7: create a clean blank template without post-build example rows."""
     project={
         "id":0,"name":"","customer":"","project_manager":"","description":"",
         "start_date":"","end_date":"","created_by":0,"created_at":""
@@ -4859,33 +4919,34 @@ def excel_blank_complete_workbook_v1525():
                            "devops_links","schedule_batches","schedule_items","project_finance")}
     wb=build_complete_excel_template_v1522(project,empty)
 
-    # Make the workbook practical as a blank project template.
+    # Make this explicitly a NEW PROJECT template.
     if "LÄS MIG" in wb.sheetnames:
         ws=wb["LÄS MIG"]
         ws["B3"]="NYTT PROJEKT"
         ws["A8"]="Fyll först i bladet Projektinformation och därefter de blad du behöver. När filen är klar väljer du Excel → Importera Excel och skapa projekt i Project Planer."
+        ws["A8"].alignment=Alignment(wrap_text=True,vertical="top")
     if "_Metadata" in wb.sheetnames:
         meta=wb["_Metadata"]
         for row in meta.iter_rows(min_row=2,max_col=2):
-            if row[0].value=="project_id": row[1].value="0"
-            elif row[0].value=="project_name": row[1].value="NEW_PROJECT_TEMPLATE"
-            elif row[0].value=="project_hash": row[1].value=""
-            elif row[0].value=="app_version": row[1].value=APP_VERSION
+            key=excel_text(row[0].value)
+            if key=="project_id": row[1].value="0"
+            elif key=="project_name": row[1].value="NEW_PROJECT_TEMPLATE"
+            elif key=="project_hash": row[1].value=""
+            elif key=="app_version": row[1].value=APP_VERSION
 
-    # Add writable example rows to the core sheets without IDs/hashes.
-    examples={
-      "Uppgifter":["1","Exempelaktivitet","","","","","","Not started","Medium",0,"Nej","","",""],
-      "Risker":["Risk","Exempelrisk","Beskriv risken",3,3,"","Åtgärd","Open","","",""],
-      "Resurser":["Exempelresurs","",0,0,"",""],
-      "Kostnader":["Övrigt","Exempelkostnad",0,0,"","",""],
-      "Beslut":["Exempelbeslut","","","","","",""],
-      "Möten":["Kickoff","","","","",""],
-      "Åtgärder":["Exempelåtgärd","","","Open","",""],
-      "Nyttor":["Exempelnytta","st",0,0,"","","","Open","",""]
-    }
-    for sheet,row in examples.items():
-        if sheet in wb.sheetnames and wb[sheet].max_row==1:
-            wb[sheet].append(row)
+    # Excel is strict about table/AutoFilter ranges in empty template sheets.
+    # Blank sheets therefore keep headers + formatting/validation, but no
+    # header-only AutoFilter and no zero-row tables.
+    for ws in wb.worksheets:
+        if ws.max_row <= 1:
+            ws.auto_filter.ref=None
+            # Defensive cleanup: empty sheets must not contain tables.
+            for table_name in list(ws.tables.keys()):
+                del ws.tables[table_name]
+
+    # Do not append example rows after workbook/table finalization.
+    # That was the main structural difference between the normal project
+    # workbook and the blank template and could leave package ranges stale.
     return wb
 
 def excel_new_project_from_workbook_v1525(file_storage):
@@ -4993,8 +5054,8 @@ def excel_start_center_v1525():
 @login_required
 def excel_blank_template_v1525():
     wb=excel_blank_complete_workbook_v1525()
-    bio=BytesIO(); wb.save(bio); bio.seek(0)
-    return send_file(bio,as_attachment=True,
+    payload=excel_serialize_workbook_v1527(wb)
+    return send_file(BytesIO(payload),as_attachment=True,
         download_name="Project-Planer-KOMPLETT-projektmall.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 

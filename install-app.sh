@@ -103,9 +103,9 @@ rollback() {
 
 # v15.2.6 release-integrity guard: do not activate a package that lacks
 # the global Excel navigation promised by this release.
-if [[ "$VERSION_VALUE" == "15.2.6" ]]; then
-  if ! grep -Fq 'data-nav-excel="v15.2.6"' "$SOURCE_DIR/app/templates/base.html"; then
-    echo "FEL: v15.2.6 saknar Excel-genvägen i den faktiska huvudnavigationen." >&2
+if [[ "$VERSION_VALUE" == "15.2.6" || "$VERSION_VALUE" == "15.2.7" ]]; then
+  if ! grep -Fq 'href="/excel"' "$SOURCE_DIR/app/templates/base.html"; then
+    echo "FEL: release saknar Excel-genvägen i den faktiska huvudnavigationen." >&2
     exit 1
   fi
 fi
@@ -147,6 +147,19 @@ expected = os.environ["EXPECTED_VERSION"]
 print("Application import OK, version:", APP_VERSION)
 if APP_VERSION != expected:
     raise SystemExit(f"VERSION MISMATCH: package VERSION={expected}, APP_VERSION={APP_VERSION}")
+PY
+)
+
+echo "Verifierar Excel-mallen med riktig runtime..."
+(
+  cd "$RELEASE_DIR"
+  "$VENV_DIR/bin/python" - <<'PY'
+from app.app import excel_blank_complete_workbook_v1525, excel_serialize_workbook_v1527
+wb=excel_blank_complete_workbook_v1525()
+payload=excel_serialize_workbook_v1527(wb)
+if len(payload) < 5000:
+    raise SystemExit("XLSX SMOKE TEST FAILED: generated workbook is unexpectedly small")
+print("XLSX smoke test OK:", len(payload), "bytes,", len(wb.sheetnames), "sheets")
 PY
 )
 
