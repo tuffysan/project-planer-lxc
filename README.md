@@ -227,3 +227,7 @@ Fixar v16.2.0-installationsfelet där Multi-Project-datumvalidering felaktigt ha
 
 ## v17.0.0 – Simple Planning Edition
 Ny enkel Plan-vy i webbappen med browser-kalender för startdatum, automatisk aktivitetsnumrering, varaktighet/slutdatum och inline-redigering. Excel Center är förenklat till Tom Excel, Hämta projekt och Importera Excel. Den tomma Excel-filen finns kvar som ett tydligt förstahandsval.
+
+
+## v17.1.0 – Unified Excel Edition
+Project Planer har nu ett primärt Excel-format som alltid stöder flera projekt. Tom Excel använder samma Unified-format som export av befintliga projekt. Ett eller flera befintliga projekt kan exporteras från appen och dolda ID:n används för uppdatering vid återimport.

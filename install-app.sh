@@ -143,6 +143,11 @@ grep -Fq '@app.get("/projects/<int:project_id>/plan")' "$RELEASE_DIR/app/app.py"
 grep -Fq 'Ladda ner tom Excel-fil' "$RELEASE_DIR/app/templates/excel_start_v1525.html" || { echo "Tom Excel-mall saknas från UI."; exit 1; }
 grep -Fq 'type="date" name="start_date"' "$RELEASE_DIR/app/templates/simple_plan_v1700.html" || { echo "Datumväljare saknas i Plan."; exit 1; }
 
+echo "Verifierar v17.1 Unified Excel Edition..."
+grep -Fq 'def excel_multi_project_workbook_v1530(existing_projects=None, include_project_data=False)' "$RELEASE_DIR/app/app.py" || { echo "Unified Excel saknas."; exit 1; }
+grep -Fq 'Project-Planer-Excel-TOM.xlsx' "$RELEASE_DIR/app/app.py" || { echo "Tom Excel är inte Unified."; exit 1; }
+grep -Fq 'excel_export_projects_v1710' "$RELEASE_DIR/app/app.py" || { echo "Export av befintliga projekt saknas."; exit 1; }
+
 echo "Verifierar kandidat innan aktivering..."
 test -x "$VENV_DIR/bin/python"
 test -x "$VENV_DIR/bin/gunicorn"

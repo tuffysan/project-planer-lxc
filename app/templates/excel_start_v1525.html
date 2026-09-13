@@ -4,49 +4,48 @@
 <div class="v15-shell">
 <section class="v15-hero compact">
   <div>
-    <span class="v15-kicker">SIMPLE PLANNING · v17.0</span>
-    <h1>Excel</h1>
-    <p>Tre tydliga val. Den tomma Excel-mallen finns kvar och fungerar utan att du först skapar ett projekt i appen.</p>
+    <span class="v15-kicker">UNIFIED EXCEL · v17.1</span>
+    <h1>Project Planer Excel</h1>
+    <p>En Excel-fil för allt. Samma format fungerar för ett projekt, flera projekt och en helt tom plan.</p>
   </div>
 </section>
 
 <div class="excel-simple-v17-grid">
   <a class="v15-panel excel-v17-card primary" href="{{url_for('excel_blank_template_v1525')}}">
-    <span class="v15-kicker">TOM EXCEL</span>
-    <h2>Ladda ner tom Excel-fil</h2>
-    <p>Börja helt från början. Fyll i projekt, aktiviteter, risker, resurser och kostnader i Excel.</p>
-    <strong>Ladda ner tom mall →</strong>
+    <span class="v15-kicker">NY PLAN</span>
+    <h2>Ladda ner tom Excel</h2>
+    <p>Den tomma filen har alltid stöd för flera projekt. Skapa ett eller flera projekt i samma arbetsbok.</p>
+    <strong>Ladda ner Project Planer Excel →</strong>
   </a>
 
-  <a class="v15-panel excel-v17-card" href="{{url_for('excel_multi_connected_template_v1610')}}">
+  <a class="v15-panel excel-v17-card" href="{{url_for('excel_export_projects_v1710')}}">
     <span class="v15-kicker">BEFINTLIGA PROJEKT</span>
-    <h2>Hämta projekt till Excel</h2>
-    <p>Dina tillgängliga projekt läggs in automatiskt och kan väljas direkt i aktivitetsplaneringen.</p>
-    <strong>Hämta projekt →</strong>
+    <h2>Exportera projekt till Excel</h2>
+    <p>Välj ett eller flera projekt från appen. Projekt, aktiviteter, risker, resurser, kostnader och övrig importerbar data följer med.</p>
+    <strong>Välj projekt →</strong>
   </a>
 
   <a class="v15-panel excel-v17-card" href="{{url_for('excel_unified_import_v1700')}}">
-    <span class="v15-kicker">EXCEL → PROJECT PLANER</span>
+    <span class="v15-kicker">EXCEL → APPEN</span>
     <h2>Importera Excel</h2>
-    <p>En enda importväg för den tomma projektmallen och Multi-/Connected Projects.</p>
+    <p>Samma import används oavsett om filen började tom eller exporterades från Project Planer.</p>
     <strong>Importera fil →</strong>
   </a>
 </div>
 
 <section class="v15-panel">
-  <h2>Enkelt arbetsflöde</h2>
+  <h2>Ett format – tre arbetssätt</h2>
   <div class="excel-start-steps">
-    <div><b>1</b><span><strong>Ladda ner</strong><small>Tom Excel eller dina befintliga projekt.</small></span></div>
-    <div><b>2</b><span><strong>Planera</strong><small>Projekt + Uppgifter räcker för att komma igång.</small></span></div>
-    <div><b>3</b><span><strong>Kontrollera</strong><small>Använd Kontroll-bladet innan import.</small></span></div>
-    <div><b>4</b><span><strong>Importera</strong><small>Project Planer känner igen filtypen automatiskt.</small></span></div>
+    <div><b>1</b><span><strong>Tom fil</strong><small>Skapa ett eller flera helt nya projekt.</small></span></div>
+    <div><b>2</b><span><strong>Export</strong><small>Ta med ett eller flera befintliga projekt till Excel.</small></span></div>
+    <div><b>3</b><span><strong>Planera</strong><small>Projekt, Uppgifter, Risker, Resurser, Kostnader och Beroenden använder samma struktur.</small></span></div>
+    <div><b>4</b><span><strong>Importera</strong><small>Dolda ID:n gör att exporterade poster uppdateras i stället för att dupliceras.</small></span></div>
   </div>
 </section>
 
 <section class="v15-panel excel-v17-secondary">
-  <h2>Avancerat</h2>
-  <p>Behöver du flera helt nya projekt i samma fil kan du fortfarande använda Multi-Project-mallen.</p>
-  <a class="btn" href="{{url_for('excel_multi_template_v1530')}}">Ny Multi-Project Excel</a>
+  <h2>Bakåtkompatibilitet</h2>
+  <p>Äldre Single-Project Round-trip och specialrapporter finns fortfarande inne i respektive projekt, men nya Excel-flöden använder Unified Excel.</p>
 </section>
 </div>
 {% endblock %}

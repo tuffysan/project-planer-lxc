@@ -147,3 +147,13 @@ test -f app/templates/excel_import_unified_v1700.html || { echo "ERROR: unified 
 grep -Fq 'Ladda ner tom Excel-fil' app/templates/excel_start_v1525.html || { echo "ERROR: blank Excel download is no longer visible" >&2; exit 1; }
 grep -Fq 'url_for('\''excel_blank_template_v1525'\'')' app/templates/excel_start_v1525.html || { echo "ERROR: blank Excel route missing from Excel Center" >&2; exit 1; }
 grep -Fq 'type="date" name="start_date"' app/templates/simple_plan_v1700.html || { echo "ERROR: web date picker missing" >&2; exit 1; }
+
+echo "[v17.1.0] Verifying Unified Excel Edition..."
+grep -Fq 'def excel_multi_project_workbook_v1530(existing_projects=None, include_project_data=False)' app/app.py || { echo "ERROR: unified workbook signature missing" >&2; exit 1; }
+grep -Fq '@app.route("/excel/export-projects",methods=["GET","POST"])' app/app.py || { echo "ERROR: project export selector missing" >&2; exit 1; }
+grep -Fq '@app.get("/projects/<int:project_id>/excel/unified")' app/app.py || { echo "ERROR: project unified export missing" >&2; exit 1; }
+grep -Fq 'download_name="Project-Planer-Excel-TOM.xlsx"' app/app.py || { echo "ERROR: blank template is not Unified Excel" >&2; exit 1; }
+grep -Fq 'existing_row_id=excel_int' app/app.py || { echo "ERROR: row IDs not imported" >&2; exit 1; }
+grep -Fq 'excel_update(conn,spec["table"]' app/app.py || { echo "ERROR: existing child rows are not updated" >&2; exit 1; }
+grep -Fq 'Exportera projekt till Excel' app/templates/excel_start_v1525.html || { echo "ERROR: export existing projects UI missing" >&2; exit 1; }
+test -f app/templates/excel_export_projects_v1710.html || { echo "ERROR: export picker template missing" >&2; exit 1; }

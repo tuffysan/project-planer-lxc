@@ -1272,3 +1272,16 @@ body{background:var(--v15-bg)}
   .simple-add-grid{grid-template-columns:1fr 1fr}
   .simple-plan-table{min-width:1050px}
 }
+
+/* v17.1.0 Unified Excel */
+.excel-picker-toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.excel-project-list{display:grid;gap:8px}
+.excel-project-row{
+  display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;
+  padding:12px 14px;border:1px solid #e1e6ec;border-radius:10px;background:#fff;cursor:pointer
+}
+.excel-project-row:hover{background:#f8fbfe;border-color:#b8cee1}
+.excel-project-row input{width:18px;height:18px}
+.excel-project-row span{display:flex;flex-direction:column;gap:3px}
+.excel-project-row small{color:#667085}
+.excel-project-row code{color:#0f4c81;background:#eef5fb;padding:5px 8px;border-radius:6px}

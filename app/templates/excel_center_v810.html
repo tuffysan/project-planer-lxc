@@ -1,88 +1,59 @@
 {% extends "base.html" %}
-{% block title %}Excel Pro · {{project.name}}{% endblock %}
+{% block title %}Excel · {{project.name}}{% endblock %}
 {% block content %}
 <nav class="project-breadcrumb">
-  <a href="{{url_for('intelligent_ppm_v80')}}">Översikt</a><span>›</span>
-  <a href="{{url_for('project_workspace',project_id=project.id,tab='overview')}}">{{project.name}}</a><span>›</span>
-  <span>Excel Pro</span>
+  <a href="/start">Start</a><span>›</span>
+  <a href="{{url_for('project_overview_v1600',project_id=project.id)}}">{{project.name}}</a><span>›</span>
+  <span>Excel</span>
 </nav>
 
 <div class="feature-hero excel-pro-hero">
   <div>
-    <div class="eyebrow">EXCEL PRO · v15.2.4</div>
-    <h1>Vad vill du göra i Excel?</h1>
-    <p class="lead">Välj arbetsbok för fortsatt projektarbete, rapport för presentation eller portfolio för en ledningsöversikt över flera projekt.</p>
+    <div class="eyebrow">UNIFIED EXCEL · v17.1</div>
+    <h1>{{project.name}} i Excel</h1>
+    <p class="lead">Exportera projektet i samma Excel-format som används för Multi-Project. Filen kan senare kompletteras med fler projekt och importeras tillbaka.</p>
   </div>
   <div class="ux-actions">
-    <a class="button primary" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">↓ Komplett Excel-mall</a>
-    <a class="button" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">↓ Round-trip</a>
-    <a class="button" href="{{url_for('excel_import_v810',project_id=project.id)}}">↑ Importera</a>
+    <a class="button primary" href="{{url_for('excel_export_project_unified_v1710',project_id=project.id)}}">↓ Exportera detta projekt</a>
+    <a class="button" href="{{url_for('excel_unified_import_v1700')}}">↑ Importera Excel</a>
   </div>
 </div>
 
 <section class="panel">
   <div class="excel-primary-bar">
-  <div>
-    <span class="eyebrow">REKOMMENDERAT</span>
-    <h2>Vill du ha allt? Börja här.</h2>
-    <p>Komplett Excel-mall laddar ner hela projektet i en och samma arbetsbok.</p>
+    <div>
+      <span class="eyebrow">REKOMMENDERAT</span>
+      <h2>Ett Excel-format överallt</h2>
+      <p>Exporten innehåller Projekt, Uppgifter, Gantt, Risker, Resurser, Kostnader, Beroenden och Kontroll. Dolda ID:n gör att befintliga poster kan uppdateras vid återimport.</p>
+    </div>
+    <a class="button primary large" href="{{url_for('excel_export_project_unified_v1710',project_id=project.id)}}">↓ Project Planer Excel</a>
   </div>
-  <a class="button primary large" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">↓ Ladda ner komplett Excel</a>
-</div>
-<div class="excel-purpose-grid">
-    <a class="excel-purpose-card primary-card" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">
-      <div class="excel-purpose-icon">▣</div>
-      <div>
-        <div class="eyebrow">ALLT I EN FIL</div>
-        <h2>1. Komplett Excel-mall</h2>
-        <p>Den mest kompletta arbetsboken: dashboard, projektplan, beroenden, risker, ändringar, resurser, ekonomi, beslut, möten, actions, nyttor, team, statusrapporter, RAID, tid, dokument, baselines, anpassade fält, leverabler, interfaces, test, spårbarhet, cutover, DevOps och omplaneringshistorik.</p>
-        <strong>Ladda ner komplett Excel →</strong>
-      </div>
-    </a>
 
-    <a class="excel-purpose-card primary-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">
+  <div class="excel-purpose-grid">
+    <a class="excel-purpose-card primary-card" href="{{url_for('excel_export_project_unified_v1710',project_id=project.id)}}">
       <div class="excel-purpose-icon">↔</div>
-      <div><div class="eyebrow">REDIGERA & ÅTERIMPORTERA</div><h2>Projektarbetsbok</h2><p>Importkompatibel Round-trip-arbetsbok för de delar som kan redigeras och skrivas tillbaka. För absolut allt projektinnehåll använder du Komplett Excel-mall.</p><strong>Exportera Round-trip Excel →</strong></div>
+      <div><div class="eyebrow">EXPORT & ÅTERIMPORT</div><h2>Project Planer Excel</h2><p>Samma filformat för ett eller flera projekt. Detta projekt fylls i automatiskt.</p><strong>Exportera projektet →</strong></div>
     </a>
-    <a class="excel-purpose-card" href="{{url_for('report_excel_v901',project_id=project.id)}}">
-      <div class="excel-purpose-icon">▦</div>
-      <div><div class="eyebrow">RAPPORTERA</div><h2>Statusrapport Excel</h2><p>Dashboard och presentationsanpassade rapportblad för status, milstolpar, höga risker, försenade aktiviteter, ändringar och beslut.</p><strong>Exportera rapport →</strong></div>
-    </a>
-    <a class="excel-purpose-card" href="{{url_for('excel_portfolio_v902')}}">
+    <a class="excel-purpose-card" href="{{url_for('excel_export_projects_v1710')}}">
       <div class="excel-purpose-icon">◫</div>
-      <div><div class="eyebrow">LEDNING & PMO</div><h2>Portfolio Excel</h2><p>Alla projekt du har åtkomst till med RAG, framdrift, prognos, avvikelser och ekonomi samt en visuell portfolioöversikt.</p><strong>Exportera portfolio →</strong></div>
+      <div><div class="eyebrow">FLERA PROJEKT</div><h2>Exportera flera projekt</h2><p>Välj flera av dina projekt och få allt i samma arbetsbok.</p><strong>Välj projekt →</strong></div>
+    </a>
+    <a class="excel-purpose-card" href="{{url_for('excel_blank_template_v1525')}}">
+      <div class="excel-purpose-icon">＋</div>
+      <div><div class="eyebrow">NY PLAN</div><h2>Tom Project Planer Excel</h2><p>Tom Unified Excel med stöd för flera projekt från första början.</p><strong>Ladda ner tom fil →</strong></div>
     </a>
   </div>
 </section>
 
 <section class="panel">
-  <div class="ux-section-head"><div><h2>Fokuserade arbetsböcker</h2><div class="ux-help">Samma Excel Pro-format, men bara med de delar du behöver.</div></div></div>
-  <div class="excel-export-grid excel-pro-export-grid">
-    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='plan')}}"><h3>Projektplan</h3><p>Dashboard, uppgifter, milstolpar och beroenden.</p><strong>Exportera →</strong></a>
-    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='risk')}}"><h3>Risk & ändring</h3><p>Dashboard, risker, ändringsärenden och beslut.</p><strong>Exportera →</strong></a>
-    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='resources')}}"><h3>Resurser</h3><p>Dashboard, resursallokering och planerade timmar.</p><strong>Exportera →</strong></a>
-    <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='finance')}}"><h3>Ekonomi</h3><p>Dashboard, kostnader och nyttohemtagning.</p><strong>Exportera →</strong></a>
-  </div>
-</section>
-
-<section class="panel">
-  <div class="ux-section-head"><div><h2>Så är arbetsboken byggd</h2><div class="ux-help">Excel ska gå att använda direkt utan att först städa eller formatera filen.</div></div></div>
-  <div class="excel-quality-grid">
-    <div><span class="excel-swatch editable"></span><b>Grönt = redigerbart</b><small>Fält som är avsedda att ändras och kan importeras tillbaka.</small></div>
-    <div><span class="excel-swatch readonly"></span><b>Grått = rapport/read-only</b><small>Visningsdata och härledda vyer, exempelvis milstolpsöversikten.</small></div>
-    <div><span class="excel-swatch dashboard"></span><b>Dashboard & diagram</b><small>RAG, framdrift, avvikelser, milstolpar och ekonomi sammanfattas visuellt.</small></div>
-    <div><span class="excel-swatch technical"></span><b>Tekniskt dolt</b><small>ID, hash och metadata finns kvar för säker round-trip men stör inte användaren.</small></div>
-  </div>
-</section>
-
-<section class="panel">
-  <h2>Säker Round-trip</h2>
-  <div class="excel-flow">
-    <div><span>1</span><b>Exportera</b><small>Dashboard, tabeller, filter, dropdowns, datumformat och utskriftsinställningar skapas automatiskt.</small></div>
-    <div><span>2</span><b>Arbeta i Excel</b><small>Redigera gröna fält, filtrera tabeller och lägg till nya rader.</small></div>
-    <div><span>3</span><b>Förhandsgranska</b><small>Project Planer visar nya, ändrade och konfliktande poster innan import.</small></div>
-    <div><span>4</span><b>Bekräfta</b><small>Databasbackup tas före commit. Rader som saknas i Excel raderas aldrig automatiskt.</small></div>
-  </div>
-  <div class="notice info"><b>Excel Pro:</b> arbetsboken är avsedd att fungera både som praktiskt arbetsverktyg och som en representativ fil att dela internt.</div>
+  <details>
+    <summary><strong>Avancerade / äldre Excel-verktyg</strong></summary>
+    <div class="excel-export-grid excel-pro-export-grid" style="margin-top:16px">
+      <a class="pm-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}"><h3>Äldre Round-trip</h3><p>Single-Project-formatet från tidigare versioner.</p><strong>Öppna →</strong></a>
+      <a class="pm-card" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}"><h3>Komplett referensarbetsbok</h3><p>Mycket omfattande projektinnehåll och referensdata.</p><strong>Exportera →</strong></a>
+      <a class="pm-card" href="{{url_for('report_excel_v901',project_id=project.id)}}"><h3>Statusrapport Excel</h3><p>Rapport- och presentationsanpassad arbetsbok.</p><strong>Exportera →</strong></a>
+      <a class="pm-card" href="{{url_for('excel_portfolio_v902')}}"><h3>Portfolio Excel</h3><p>Ledningsöversikt över projektportföljen.</p><strong>Exportera →</strong></a>
+    </div>
+  </details>
 </section>
 {% endblock %}

@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "17.0.0"
+APP_VERSION = "17.1.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -5669,7 +5669,7 @@ def excel_project_display_v1610(code,name):
         return f"{code} – {name}"
     return code or name
 
-def excel_multi_project_workbook_v1530(existing_projects=None):
+def excel_multi_project_workbook_v1530(existing_projects=None, include_project_data=False):
     """Create a clean, Microsoft Excel-friendly workbook for many projects.
 
     Each project is identified by a stable Projektkod. All importable child
@@ -5899,22 +5899,26 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
         "Project Planer"
     )
 
-    task_headers=["Projektkod","Aktivitet","Nivå","Aktivitetsnummer","Ansvarig","Plan start","Varaktighet dagar","Plan slut","Status","Progress %","Faktisk start","Faktiskt slut","Prioritet","Milstolpe","Kommentar","_L1","_L2","_L3"]
-    dependency_headers=["Projektkod","Föregående aktivitet","Efterföljande aktivitet","Typ","Förskjutning dagar"]
+    task_headers=["Projektkod","Aktivitet","Nivå","Aktivitetsnummer","Ansvarig","Plan start","Varaktighet dagar","Plan slut","Status","Progress %","Faktisk start","Faktiskt slut","Prioritet","Milstolpe","Kommentar","_ID","_L1","_L2","_L3"]
+    dependency_headers=["Projektkod","Föregående aktivitet","Efterföljande aktivitet","Typ","Förskjutning dagar","_ID"]
     core=[
       ("Uppgifter",task_headers,{"Plan start","Plan slut","Faktisk start","Faktiskt slut"},set()),
       ("Beroenden",dependency_headers,set(),set()),
-      ("Risker",["Projektkod"]+list(EXCEL_SPECS["Risker"]["headers"].keys()),{"Förfallodatum"},set()),
-      ("Ändringsärenden",["Projektkod"]+list(EXCEL_SPECS["Ändringsärenden"]["headers"].keys()),set(),{"Kostnad"}),
-      ("Resurser",["Projektkod"]+list(EXCEL_SPECS["Resurser"]["headers"].keys()),{"Vecka"},set()),
-      ("Kostnader",["Projektkod"]+list(EXCEL_SPECS["Kostnader"]["headers"].keys()),{"Datum"},{"Planerat","Utfall"}),
-      ("Beslut",["Projektkod"]+list(EXCEL_SPECS["Beslut"]["headers"].keys()),{"Beslutsdatum"},set()),
-      ("Möten",["Projektkod"]+list(EXCEL_SPECS["Möten"]["headers"].keys()),{"Datum"},set()),
-      ("Åtgärder",["Projektkod"]+list(EXCEL_SPECS["Åtgärder"]["headers"].keys()),{"Förfallodatum"},set()),
-      ("Nyttor",["Projektkod"]+list(EXCEL_SPECS["Nyttor"]["headers"].keys()),{"Mätdatum"},{"Baslinje","Mål","Utfall"}),
+      ("Risker",["Projektkod"]+list(EXCEL_SPECS["Risker"]["headers"].keys())+["_ID"],{"Förfallodatum"},set()),
+      ("Ändringsärenden",["Projektkod"]+list(EXCEL_SPECS["Ändringsärenden"]["headers"].keys())+["_ID"],set(),{"Kostnad"}),
+      ("Resurser",["Projektkod"]+list(EXCEL_SPECS["Resurser"]["headers"].keys())+["_ID"],{"Vecka"},set()),
+      ("Kostnader",["Projektkod"]+list(EXCEL_SPECS["Kostnader"]["headers"].keys())+["_ID"],{"Datum"},{"Planerat","Utfall"}),
+      ("Beslut",["Projektkod"]+list(EXCEL_SPECS["Beslut"]["headers"].keys())+["_ID"],{"Beslutsdatum"},set()),
+      ("Möten",["Projektkod"]+list(EXCEL_SPECS["Möten"]["headers"].keys())+["_ID"],{"Datum"},set()),
+      ("Åtgärder",["Projektkod"]+list(EXCEL_SPECS["Åtgärder"]["headers"].keys())+["_ID"],{"Förfallodatum"},set()),
+      ("Nyttor",["Projektkod"]+list(EXCEL_SPECS["Nyttor"]["headers"].keys())+["_ID"],{"Mätdatum"},{"Baslinje","Mål","Utfall"}),
     ]
     for name,headers,dates,money in core:
         entry_sheet(name,headers,editable=True,rows=500,date_headers=dates,money_headers=money)
+        _ws=wb[name]
+        for _cell in _ws[1]:
+            if excel_text(_cell.value).startswith("_"):
+                _ws.column_dimensions[get_column_letter(_cell.column)].hidden=True
 
     # v15.4.0: användaren arbetar med Aktivitet + Nivå. WBS är intern.
     _tasks=wb["Uppgifter"]
@@ -6254,9 +6258,11 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
       ("app_version",APP_VERSION),
       ("exported_at",datetime.now().isoformat(timespec="seconds")),
       ("template_kind","multi_project_complete"),
-      ("multi_project_version","3"),
+      ("multi_project_version","4"),
       ("connected_projects","1" if existing_projects else "0"),
-      ("visual_ux_version","16.2.1")
+      ("visual_ux_version","17.1.0"),
+      ("unified_excel","1"),
+      ("contains_project_data","1" if include_project_data else "0")
     ]:
         meta.append([k,v])
     meta.sheet_state="hidden"
@@ -6271,9 +6277,108 @@ def excel_multi_project_workbook_v1530(existing_projects=None):
     wb._sheets=_ordered
     wb.active=0
     wb.properties.creator="Project Planer"
-    wb.properties.title="Project Planer – Multi-Project Excel"
-    wb.properties.subject="Flera projekt i samma Excel-fil"
-    wb.properties.description=f"Project Planer v{APP_VERSION} · Multi-Project Excel."
+    wb.properties.title="Project Planer Excel"
+    wb.properties.subject="Unified Excel – ett eller flera projekt"
+    wb.properties.description=f"Project Planer v{APP_VERSION} · Unified Excel för ett eller flera projekt."
+
+    # v17.1.0 Unified Excel: samma arbetsbok används för tom mall och export
+    # av ett eller flera befintliga projekt.
+    if include_project_data and existing_projects:
+        _project_by_id={int(p["id"]):p for p in existing_projects}
+        _code_by_id={pid:excel_project_app_code_v1610(pid) for pid in _project_by_id}
+
+        def _write_row(_ws_name,_values,_row,_blue=True):
+            _ws=wb[_ws_name]
+            for _col,_value in enumerate(_values,1):
+                _ws.cell(_row,_col).value=_value
+                if _blue and not excel_text(_ws.cell(1,_col).value).startswith("_"):
+                    _ws.cell(_row,_col).fill=PatternFill("solid",fgColor=blue)
+
+        with db() as _conn:
+            # Uppgifter
+            _row=2
+            for _pid,_p in _project_by_id.items():
+                _code=_code_by_id[_pid]
+                _rows=_conn.execute("""SELECT * FROM tasks
+                    WHERE project_id=? AND COALESCE(deleted_at,'')=''
+                    ORDER BY COALESCE(sort_order,999999),wbs,id""",(_pid,)).fetchall()
+                for _r in _rows:
+                    if _row>501: break
+                    _wbs=excel_text(_r["wbs"])
+                    _level=min(max(len([x for x in _wbs.split(".") if x]),1),3)
+                    _level_label={1:"1 - Huvudaktivitet",2:"2 - Underaktivitet",3:"3 - Detaljaktivitet"}[_level]
+                    try:
+                        _sd=_v15_date(_r["start_date"]); _ed=_v15_date(_r["end_date"])
+                        _duration=((_ed-_sd).days+1) if _sd and _ed and _ed>=_sd else int(_r["duration_days"] or 1)
+                    except Exception:
+                        _duration=int(_r["duration_days"] or 1)
+                    _status=excel_text(_r["status"])
+                    if _status=="Ej startad": _status="Ej påbörjad"
+                    _write_row("Uppgifter",[
+                        f"{_code} – {excel_text(_p['name'])}",
+                        excel_text(_r["title"]),_level_label,_wbs,excel_text(_r["owner"]),
+                        excel_text(_r["start_date"]),max(1,_duration),excel_text(_r["end_date"]),
+                        _status,_r["progress"] or 0,excel_text(_r["actual_start"]),excel_text(_r["actual_end"]),
+                        excel_text(_r["priority"]),("Ja" if _r["milestone"] else "Nej"),excel_text(_r["notes"]),
+                        int(_r["id"])
+                    ],_row)
+                    _row+=1
+
+            # Övriga importerbara poster
+            for _sheet_name,_spec in EXCEL_SPECS.items():
+                if _sheet_name=="Uppgifter":
+                    continue
+                _ws=wb[_sheet_name]
+                _hdr={excel_text(c.value):c.column for c in _ws[1]}
+                _row=2
+                for _pid,_p in _project_by_id.items():
+                    _code=_code_by_id[_pid]
+                    try:
+                        _rows=_conn.execute(f"SELECT * FROM {_spec['table']} WHERE project_id=? ORDER BY id",(_pid,)).fetchall()
+                    except Exception:
+                        _rows=[]
+                    for _r in _rows:
+                        if _row>501: break
+                        _ws.cell(_row,_hdr["Projektkod"]).value=f"{_code} – {excel_text(_p['name'])}"
+                        for _label,_field in _spec["headers"].items():
+                            if _label in _hdr:
+                                _value=_r[_field] if _field in _r.keys() else ""
+                                _ws.cell(_row,_hdr[_label]).value=_value
+                        if "_ID" in _hdr:
+                            _ws.cell(_row,_hdr["_ID"]).value=int(_r["id"])
+                        for _c in range(1,_ws.max_column+1):
+                            if not excel_text(_ws.cell(1,_c).value).startswith("_"):
+                                _ws.cell(_row,_c).fill=PatternFill("solid",fgColor=blue)
+                        _row+=1
+
+            # Beroenden
+            _ws=wb["Beroenden"]
+            _hdr={excel_text(c.value):c.column for c in _ws[1]}
+            _row=2
+            for _pid,_p in _project_by_id.items():
+                _code=_code_by_id[_pid]
+                _links=_conn.execute("""SELECT l.*,pt.wbs pred_wbs,st.wbs succ_wbs
+                    FROM task_links l
+                    LEFT JOIN tasks pt ON pt.id=l.predecessor_id
+                    LEFT JOIN tasks st ON st.id=l.successor_id
+                    WHERE l.project_id=? ORDER BY l.id""",(_pid,)).fetchall()
+                for _l in _links:
+                    if _row>501: break
+                    _vals={
+                        "Projektkod":f"{_code} – {excel_text(_p['name'])}",
+                        "Föregående aktivitet":excel_text(_l["pred_wbs"]),
+                        "Efterföljande aktivitet":excel_text(_l["succ_wbs"]),
+                        "Typ":excel_text(_l["link_type"]) or "FS",
+                        "Förskjutning dagar":_l["lag_days"] or 0,
+                        "_ID":int(_l["id"])
+                    }
+                    for _label,_value in _vals.items():
+                        if _label in _hdr: _ws.cell(_row,_hdr[_label]).value=_value
+                    for _c in range(1,_ws.max_column+1):
+                        if not excel_text(_ws.cell(1,_c).value).startswith("_"):
+                            _ws.cell(_row,_c).fill=PatternFill("solid",fgColor=blue)
+                    _row+=1
+
     return wb
 
 def excel_multi_project_import_v1530(file_storage):
@@ -6415,6 +6520,7 @@ def excel_multi_project_import_v1530(file_storage):
                         end_value=None
             else:
                 end_value=excel_date(end_raw)
+            existing_row_id=excel_int(sheet.cell(row_no,h["_ID"]).value) if "_ID" in h else 0
             data={
                 "title":title,
                 "owner":excel_text(sheet.cell(row_no,h["Ansvarig"]).value),
@@ -6428,7 +6534,7 @@ def excel_multi_project_import_v1530(file_storage):
                 "milestone":excel_bool(sheet.cell(row_no,h["Milstolpe"]).value),
                 "notes":excel_text(sheet.cell(row_no,h["Kommentar"]).value),
             }
-            task_rows.append({"code":key,"display_code":code,"level":level,"title":title,"row_no":row_no,"data":data})
+            task_rows.append({"code":key,"display_code":code,"level":level,"title":title,"row_no":row_no,"data":data,"existing_row_id":existing_row_id})
             total_rows+=1
 
     generated_tasks=excel_generate_wbs_from_levels_v1540(task_rows)
@@ -6436,7 +6542,7 @@ def excel_multi_project_import_v1530(file_storage):
     for item in generated_tasks:
         data=dict(item["data"])
         data["wbs"]=item["wbs"]
-        normalized_rows["Uppgifter"].append((item["code"],data,item["row_no"]))
+        normalized_rows["Uppgifter"].append((item["code"],data,item["row_no"],int(item.get("existing_row_id") or 0)))
 
     for sheet_name,spec in EXCEL_SPECS.items():
         if sheet_name=="Uppgifter":
@@ -6468,10 +6574,11 @@ def excel_multi_project_import_v1530(file_storage):
             if code.lower() not in known:
                 raise ValueError(f"{sheet_name}, rad {row_no}: okänd Projektkod '{code}'.")
             data=excel_normalize_row(spec,rawrow)
+            existing_row_id=excel_int(sheet.cell(row_no,h["_ID"]).value) if "_ID" in h else 0
             required=excel_text(data.get(spec["required"]))
             if not required:
                 raise ValueError(f"{sheet_name}, rad {row_no}: obligatoriskt namn/rubrik saknas.")
-            rows.append((code.lower(),data,row_no))
+            rows.append((code.lower(),data,row_no,existing_row_id))
             total_rows+=1
         normalized_rows[sheet_name]=rows
 
@@ -6498,7 +6605,8 @@ def excel_multi_project_import_v1530(file_storage):
                 raise ValueError(f"Beroenden, rad {row_no}: både föregående och efterföljande aktivitet krävs.")
             if typ not in ("FS","SS","FF","SF"):
                 raise ValueError(f"Beroenden, rad {row_no}: ogiltig typ '{typ}'.")
-            dep_rows.append((code.lower(),pred,succ,typ,lag,row_no))
+            link_id=excel_int(sheet.cell(row_no,h["_ID"]).value) if "_ID" in h else 0
+            dep_rows.append((code.lower(),pred,succ,typ,lag,row_no,link_id))
             total_rows+=1
 
     if total_rows>10000:
@@ -6547,8 +6655,18 @@ def excel_multi_project_import_v1530(file_storage):
             for sheet_name,spec in EXCEL_SPECS.items():
                 rows=normalized_rows.get(sheet_name,[])
                 count=0
-                for code,data,_row_no in rows:
-                    excel_insert(conn,spec["table"],project_ids[code],data)
+                for code,data,_row_no,_existing_row_id in rows:
+                    _pid=project_ids[code]
+                    if _existing_row_id:
+                        _found=conn.execute(
+                            f"SELECT id FROM {spec['table']} WHERE id=? AND project_id=?",
+                            (_existing_row_id,_pid)
+                        ).fetchone()
+                        if not _found:
+                            raise ValueError(f"{sheet_name}, rad {_row_no}: posten med ID {_existing_row_id} hör inte till valt projekt.")
+                        excel_update(conn,spec["table"],_existing_row_id,_pid,data)
+                    else:
+                        excel_insert(conn,spec["table"],_pid,data)
                     count+=1
                 if count:
                     summary["by_sheet"][sheet_name]=count
@@ -6567,15 +6685,23 @@ def excel_multi_project_import_v1530(file_storage):
                     if title_key:
                         tm.setdefault(title_key,[]).append(int(r["id"]))
                 title_maps[code]=tm
-            for code,pred,succ,typ,lag,row_no in dep_rows:
+            for code,pred,succ,typ,lag,row_no,link_id in dep_rows:
                 display=known[code]["code"]
                 pred_id=excel_resolve_activity_ref_v1540(pred,task_maps.get(code,{}),title_maps.get(code,{}),display,row_no)
                 succ_id=excel_resolve_activity_ref_v1540(succ,task_maps.get(code,{}),title_maps.get(code,{}),display,row_no)
                 if pred_id==succ_id:
                     raise ValueError(f"Beroenden, rad {row_no}: en aktivitet kan inte bero på sig själv.")
-                conn.execute("""INSERT INTO task_links(
-                    project_id,predecessor_id,successor_id,link_type,lag_days
-                ) VALUES(?,?,?,?,?)""",(project_ids[code],pred_id,succ_id,typ,lag))
+                _pid=project_ids[code]
+                if link_id:
+                    _found=conn.execute("SELECT id FROM task_links WHERE id=? AND project_id=?",(link_id,_pid)).fetchone()
+                    if not _found:
+                        raise ValueError(f"Beroenden, rad {row_no}: beroende-ID {link_id} hör inte till valt projekt.")
+                    conn.execute("""UPDATE task_links SET predecessor_id=?,successor_id=?,link_type=?,lag_days=?
+                                    WHERE id=? AND project_id=?""",(pred_id,succ_id,typ,lag,link_id,_pid))
+                else:
+                    conn.execute("""INSERT INTO task_links(
+                        project_id,predecessor_id,successor_id,link_type,lag_days
+                    ) VALUES(?,?,?,?,?)""",(_pid,pred_id,succ_id,typ,lag))
                 summary["dependencies"]+=1
             if summary["dependencies"]:
                 summary["by_sheet"]["Beroenden"]=summary["dependencies"]
@@ -6591,11 +6717,47 @@ def excel_multi_project_import_v1530(file_storage):
               f"Multi-Project Excel import; code={row['code']}; app={APP_VERSION}")
     return summary
 
+
+@app.route("/excel/export-projects",methods=["GET","POST"])
+@login_required
+def excel_export_projects_v1710():
+    projects=list(visible_projects_for_user())
+    if request.method=="POST":
+        selected=[]
+        raw_ids=request.form.getlist("project_ids")
+        wanted={int(x) for x in raw_ids if str(x).isdigit()}
+        for p in projects:
+            if int(p["id"]) in wanted:
+                selected.append(p)
+        if not selected:
+            flash("Välj minst ett projekt att exportera.","error")
+            return render_template("excel_export_projects_v1710.html",projects=projects)
+        wb=excel_multi_project_workbook_v1530(existing_projects=selected,include_project_data=True)
+        payload=excel_serialize_workbook_v1527(wb)
+        for p in selected:
+            audit(int(p["id"]),"project",int(p["id"]),"excel_unified_export",f"projects={len(selected)}; app={APP_VERSION}")
+        filename="Project-Planer-Excel-"+datetime.now().strftime("%Y%m%d-%H%M")+".xlsx"
+        return send_file(BytesIO(payload),as_attachment=True,download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    return render_template("excel_export_projects_v1710.html",projects=projects)
+
+@app.get("/projects/<int:project_id>/excel/unified")
+@login_required
+def excel_export_project_unified_v1710(project_id):
+    p=project_or_404(project_id)
+    wb=excel_multi_project_workbook_v1530(existing_projects=[p],include_project_data=True)
+    payload=excel_serialize_workbook_v1527(wb)
+    audit(project_id,"project",project_id,"excel_unified_export",f"app={APP_VERSION}")
+    safe=re.sub(r"[^A-Za-z0-9ÅÄÖåäö _.-]","",p["name"] or "project").strip().replace(" ","-")
+    return send_file(BytesIO(payload),as_attachment=True,
+        download_name=f"{safe}-Project-Planer-Excel.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 @app.get("/excel/template/multi/connected")
 @login_required
 def excel_multi_connected_template_v1610():
     projects=visible_projects_for_user()
-    wb=excel_multi_project_workbook_v1530(existing_projects=projects)
+    wb=excel_multi_project_workbook_v1530(existing_projects=projects,include_project_data=True)
     payload=excel_serialize_workbook_v1527(wb)
     return send_file(BytesIO(payload),as_attachment=True,
         download_name="Project-Planer-CONNECTED-PROJECTS.xlsx",
@@ -6693,10 +6855,11 @@ def excel_start_center_v1525():
 @app.get("/excel/template")
 @login_required
 def excel_blank_template_v1525():
-    wb=excel_blank_complete_workbook_v1525()
+    # v17.1.0: den vanliga tomma Excel-filen är alltid Unified/Multi-Project.
+    wb=excel_multi_project_workbook_v1530()
     payload=excel_serialize_workbook_v1527(wb)
     return send_file(BytesIO(payload),as_attachment=True,
-        download_name="Project-Planer-KOMPLETT-projektmall.xlsx",
+        download_name="Project-Planer-Excel-TOM.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @app.route("/excel/create-project",methods=["GET","POST"])
@@ -6730,7 +6893,8 @@ def health_ui_v1526():
         "excel_nav": excel_nav,
         "excel_start_center": True,
         "multi_project_excel": True,
-        "connected_project_excel": True
+        "connected_project_excel": True,
+        "unified_excel_v1710": True
     }), (200 if excel_nav else 503)
 
 @app.get("/ultimate/compare")

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Exportera projekt till Excel · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<section class="v15-hero compact">
+  <div>
+    <span class="v15-kicker">UNIFIED EXCEL</span>
+    <h1>Exportera befintliga projekt</h1>
+    <p>Välj ett eller flera projekt. Alla valda projekt hamnar i samma Project Planer Excel-fil.</p>
+  </div>
+</section>
+
+<section class="v15-panel">
+  {% if projects %}
+  <form method="post" class="excel-project-picker-v1710">
+    <div class="excel-picker-toolbar">
+      <button class="btn" type="button" onclick="document.querySelectorAll('[name=project_ids]').forEach(x=>x.checked=true)">Välj alla</button>
+      <button class="btn" type="button" onclick="document.querySelectorAll('[name=project_ids]').forEach(x=>x.checked=false)">Avmarkera alla</button>
+      <button class="btn primary" type="submit">↓ Exportera valda projekt</button>
+    </div>
+    <div class="excel-project-list">
+      {% for p in projects %}
+      <label class="excel-project-row">
+        <input type="checkbox" name="project_ids" value="{{p.id}}">
+        <span>
+          <strong>{{p.name}}</strong>
+          <small>{{p.customer or "Ingen kund"}}{% if p.project_manager %} · {{p.project_manager}}{% endif %}</small>
+        </span>
+        <code>APP-{{"%06d"|format(p.id)}}</code>
+      </label>
+      {% endfor %}
+    </div>
+  </form>
+  {% else %}
+    <div class="ux-empty">Du har inga projekt som kan exporteras.</div>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

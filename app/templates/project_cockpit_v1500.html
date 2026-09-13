@@ -13,7 +13,7 @@
     <details class="excel-action-menu">
       <summary class="btn excel-primary">Excel ▾</summary>
       <div class="excel-action-dropdown">
-        <a class="excel-action-main" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}"><strong>Ladda ner komplett Excel</strong><span>All projektdata i en arbetsbok</span></a>
+        <a class="excel-action-main" href="{{url_for('excel_export_project_unified_v1710',project_id=project.id)}}"><strong>Exportera Project Planer Excel</strong><span>Unified Excel för detta projekt</span></a>
         <a href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}"><strong>Excel Pro / Round-trip</strong><span>Redigera och importera tillbaka</span></a>
         <a href="{{url_for('excel_import_v810',project_id=project.id)}}"><strong>Importera Excel</strong><span>Förhandsgranska och importera ändringar</span></a>
         <a href="{{url_for('excel_center_v810',project_id=project.id)}}"><strong>Excel Center</strong><span>Alla Excel-verktyg</span></a>
@@ -56,7 +56,7 @@
     </div>
     <p>Exportera hela projektet, använd Round-trip för redigering eller importera en uppdaterad arbetsbok.</p>
     <div class="excel-quick-actions">
-      <a class="btn primary" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">Ladda ner komplett Excel</a>
+      <a class="btn primary" href="{{url_for('excel_export_project_unified_v1710',project_id=project.id)}}">Exportera Project Planer Excel</a>
       <a class="btn" href="{{url_for('excel_import_v810',project_id=project.id)}}">Importera Excel</a>
     </div>
   </div>

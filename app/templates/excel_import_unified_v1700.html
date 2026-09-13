@@ -3,8 +3,8 @@
 {% block content %}
 <div class="v15-shell">
 <section class="v15-hero compact">
-  <div><span class="v15-kicker">EN IMPORT</span><h1>Importera Excel</h1>
-  <p>Ladda upp en Project Planer-fil. Appen känner automatiskt igen om den innehåller ett nytt projekt eller flera/anslutna projekt.</p></div>
+  <div><span class="v15-kicker">UNIFIED EXCEL</span><h1>Importera Excel</h1>
+  <p>Ladda upp en Project Planer Excel-fil. Samma import används för nya projekt och för projekt som tidigare exporterats från appen.</p></div>
 </section>
 <section class="v15-panel">
   <form method="post" enctype="multipart/form-data" class="excel-import-simple">
@@ -13,7 +13,7 @@
     </label>
     <button class="btn primary" type="submit">Kontrollera och importera</button>
   </form>
-  <p class="muted">För full Round-trip av ett enskilt befintligt projekt använder du fortfarande Excel inne i projektet.</p>
+  <p class="muted">Exporterade poster har dolda ID:n och uppdateras vid återimport. Rader utan ID skapas som nya poster.</p>
 </section>
 </div>
 {% endblock %}
