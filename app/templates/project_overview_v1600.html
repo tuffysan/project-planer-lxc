@@ -8,7 +8,7 @@
       <p class="ux-lead">{{ project.customer or "Ingen kund" }} · {{ project.project_manager or "Ingen projektledare" }}</p>
     </div>
     <div class="ux-actions">
-      <a class="btn btn-primary" href="/projects/{{ project.id }}/tasks">Uppgifter</a>
+      <a class="btn btn-primary" href="{{url_for('simple_plan_v1700',project_id=project.id)}}">Plan</a>
       <a class="btn" href="/projects/{{ project.id }}/gantt">Gantt</a>
       <a class="btn" href="/projects/{{ project.id }}/excel">Excel</a>
     </div>
@@ -16,7 +16,7 @@
 
   <nav class="ux-project-tabs">
     <a class="active" href="/projects/{{ project.id }}/overview">Översikt</a>
-    <a href="/projects/{{ project.id }}/tasks">Uppgifter</a>
+    <a href="{{url_for('simple_plan_v1700',project_id=project.id)}}">Plan</a>
     <a href="/projects/{{ project.id }}/gantt">Gantt</a>
     <a href="/projects/{{ project.id }}/risks">Risker</a>
     <a href="/projects/{{ project.id }}/resources">Resurser</a>
@@ -45,7 +45,7 @@
       {% if upcoming %}
       <div class="ux-list">
         {% for t in upcoming %}
-        <a class="ux-list-row" href="/projects/{{ project.id }}/tasks">
+        <a class="ux-list-row" href="{{url_for('simple_plan_v1700',project_id=project.id)}}">
           <div>
             <strong>{{ t.title }}</strong>
             <small>{{ ux_task_number(t) }} · {{ t.end_date or "Inget datum" }}</small>

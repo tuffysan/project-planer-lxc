@@ -3,43 +3,50 @@
 {% block content %}
 <div class="v15-shell">
 <section class="v15-hero compact">
-  <div><span class="v15-kicker">EXCEL START CENTER</span><h1>Excel</h1>
-  <p>Skapa Excel för ett eller flera projekt direkt — du behöver inte ha ett projekt först.</p></div>
-</section>
-<div class="excel-multi-hero">
   <div>
-    <span class="v15-kicker">NYTT I v16.2.0</span>
-    <h2>Flera projekt i samma Excel</h2>
-    <p>Excel Visual UX: Connected Projects finns kvar och arbetsboken har nu tydlig färgkodning, datumvalidering, statusfärger, progress bars och automatisk markering av försenade aktiviteter.</p>
+    <span class="v15-kicker">SIMPLE PLANNING · v17.0</span>
+    <h1>Excel</h1>
+    <p>Tre tydliga val. Den tomma Excel-mallen finns kvar och fungerar utan att du först skapar ett projekt i appen.</p>
   </div>
-  <div class="excel-multi-actions">
-    <a class="btn primary" href="{{url_for('excel_multi_connected_template_v1610')}}">Befintliga projekt i Excel</a>
-    <a class="btn" href="{{url_for('excel_multi_template_v1530')}}">Ny Multi-Project Excel</a>
-    <a class="btn" href="{{url_for('excel_multi_import_v1530')}}">Importera</a>
-  </div>
+</section>
+
+<div class="excel-simple-v17-grid">
+  <a class="v15-panel excel-v17-card primary" href="{{url_for('excel_blank_template_v1525')}}">
+    <span class="v15-kicker">TOM EXCEL</span>
+    <h2>Ladda ner tom Excel-fil</h2>
+    <p>Börja helt från början. Fyll i projekt, aktiviteter, risker, resurser och kostnader i Excel.</p>
+    <strong>Ladda ner tom mall →</strong>
+  </a>
+
+  <a class="v15-panel excel-v17-card" href="{{url_for('excel_multi_connected_template_v1610')}}">
+    <span class="v15-kicker">BEFINTLIGA PROJEKT</span>
+    <h2>Hämta projekt till Excel</h2>
+    <p>Dina tillgängliga projekt läggs in automatiskt och kan väljas direkt i aktivitetsplaneringen.</p>
+    <strong>Hämta projekt →</strong>
+  </a>
+
+  <a class="v15-panel excel-v17-card" href="{{url_for('excel_unified_import_v1700')}}">
+    <span class="v15-kicker">EXCEL → PROJECT PLANER</span>
+    <h2>Importera Excel</h2>
+    <p>En enda importväg för den tomma projektmallen och Multi-/Connected Projects.</p>
+    <strong>Importera fil →</strong>
+  </a>
 </div>
-<div class="excel-start-grid">
-  <a class="v15-panel excel-start-card primary" href="{{url_for('excel_blank_template_v1525')}}">
-    <span class="v15-kicker">SNABBAST</span><h2>Skapa tom komplett Excel-mall</h2>
-    <p>Ladda ner hela Project Planer-strukturen och börja planera direkt i Excel.</p><strong>Ladda ner mall →</strong>
-  </a>
-  <a class="v15-panel excel-start-card" href="{{url_for('excel_create_project_v1525')}}">
-    <span class="v15-kicker">EXCEL → PROJECT PLANER</span><h2>Importera Excel och skapa projekt</h2>
-    <p>Fyll i projektmallen och skapa sedan projektet, aktiviteter, risker, resurser, kostnader och beroenden.</p><strong>Skapa projekt från Excel →</strong>
-  </a>
-  <a class="v15-panel excel-start-card" href="/">
-    <span class="v15-kicker">BEFINTLIGA PROJEKT</span><h2>Excel för ett projekt</h2>
-    <p>Öppna ett befintligt projekt för komplett export, Round-trip eller vanlig import.</p><strong>Välj projekt →</strong>
-  </a>
-</div>
+
 <section class="v15-panel">
-  <h2>Så fungerar det</h2>
+  <h2>Enkelt arbetsflöde</h2>
   <div class="excel-start-steps">
-    <div><b>1</b><span><strong>Ladda ner mallen</strong><small>Ingen projektpost krävs.</small></span></div>
-    <div><b>2</b><span><strong>Fyll i Excel</strong><small>Börja med Projektinformation och fyll sedan de blad du behöver.</small></span></div>
-    <div><b>3</b><span><strong>Importera</strong><small>Välj “Importera Excel och skapa projekt”.</small></span></div>
-    <div><b>4</b><span><strong>Fortsätt i appen</strong><small>Projektet öppnas direkt i Project Cockpit.</small></span></div>
+    <div><b>1</b><span><strong>Ladda ner</strong><small>Tom Excel eller dina befintliga projekt.</small></span></div>
+    <div><b>2</b><span><strong>Planera</strong><small>Projekt + Uppgifter räcker för att komma igång.</small></span></div>
+    <div><b>3</b><span><strong>Kontrollera</strong><small>Använd Kontroll-bladet innan import.</small></span></div>
+    <div><b>4</b><span><strong>Importera</strong><small>Project Planer känner igen filtypen automatiskt.</small></span></div>
   </div>
+</section>
+
+<section class="v15-panel excel-v17-secondary">
+  <h2>Avancerat</h2>
+  <p>Behöver du flera helt nya projekt i samma fil kan du fortfarande använda Multi-Project-mallen.</p>
+  <a class="btn" href="{{url_for('excel_multi_template_v1530')}}">Ny Multi-Project Excel</a>
 </section>
 </div>
 {% endblock %}

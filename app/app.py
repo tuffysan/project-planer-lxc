@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "16.2.1"
+APP_VERSION = "17.0.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -1256,6 +1256,68 @@ def parse_date(s):
     try:return datetime.strptime(s,"%Y-%m-%d").date()
     except:return None
 
+
+def simple_task_level_v1700(wbs):
+    parts=[p for p in excel_text(wbs).split(".") if p]
+    return min(max(len(parts),1),3)
+
+def simple_task_duration_v1700(start_date,end_date,stored_duration=None):
+    start=parse_date(start_date)
+    end=parse_date(end_date)
+    if start and end and end>=start:
+        return (end-start).days+1
+    try:
+        return max(1,int(stored_duration or 1))
+    except Exception:
+        return 1
+
+def simple_next_wbs_v1700(tasks, level):
+    """Generate the next human-friendly activity number without exposing WBS complexity."""
+    level=max(1,min(3,int(level or 1)))
+    parsed=[]
+    for task in tasks:
+        raw=excel_text(task["wbs"]).strip()
+        if not raw:
+            continue
+        try:
+            parts=tuple(int(x) for x in raw.split(".") if x!="")
+        except Exception:
+            continue
+        if parts:
+            parsed.append(parts)
+
+    if level==1:
+        top=max([p[0] for p in parsed if len(p)>=1] or [0])+1
+        return str(top)
+
+    # Level 2 belongs to the latest top-level activity.
+    top_candidates=[p[0] for p in parsed if len(p)>=1]
+    if not top_candidates:
+        raise ValueError("Skapa en Huvudaktivitet innan du lägger till en Underaktivitet.")
+    top=max(top_candidates)
+
+    if level==2:
+        children=[p[1] for p in parsed if len(p)>=2 and p[0]==top]
+        return f"{top}.{max(children or [0])+1}"
+
+    # Level 3 belongs to the latest level-2 activity under the latest top level.
+    level2=[p for p in parsed if len(p)>=2 and p[0]==top]
+    if not level2:
+        raise ValueError("Skapa en Underaktivitet innan du lägger till en Detaljaktivitet.")
+    latest_second=max(p[1] for p in level2)
+    details=[p[2] for p in parsed if len(p)>=3 and p[0]==top and p[1]==latest_second]
+    return f"{top}.{latest_second}.{max(details or [0])+1}"
+
+def simple_end_date_v1700(start_text,duration):
+    start=parse_date(start_text)
+    if not start:
+        return ""
+    try:
+        duration=max(1,int(duration or 1))
+    except Exception:
+        duration=1
+    return (start+timedelta(days=duration-1)).isoformat()
+
 def derived_status(task):
     if task["status"]=="Klar" or int(task["progress"] or 0)>=100:return "Klar"
     today=date.today(); end=parse_date(task["end_date"]); start=parse_date(task["start_date"])
@@ -1633,6 +1695,145 @@ def remove_project_member(project_id,user_id):
             conn.execute("DELETE FROM project_members WHERE project_id=? AND user_id=?",(project_id,user_id))
         audit(project_id,"member",user_id,"removed","")
     return redirect(url_for("project",project_id=project_id)+"#members")
+
+
+@app.get("/projects/<int:project_id>/plan")
+@login_required
+def simple_plan_v1700(project_id):
+    project=project_or_404(project_id)
+    with db() as conn:
+        task_rows=conn.execute("""
+            SELECT * FROM tasks
+            WHERE project_id=? AND COALESCE(deleted_at,'')=''
+            ORDER BY COALESCE(sort_order,999999), wbs, id
+        """,(project_id,)).fetchall()
+        members=conn.execute("""
+            SELECT DISTINCT u.id,u.display_name,u.username
+            FROM users u
+            LEFT JOIN project_members pm ON pm.user_id=u.id AND pm.project_id=?
+            WHERE u.is_active=1 AND (pm.project_id=? OR u.role IN ('admin','pm'))
+            ORDER BY u.display_name,u.username
+        """,(project_id,project_id)).fetchall()
+
+    tasks=[]
+    for row in task_rows:
+        item=dict(row)
+        item["simple_level"]=simple_task_level_v1700(row["wbs"])
+        item["simple_level_label"]={1:"Huvudaktivitet",2:"Underaktivitet",3:"Detaljaktivitet"}[item["simple_level"]]
+        item["simple_duration"]=simple_task_duration_v1700(row["start_date"],row["end_date"],row["duration_days"])
+        item["simple_status"]=derived_status(row)
+        tasks.append(item)
+
+    can_write=True
+    try:
+        project_access(project_id,write=True)
+    except Exception:
+        can_write=False
+
+    return render_template(
+        "simple_plan_v1700.html",
+        project=project,
+        tasks=tasks,
+        members=members,
+        statuses=STATUSES,
+        can_write=can_write,
+        page_title="Plan",
+        ux_v1600=True,
+    )
+
+@app.post("/projects/<int:project_id>/plan/add")
+@login_required
+def simple_plan_add_v1700(project_id):
+    project_or_404(project_id,write=True)
+    title=request.form.get("title","").strip()
+    if not title:
+        flash("Aktivitet måste ha ett namn.","error")
+        return redirect(url_for("simple_plan_v1700",project_id=project_id))
+
+    try:
+        level=max(1,min(3,int(request.form.get("level","1") or 1)))
+        duration=max(1,int(request.form.get("duration_days","1") or 1))
+    except Exception:
+        flash("Nivå eller varaktighet är ogiltig.","error")
+        return redirect(url_for("simple_plan_v1700",project_id=project_id))
+
+    start_date=request.form.get("start_date","").strip()
+    end_date=simple_end_date_v1700(start_date,duration)
+    owner_user_id=request.form.get("owner_user_id","").strip()
+    owner_user_id=int(owner_user_id) if owner_user_id.isdigit() else None
+
+    with db() as conn:
+        existing=conn.execute("""
+            SELECT * FROM tasks WHERE project_id=? AND COALESCE(deleted_at,'')=''
+            ORDER BY COALESCE(sort_order,999999),wbs,id
+        """,(project_id,)).fetchall()
+        try:
+            wbs=simple_next_wbs_v1700(existing,level)
+        except ValueError as ex:
+            flash(str(ex),"error")
+            return redirect(url_for("simple_plan_v1700",project_id=project_id))
+
+        owner=""
+        if owner_user_id:
+            u=conn.execute("SELECT display_name FROM users WHERE id=? AND is_active=1",(owner_user_id,)).fetchone()
+            owner=excel_text(u["display_name"]) if u else ""
+        sort_order=(conn.execute("SELECT COALESCE(MAX(sort_order),0)+10 n FROM tasks WHERE project_id=?",(project_id,)).fetchone()["n"] or 10)
+        cur=conn.execute("""INSERT INTO tasks(
+            project_id,wbs,title,owner,start_date,end_date,status,priority,progress,milestone,notes,
+            sort_order,duration_days,owner_user_id
+        ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",(
+            project_id,wbs,title,owner,start_date,end_date,
+            "Ej startad","Normal",0,0,"",sort_order,duration,owner_user_id
+        ))
+        tid=cur.lastrowid
+
+    audit(project_id,"task",tid,"created",f"Simple Plan: {wbs} {title}")
+    flash(f"Aktivitet {wbs} skapades.","success")
+    return redirect(url_for("simple_plan_v1700",project_id=project_id))
+
+@app.post("/projects/<int:project_id>/plan/<int:task_id>/update")
+@login_required
+def simple_plan_update_v1700(project_id,task_id):
+    project_or_404(project_id,write=True)
+    task_or_404(project_id,task_id,write=True)
+
+    title=request.form.get("title","").strip()
+    if not title:
+        flash("Aktivitet måste ha ett namn.","error")
+        return redirect(url_for("simple_plan_v1700",project_id=project_id))
+
+    start_date=request.form.get("start_date","").strip()
+    try:
+        duration=max(1,int(request.form.get("duration_days","1") or 1))
+        progress=max(0,min(100,int(request.form.get("progress","0") or 0)))
+    except Exception:
+        flash("Varaktighet eller progress är ogiltig.","error")
+        return redirect(url_for("simple_plan_v1700",project_id=project_id))
+
+    status=request.form.get("status","Ej startad")
+    if status not in STATUSES:
+        status="Ej startad"
+    if status=="Klar":
+        progress=100
+
+    owner_user_id=request.form.get("owner_user_id","").strip()
+    owner_user_id=int(owner_user_id) if owner_user_id.isdigit() else None
+    end_date=simple_end_date_v1700(start_date,duration)
+
+    with db() as conn:
+        owner=""
+        if owner_user_id:
+            u=conn.execute("SELECT display_name FROM users WHERE id=? AND is_active=1",(owner_user_id,)).fetchone()
+            owner=excel_text(u["display_name"]) if u else ""
+        conn.execute("""UPDATE tasks SET
+            title=?,owner=?,owner_user_id=?,start_date=?,end_date=?,duration_days=?,status=?,progress=?
+            WHERE id=? AND project_id=?""",(
+            title,owner,owner_user_id,start_date,end_date,duration,status,progress,task_id,project_id
+        ))
+
+    audit(project_id,"task",task_id,"updated",f"Simple Plan: {title}")
+    flash("Aktiviteten uppdaterades.","success")
+    return redirect(url_for("simple_plan_v1700",project_id=project_id))
 
 @app.route("/projects/<int:project_id>/tasks/new",methods=["GET","POST"])
 @login_required
@@ -6425,6 +6626,64 @@ def excel_multi_import_v1530():
             app.logger.exception("Multi-Project Excel import failed")
             flash("Kunde inte importera Multi-Project Excel: "+str(ex),"error")
     return render_template("excel_multi_import_v1530.html")
+
+
+@app.route("/excel/import",methods=["GET","POST"])
+@login_required
+def excel_unified_import_v1700():
+    if request.method=="POST":
+        upload=request.files.get("file")
+        if not upload or not upload.filename:
+            flash("Välj en Excel-fil.","error")
+            return render_template("excel_import_unified_v1700.html")
+
+        payload=upload.read()
+        if not payload:
+            flash("Excel-filen är tom.","error")
+            return render_template("excel_import_unified_v1700.html")
+
+        try:
+            wb_probe=load_workbook(BytesIO(payload),read_only=False,data_only=False)
+            meta={}
+            if "_Metadata" in wb_probe.sheetnames:
+                ws=wb_probe["_Metadata"]
+                for row in ws.iter_rows(min_row=1,max_col=2,values_only=True):
+                    if row and row[0]:
+                        meta[excel_text(row[0])]=excel_text(row[1])
+            kind=meta.get("template_kind","")
+        except Exception as ex:
+            flash("Kunde inte läsa Excel-filen: "+str(ex),"error")
+            return render_template("excel_import_unified_v1700.html")
+
+        try:
+            # Rebuild a FileStorage-like in-memory upload because the probe consumed the stream.
+            from werkzeug.datastructures import FileStorage
+            in_memory=FileStorage(
+                stream=BytesIO(payload),
+                filename=upload.filename,
+                content_type=upload.content_type or "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+            if kind=="multi_project_complete":
+                result=excel_multi_project_import_v1530(in_memory)
+                return render_template("excel_multi_result_v1530.html",result=result)
+
+            if kind=="new_project_complete":
+                u=current_user()
+                if u["role"] not in ("admin","pm"):
+                    abort(403)
+                pid,count=excel_new_project_from_workbook_v1525(in_memory)
+                flash(f"Projektet skapades från Excel. {count} projektposter importerades.","success")
+                return redirect(url_for("simple_plan_v1700",project_id=pid))
+
+            flash("Excel-filen känns inte igen som en Project Planer-mall. Använd en fil som laddats ner från appens Excel-sida.","error")
+        except ValueError as ex:
+            flash(str(ex),"error")
+        except Exception as ex:
+            app.logger.exception("Unified Excel import failed")
+            flash("Kunde inte importera Excel-filen: "+str(ex),"error")
+
+    return render_template("excel_import_unified_v1700.html")
 
 @app.get("/excel")
 @login_required

@@ -223,3 +223,7 @@ Förbättrar Multi-Project Excel med datumvalidering, tydlig färglegend, status
 
 ## v16.2.1 – Excel Visual UX Runtime Fix
 Fixar v16.2.0-installationsfelet där Multi-Project-datumvalidering felaktigt hamnade i single-project-generatorn. Installationssmoketestet har förstärkts för att förhindra samma regression.
+
+
+## v17.0.0 – Simple Planning Edition
+Ny enkel Plan-vy i webbappen med browser-kalender för startdatum, automatisk aktivitetsnumrering, varaktighet/slutdatum och inline-redigering. Excel Center är förenklat till Tom Excel, Hämta projekt och Importera Excel. Den tomma Excel-filen finns kvar som ett tydligt förstahandsval.

@@ -137,3 +137,13 @@ assert "for _sheet_name,_headers,_dates,_money in core:" in multi
 assert '("visual_ux_version","16.2.1")' in multi
 print("v16.2.1 scope regression checks OK")
 PY
+
+echo "[v17.0.0] Verifying Simple Planning Edition..."
+grep -Fq '@app.get("/projects/<int:project_id>/plan")' app/app.py || { echo "ERROR: simple Plan route missing" >&2; exit 1; }
+grep -Fq 'def simple_next_wbs_v1700' app/app.py || { echo "ERROR: automatic activity numbering missing" >&2; exit 1; }
+grep -Fq '@app.route("/excel/import",methods=["GET","POST"])' app/app.py || { echo "ERROR: unified Excel import missing" >&2; exit 1; }
+test -f app/templates/simple_plan_v1700.html || { echo "ERROR: simple Plan template missing" >&2; exit 1; }
+test -f app/templates/excel_import_unified_v1700.html || { echo "ERROR: unified Excel import template missing" >&2; exit 1; }
+grep -Fq 'Ladda ner tom Excel-fil' app/templates/excel_start_v1525.html || { echo "ERROR: blank Excel download is no longer visible" >&2; exit 1; }
+grep -Fq 'url_for('\''excel_blank_template_v1525'\'')' app/templates/excel_start_v1525.html || { echo "ERROR: blank Excel route missing from Excel Center" >&2; exit 1; }
+grep -Fq 'type="date" name="start_date"' app/templates/simple_plan_v1700.html || { echo "ERROR: web date picker missing" >&2; exit 1; }
