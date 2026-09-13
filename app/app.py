@@ -17,7 +17,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "17.1.0"
+APP_VERSION = "17.1.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -6260,7 +6260,7 @@ def excel_multi_project_workbook_v1530(existing_projects=None, include_project_d
       ("template_kind","multi_project_complete"),
       ("multi_project_version","4"),
       ("connected_projects","1" if existing_projects else "0"),
-      ("visual_ux_version","17.1.0"),
+      ("visual_ux_version","17.1.1"),
       ("unified_excel","1"),
       ("contains_project_data","1" if include_project_data else "0")
     ]:

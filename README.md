@@ -231,3 +231,7 @@ Ny enkel Plan-vy i webbappen med browser-kalender för startdatum, automatisk ak
 
 ## v17.1.0 – Unified Excel Edition
 Project Planer har nu ett primärt Excel-format som alltid stöder flera projekt. Tom Excel använder samma Unified-format som export av befintliga projekt. Ett eller flera befintliga projekt kan exporteras från appen och dolda ID:n används för uppdatering vid återimport.
+
+
+## v17.1.1 – Unified Excel Installer Hotfix
+Fixar en gammal verifieringsregel från v17.0 som felaktigt stoppade installationen efter att Excel Center-texten ändrades i v17.1.0.
