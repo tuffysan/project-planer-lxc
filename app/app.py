@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.3.0"
+APP_VERSION = "15.3.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -2255,6 +2255,7 @@ def excel_import_preview(project_id,file_storage):
         raise ValueError("Excel-filen är större än 15 MB.")
     try:
         wb=load_workbook(BytesIO(payload),data_only=False)
+        wb_values=load_workbook(BytesIO(payload),data_only=True)
     except Exception as ex:
         raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
 
@@ -5208,6 +5209,12 @@ def excel_new_project_from_workbook_v1525(file_storage):
     return pid,created
 
 
+def excel_project_code_formula_v1531(row):
+    """Excel formula: auto-generate PRJ-001 etc when Projektnamn is entered.
+    Users may overwrite the formula with their own project code.
+    """
+    return f'=IF(B{row}="","","PRJ-"&TEXT(ROW()-1,"000"))'
+
 def excel_multi_project_workbook_v1530():
     """Create a clean, Microsoft Excel-friendly workbook for many projects.
 
@@ -5273,8 +5280,8 @@ def excel_multi_project_workbook_v1530():
     readme=wb.create_sheet("LÄS MIG")
     title(readme,"Multi-Project Excel","Planera och importera flera projekt i samma Excel-fil. Projektkod kopplar varje rad till rätt projekt.")
     steps=[
-        ("1","Lägg in alla projekt på bladet Projekt. Projektkod måste vara unik, t.ex. PRJ-001."),
-        ("2","Använd samma Projektkod på Uppgifter, Risker, Resurser, Kostnader och övriga importblad."),
+        ("1","Lägg in projektnamnen på bladet Projekt. Projektkod skapas automatiskt som PRJ-001, PRJ-002 osv. och kan skrivas över manuellt."),
+        ("2","På Uppgifter, Risker, Resurser, Kostnader m.fl. väljer du Projektkod från rullistan i första kolumnen."),
         ("3","WBS behöver bara vara unik inom respektive projekt. PRJ-001 och PRJ-002 kan båda ha WBS 1.1."),
         ("4","I Project Planer: Excel → Importera flera projekt."),
         ("5","Importen är atomisk: om validering misslyckas skapas inga delvisa projekt.")
@@ -5289,7 +5296,17 @@ def excel_multi_project_workbook_v1530():
     readme.column_dimensions["B"].width=105
 
     project_headers=["Projektkod","Projektnamn","Kund","Projektledare","Beskrivning","Plan start","Plan slut"]
-    entry_sheet("Projekt",project_headers,editable=True,rows=100,date_headers={"Plan start","Plan slut"})
+    project_ws=entry_sheet("Projekt",project_headers,editable=True,rows=100,date_headers={"Plan start","Plan slut"})
+    # v15.3.1: Projektkod auto-genereras när Projektnamn fylls i.
+    # Formeln kan ersättas manuellt om organisationen har egen kodstandard.
+    for _row in range(2,102):
+        project_ws.cell(_row,1).value=excel_project_code_formula_v1531(_row)
+        project_ws.cell(_row,1).number_format="@"
+    project_ws["A1"].comment=Comment(
+        "Projektkod skapas automatiskt som PRJ-001, PRJ-002 osv. när Projektnamn fylls i. "
+        "Du kan skriva över formeln med en egen unik projektkod.",
+        "Project Planer"
+    )
 
     core=[
       ("Uppgifter",["Projektkod"]+list(EXCEL_SPECS["Uppgifter"]["headers"].keys()),{"Plan start","Plan slut","Faktisk start","Faktiskt slut"},set()),
@@ -5305,6 +5322,19 @@ def excel_multi_project_workbook_v1530():
     ]
     for name,headers,dates,money in core:
         entry_sheet(name,headers,editable=True,rows=500,date_headers=dates,money_headers=money)
+
+    # Projektkod på importbladen väljs från Projekt-bladet. Detta minskar
+    # felskrivningar och gör multi-project-mallen snabbare att fylla i.
+    for _sheet_name,_,_,_ in core:
+        _ws=wb[_sheet_name]
+        _dv=DataValidation(type="list",formula1="'Projekt'!$A$2:$A$101",allow_blank=True)
+        _dv.error="Välj en Projektkod från bladet Projekt."
+        _dv.errorTitle="Okänd Projektkod"
+        _dv.prompt="Välj projektet som raden tillhör."
+        _dv.promptTitle="Projektkod"
+        _dv.showInputMessage=True
+        _ws.add_data_validation(_dv)
+        _dv.add("A2:A501")
 
     validations={
       "Uppgifter":{"Status":["Ej påbörjad","Pågår","Blockerad","Klar"],"Prioritet":["Låg","Medium","Hög","Kritisk"],"Milstolpe":["Nej","Ja"]},
@@ -5422,8 +5452,17 @@ def excel_multi_project_import_v1530(file_storage):
     projects=[]
     seen=set()
     for row_no in range(2,ws.max_row+1):
-        code=excel_text(ws.cell(row_no,hdr["Projektkod"]).value).strip()
+        code_raw=ws.cell(row_no,hdr["Projektkod"]).value
         name=excel_text(ws.cell(row_no,hdr["Projektnamn"]).value).strip()
+        code=excel_text(code_raw).strip()
+        if isinstance(code_raw,str) and code_raw.startswith("="):
+            # Prefer Excel's cached value when available; otherwise reproduce
+            # the template's deterministic PRJ-nnn formula server-side.
+            try:
+                cached=excel_text(wb_values["Projekt"].cell(row_no,hdr["Projektkod"]).value).strip()
+            except Exception:
+                cached=""
+            code=cached or (f"PRJ-{row_no-1:03d}" if name else "")
         other=[ws.cell(row_no,hdr[h]).value for h in required_headers[2:]]
         if not code and not name and all(v in (None,"") for v in other):
             continue
@@ -5479,7 +5518,14 @@ def excel_multi_project_import_v1530(file_storage):
             raise ValueError(f"{sheet_name}: saknar kolumner: "+", ".join(missing))
         rows=[]
         for row_no in range(2,sheet.max_row+1):
-            code=excel_text(sheet.cell(row_no,h["Projektkod"]).value).strip()
+            code_raw=sheet.cell(row_no,h["Projektkod"]).value
+            code=excel_text(code_raw).strip()
+            if isinstance(code_raw,str) and code_raw.startswith("="):
+                try:
+                    cached=excel_text(wb_values[sheet_name].cell(row_no,h["Projektkod"]).value).strip()
+                except Exception:
+                    cached=""
+                code=cached
             rawrow={field:sheet.cell(row_no,h[label]).value for label,field in spec["headers"].items()}
             has_data=any(v not in (None,"") for v in rawrow.values())
             if not code and not has_data:

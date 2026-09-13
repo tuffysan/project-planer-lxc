@@ -178,3 +178,8 @@ Fixar installationsfelet i v15.2.8 där `Projektinformation` försökte skriva t
 ## v15.3.0 – Multi-Project Excel
 
 Project Planer kan nu planera och importera flera projekt från samma Excel-arbetsbok. Ett nytt blad **Projekt** innehåller projektlistan och kolumnen **Projektkod** kopplar aktiviteter, risker, resurser, kostnader, beslut, möten, actions, nyttor och beroenden till rätt projekt.
+
+
+## v15.3.1 – Automatiska projektkoder i Excel
+
+I Multi-Project Excel genereras Projektkod automatiskt som `PRJ-001`, `PRJ-002` osv. när Projektnamn fylls i. Koden kan skrivas över manuellt. Övriga importblad använder rullista mot Projekt-bladets projektkoder.
