@@ -207,3 +207,7 @@ Webbapp och Excel följer nu samma mentala modell. Ny Start, ny Projektöversikt
 
 ## v16.0.1 – Unified UX Runtime Fix
 Fixar Excel-smoketestet som stoppade v16.0.0 före aktivering, slutför korrekt Start-flikordning i Multi-Project Excel och säkrar formelvärdesläsning vid Multi-Project-import.
+
+
+## v16.1.0 – Excel Connected Projects
+Projekt som skapas på Projekt-bladet blir direkt valbara som `Projektkod – Projektnamn` på övriga blad. Excel Center kan också ladda ner en Connected Projects-fil med befintliga projekt och dolda ProjectID:n.

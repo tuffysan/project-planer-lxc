@@ -150,6 +150,11 @@ if APP_VERSION != expected:
 PY
 )
 
+echo "Verifierar v16.1 Connected Projects-källkod..."
+grep -Fq 'def excel_project_ref_code_v1610' "$RELEASE_DIR/app/app.py" || { echo "Connected Projects parser saknas."; exit 1; }
+grep -Fq '_Projektlista' "$RELEASE_DIR/app/app.py" || { echo "Connected Projects dropdown-helper saknas."; exit 1; }
+grep -Fq 'excel_multi_connected_template_v1610' "$RELEASE_DIR/app/app.py" || { echo "Connected Projects route saknas."; exit 1; }
+
 echo "Verifierar Excel-mallen med riktig runtime..."
 (
   cd "$RELEASE_DIR"

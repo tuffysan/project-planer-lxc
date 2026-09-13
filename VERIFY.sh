@@ -99,3 +99,10 @@ echo "[v16.0.1] Verifying Excel runtime regression fixes..."
 grep -Fq 'dd.sheet_state="hidden"' app/app.py || { echo "ERROR: single Datamodell fix missing" >&2; exit 1; }
 grep -Fq 'wb_values=load_workbook(BytesIO(payload),data_only=True)' app/app.py || { echo "ERROR: wb_values load missing" >&2; exit 1; }
 grep -Fq 'wb.sheetnames[0]!="Start"' install-app.sh || { echo "ERROR: multi Start order smoke check missing" >&2; exit 1; }
+
+echo "[v16.1.0] Verifying Excel Connected Projects..."
+grep -Fq 'def excel_project_ref_code_v1610' app/app.py || { echo "ERROR: project ref parser missing" >&2; exit 1; }
+grep -Fq '/excel/template/multi/connected' app/app.py || { echo "ERROR: connected download route missing" >&2; exit 1; }
+grep -Fq '_ProjectID' app/app.py || { echo "ERROR: ProjectID support missing" >&2; exit 1; }
+grep -Fq '_Projektlista' app/app.py || { echo "ERROR: same-sheet project dropdown helper missing" >&2; exit 1; }
+grep -Fq 'updated_projects' app/app.py || { echo "ERROR: existing project update support missing" >&2; exit 1; }
