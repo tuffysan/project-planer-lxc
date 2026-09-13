@@ -9,21 +9,32 @@
 
 <div class="feature-hero excel-pro-hero">
   <div>
-    <div class="eyebrow">EXCEL PRO · v9.0.2</div>
+    <div class="eyebrow">EXCEL PRO · v15.2.2</div>
     <h1>Vad vill du göra i Excel?</h1>
     <p class="lead">Välj arbetsbok för fortsatt projektarbete, rapport för presentation eller portfolio för en ledningsöversikt över flera projekt.</p>
   </div>
   <div class="ux-actions">
-    <a class="button primary" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">↓ Arbetsbok</a>
+    <a class="button primary" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">↓ Komplett Excel-mall</a>
+    <a class="button" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">↓ Round-trip</a>
     <a class="button" href="{{url_for('excel_import_v810',project_id=project.id)}}">↑ Importera</a>
   </div>
 </div>
 
 <section class="panel">
   <div class="excel-purpose-grid">
+    <a class="excel-purpose-card primary-card" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">
+      <div class="excel-purpose-icon">▣</div>
+      <div>
+        <div class="eyebrow">ALLT I EN FIL</div>
+        <h2>Komplett Excel-mall</h2>
+        <p>Den mest kompletta arbetsboken: dashboard, projektplan, beroenden, risker, ändringar, resurser, ekonomi, beslut, möten, actions, nyttor, team, statusrapporter, RAID, tid, dokument, baselines, anpassade fält, leverabler, interfaces, test, spårbarhet, cutover, DevOps och omplaneringshistorik.</p>
+        <strong>Ladda ner komplett mall →</strong>
+      </div>
+    </a>
+
     <a class="excel-purpose-card primary-card" href="{{url_for('excel_export_v810',project_id=project.id,scope='all')}}">
       <div class="excel-purpose-icon">↔</div>
-      <div><div class="eyebrow">REDIGERA & ÅTERIMPORTERA</div><h2>Projektarbetsbok</h2><p>Professionell Excel-arbetsbok med dashboard, projektplan, risker, resurser, ekonomi och övrig projektdata. Redigera de gröna fälten och importera tillbaka ändringarna.</p><strong>Exportera Round-trip Excel →</strong></div>
+      <div><div class="eyebrow">REDIGERA & ÅTERIMPORTERA</div><h2>Projektarbetsbok</h2><p>Importkompatibel Round-trip-arbetsbok för de delar som kan redigeras och skrivas tillbaka. För absolut allt projektinnehåll använder du Komplett Excel-mall.</p><strong>Exportera Round-trip Excel →</strong></div>
     </a>
     <a class="excel-purpose-card" href="{{url_for('report_excel_v901',project_id=project.id)}}">
       <div class="excel-purpose-icon">▦</div>

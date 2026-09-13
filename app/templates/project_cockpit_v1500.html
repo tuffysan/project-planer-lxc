@@ -8,7 +8,7 @@
     <div class="v15-title-line"><span class="v15-health-pill {{health.rag}}"><i></i>{{'På rätt väg' if health.rag=='green' else 'Behöver uppmärksamhet' if health.rag=='amber' else 'I riskzonen'}}</span><h1>{{project.name}}</h1></div>
     <p>{{project.customer or 'Ingen kund angiven'}} · {{project.project_manager or 'Ingen projektledare angiven'}}</p>
   </div>
-  <div class="v15-actions"><a class="btn primary" href="/projects/{{project.id}}/quick-add">＋ Lägg till</a><a class="btn" href="/projects/{{project.id}}/schedule">Planeringsmotor</a><a class="btn" href="/projects/{{project.id}}/reschedule">Omplanera</a><a class="btn" href="/projects/{{project.id}}/impact">Analysera påverkan</a></div>
+  <div class="v15-actions"><a class="btn primary" href="/projects/{{project.id}}/quick-add">＋ Lägg till</a><a class="btn" href="{{url_for('excel_complete_template_v1522',project_id=project.id)}}">Excel komplett</a><a class="btn" href="/projects/{{project.id}}/schedule">Planeringsmotor</a><a class="btn" href="/projects/{{project.id}}/reschedule">Omplanera</a><a class="btn" href="/projects/{{project.id}}/impact">Analysera påverkan</a></div>
 </section>
 
 <nav class="project-view-switcher">

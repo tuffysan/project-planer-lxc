@@ -135,3 +135,8 @@ Rättad språkväxlare, kontrollerad automatisk omplanering med undo/audit, resu
 ## v15.2.1 – Language Encoding Fix
 
 Rättar grundorsaken till den trasiga språkmenyn i Windows-publishflödet och ersätter emoji-flaggor med stabila språkbadges (SV/EN/DE/NO/DA/FI).
+
+
+## v15.2.2 – Complete Excel Template
+
+Nytt val **Komplett Excel-mall** exporterar en enda arbetsbok med hela projektets planerings-, styrnings-, leverans-, resurs-, ekonomi-, integrations- och historikdata. Round-trip-kompatibla blad kan fortsatt importeras tillbaka via Excel-importen.

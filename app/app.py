@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.1"
+APP_VERSION = "15.2.2"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -2450,6 +2450,291 @@ def excel_update(conn,table,row_id,project_id,data):
     setters=",".join(f"{f}=?" for f in fields)
     vals=[data[f] for f in fields]+[row_id,project_id]
     conn.execute(f"UPDATE {table} SET {setters} WHERE id=? AND project_id=?",vals)
+
+
+def excel_safe_rows_v1522(conn,sql,args=()):
+    try:
+        return conn.execute(sql,args).fetchall()
+    except Exception:
+        return []
+
+def excel_complete_data_v1522(project_id):
+    """All project-related content that is useful in a complete Excel workbook."""
+    data=excel_project_data(project_id)
+    with db() as conn:
+        data.update({
+            "members":excel_safe_rows_v1522(conn,"""SELECT pm.*,COALESCE(u.display_name,u.username,'') display_name,u.username
+                FROM project_members pm LEFT JOIN users u ON u.id=pm.user_id
+                WHERE pm.project_id=? ORDER BY display_name""",(project_id,)),
+            "status_reports":excel_safe_rows_v1522(conn,"SELECT * FROM status_reports WHERE project_id=? ORDER BY report_date,id",(project_id,)),
+            "raid":excel_safe_rows_v1522(conn,"SELECT * FROM raid_items WHERE project_id=? ORDER BY item_type,status,due_date,id",(project_id,)),
+            "approvals":excel_safe_rows_v1522(conn,"SELECT * FROM approvals WHERE project_id=? ORDER BY id",(project_id,)),
+            "time_entries":excel_safe_rows_v1522(conn,"""SELECT te.*,COALESCE(u.display_name,u.username,'') user_name,t.title task_title
+                FROM time_entries te LEFT JOIN users u ON u.id=te.user_id LEFT JOIN tasks t ON t.id=te.task_id
+                WHERE te.project_id=? ORDER BY work_date,id""",(project_id,)),
+            "documents":excel_safe_rows_v1522(conn,"SELECT * FROM documents WHERE project_id=? ORDER BY updated_at,id",(project_id,)),
+            "attachments":excel_safe_rows_v1522(conn,"SELECT * FROM attachments WHERE project_id=? ORDER BY uploaded_at,id",(project_id,)),
+            "comments":excel_safe_rows_v1522(conn,"""SELECT c.*,COALESCE(u.display_name,u.username,'') user_name
+                FROM comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY created_at,id""",(project_id,)),
+            "project_comments":excel_safe_rows_v1522(conn,"""SELECT c.*,COALESCE(u.display_name,u.username,'') user_name
+                FROM project_comments c LEFT JOIN users u ON u.id=c.user_id WHERE c.project_id=? ORDER BY created_at,id""",(project_id,)),
+            "baselines":excel_safe_rows_v1522(conn,"SELECT * FROM baselines WHERE project_id=? ORDER BY created_at,id",(project_id,)),
+            "custom_fields":excel_safe_rows_v1522(conn,"""SELECT d.name,d.field_type,d.options_json,v.value_text,v.entity_type,v.entity_id
+                FROM custom_field_values v JOIN custom_field_definitions d ON d.id=v.definition_id
+                WHERE v.project_id=? ORDER BY d.name,v.entity_type,v.entity_id""",(project_id,)),
+            "environments":excel_safe_rows_v1522(conn,"SELECT * FROM project_environments WHERE project_id=? ORDER BY id",(project_id,)),
+            "deliverables":excel_safe_rows_v1522(conn,"SELECT * FROM deliverables WHERE project_id=? ORDER BY id",(project_id,)),
+            "interfaces":excel_safe_rows_v1522(conn,"SELECT * FROM interface_register WHERE project_id=? ORDER BY id",(project_id,)),
+            "test_cycles":excel_safe_rows_v1522(conn,"SELECT * FROM test_cycles WHERE project_id=? ORDER BY id",(project_id,)),
+            "traceability":excel_safe_rows_v1522(conn,"SELECT * FROM requirements_traceability WHERE project_id=? ORDER BY id",(project_id,)),
+            "cutover":excel_safe_rows_v1522(conn,"SELECT * FROM cutover_items WHERE project_id=? ORDER BY id",(project_id,)),
+            "health_snapshots":excel_safe_rows_v1522(conn,"SELECT * FROM project_health_snapshots WHERE project_id=? ORDER BY id",(project_id,)),
+            "cross_dependencies":excel_safe_rows_v1522(conn,"""SELECT x.*,
+                pp.name predecessor_project,sp.name successor_project,
+                pt.title predecessor_task,st.title successor_task
+                FROM cross_project_dependencies x
+                LEFT JOIN projects pp ON pp.id=x.predecessor_project_id
+                LEFT JOIN projects sp ON sp.id=x.successor_project_id
+                LEFT JOIN tasks pt ON pt.id=x.predecessor_task_id
+                LEFT JOIN tasks st ON st.id=x.successor_task_id
+                WHERE x.predecessor_project_id=? OR x.successor_project_id=?
+                ORDER BY x.id""",(project_id,project_id)),
+            "devops_links":excel_safe_rows_v1522(conn,"""SELECT l.*,c.name connection_name,c.project_name devops_project,t.title task_title
+                FROM azure_devops_work_item_links l
+                LEFT JOIN azure_devops_connections c ON c.id=l.connection_id
+                LEFT JOIN tasks t ON t.id=l.task_id
+                WHERE l.project_id=? ORDER BY l.id""",(project_id,)),
+            "schedule_batches":excel_safe_rows_v1522(conn,"""SELECT b.*,COALESCE(u.display_name,u.username,'') created_name
+                FROM schedule_change_batches b LEFT JOIN users u ON u.id=b.created_by
+                WHERE b.project_id=? ORDER BY b.id""",(project_id,)),
+            "schedule_items":excel_safe_rows_v1522(conn,"""SELECT i.*,t.title task_title
+                FROM schedule_change_items i
+                JOIN schedule_change_batches b ON b.id=i.batch_id
+                LEFT JOIN tasks t ON t.id=i.task_id
+                WHERE b.project_id=? ORDER BY i.batch_id,i.id""",(project_id,)),
+            "project_finance":excel_safe_rows_v1522(conn,"SELECT * FROM project_finance WHERE project_id=?",(project_id,)),
+        })
+    return data
+
+def excel_sheet_from_rows_v1522(wb,name,headers,rows,table_name=None,date_headers=None,money_headers=None,wide_headers=None):
+    ws=wb.create_sheet(name)
+    excel_prepare_sheet(ws,headers)
+    for row in rows:
+        ws.append([row.get(h,"") if isinstance(row,dict) else row[h] if h in row.keys() else "" for h in headers])
+    style_header(ws,1)
+    ws.freeze_panes="A2"
+    ws.sheet_view.showGridLines=False
+    date_headers=set(date_headers or [])
+    money_headers=set(money_headers or [])
+    wide_headers=set(wide_headers or [])
+    for col,h in enumerate(headers,1):
+        letter=get_column_letter(col)
+        if h in wide_headers:
+            ws.column_dimensions[letter].width=42
+        for r in range(2,ws.max_row+1):
+            cell=ws.cell(r,col)
+            cell.alignment=Alignment(vertical="top",wrap_text=h in wide_headers)
+            if h in date_headers:
+                cell.value=excel_to_date(cell.value)
+                cell.number_format="yyyy-mm-dd"
+            if h in money_headers:
+                cell.number_format='#,##0.00'
+    autosize(ws)
+    for col,h in enumerate(headers,1):
+        if h in wide_headers:
+            ws.column_dimensions[get_column_letter(col)].width=42
+    if table_name and ws.max_row>=2:
+        excel_add_table(ws,table_name)
+    excel_page_setup(ws,True)
+    return ws
+
+def excel_complete_add_instructions_v1522(wb,project):
+    ws=wb.create_sheet("LÄS MIG",0)
+    ws.sheet_view.showGridLines=False
+    ws["A1"]="Project Planer – Komplett Excel-mall"
+    ws["A1"].font=Font(size=22,bold=True,color=EXCEL_PRO_HEADER)
+    ws.merge_cells("A1:F1")
+    ws["A3"]="Projekt"; ws["B3"]=project["name"]
+    ws["A4"]="Appversion"; ws["B4"]=APP_VERSION
+    ws["A5"]="Skapad"; ws["B5"]=datetime.now().strftime("%Y-%m-%d %H:%M")
+    ws["A7"]="Vad innehåller filen?"
+    ws["A7"].font=Font(size=14,bold=True,color=EXCEL_PRO_HEADER)
+    ws["A8"]="Den kompletta arbetsboken innehåller både round-trip-blad som kan redigeras/importeras tillbaka och referensblad med övrigt projektinnehåll."
+    ws.merge_cells("A8:F9"); ws["A8"].alignment=Alignment(wrap_text=True,vertical="top")
+    rows=[
+        ("Gröna/redigerbara blad","Projektinformation, Uppgifter, Beroenden, Risker, Ändringsärenden, Resurser, Kostnader, Beslut, Möten, Åtgärder och Nyttor kan hanteras via den befintliga Excel-importen."),
+        ("Referensblad","Medlemmar, statusrapporter, RAID, approvals, tid, dokument, bilagor, kommentarer, baselines, custom fields, leverabler, interfaces, test, cutover, DevOps och ändringshistorik följer med för komplett överblick."),
+        ("Tekniska blad","_Metadata är dolt och krävs för säker round-trip. Ändra inte tekniska ID/hash-kolumner."),
+        ("Säker import","Importen visar förhandsgranskning och konfliktkontroll innan commit. Databasbackup tas innan import.")
+    ]
+    ws["A11"]="Typ"; ws["B11"]="Beskrivning"; style_header(ws,11)
+    for x in rows: ws.append(list(x))
+    ws.column_dimensions["A"].width=24; ws.column_dimensions["B"].width=95
+    for r in range(12,12+len(rows)): ws[f"B{r}"].alignment=Alignment(wrap_text=True,vertical="top")
+    ws["A18"]="Importbara blad"
+    ws["A18"].font=Font(size=13,bold=True,color=EXCEL_PRO_HEADER)
+    importable=["Projektinformation","Uppgifter","Beroenden","Risker","Ändringsärenden","Resurser","Kostnader","Beslut","Möten","Åtgärder","Nyttor"]
+    for i,name in enumerate(importable,19):
+        ws.cell(i,1,"✓"); ws.cell(i,2,name)
+    excel_page_setup(ws,False)
+
+def build_complete_excel_template_v1522(project,data):
+    # Start with full import-compatible Round-trip workbook.
+    wb=build_roundtrip_workbook(project,data,"all")
+    excel_complete_add_instructions_v1522(wb,project)
+
+    # A compact data dictionary makes the workbook usable as a true template.
+    dd=wb.create_sheet("Datamodell",1)
+    dd_headers=["Blad","Syfte","Import tillbaka","Kommentar"]
+    excel_prepare_sheet(dd,dd_headers)
+    dictionary=[
+      ("Projektinformation","Projektets grunddata","Ja","Namn, kund, projektledare, beskrivning och projektdatum."),
+      ("Uppgifter","WBS och aktiviteter","Ja","Plan/faktiska datum, status, prioritet, progress och milstolpe."),
+      ("Beroenden","Aktivitetsberoenden","Ja","FS/SS/FF/SF och lag i dagar."),
+      ("Risker","Risker och issues","Ja","Sannolikhet, konsekvens, ansvarig och åtgärd."),
+      ("Ändringsärenden","Change control","Ja","Omfattning, dagar, kostnad och status."),
+      ("Resurser","Resursallokering","Ja","Vecka, allokering och timmar."),
+      ("Kostnader","Projektkostnader","Ja","Planerat och utfall."),
+      ("Nyttor","Benefits","Ja","Baslinje, mål och utfall."),
+      ("Medlemmar","Projektteam","Nej","Projektroll och användare."),
+      ("Statusrapporter","Historiska statusrapporter","Nej","RAG, sammanfattning, achievements och next steps."),
+      ("RAID","Risk/assumption/issue/dependency","Nej","Komplett RAID-register."),
+      ("Tid","Tidrapportering","Nej","Timmar per person/aktivitet/datum."),
+      ("Leverabler","Leveransobjekt","Nej","Leverabler och status."),
+      ("Interfaces","Integrations-/interface-register","Nej","Tekniska interfaces."),
+      ("Testcykler","Testplanering","Nej","Testcykler och status."),
+      ("Spårbarhet","Requirements traceability","Nej","Krav/spårbarhet."),
+      ("Cutover","Cutover-plan","Nej","Go-live/cutover-aktiviteter."),
+      ("Azure DevOps","Work Item-länkar","Nej","Synkstatus och länkning."),
+      ("Omplaneringshistorik","Kontrollerade schemaändringar","Nej","Batchhistorik och old/new dates.")
+    ]
+    for row in dictionary: dd.append(list(row))
+    excel_add_table(dd,"DataModelTable"); autosize(dd)
+    dd.column_dimensions["B"].width=34; dd.column_dimensions["D"].width=55
+    for r in range(2,dd.max_row+1): dd.cell(r,4).alignment=Alignment(wrap_text=True,vertical="top")
+
+    def drows(rows):
+        return [dict(r) for r in rows]
+
+    excel_sheet_from_rows_v1522(wb,"Medlemmar",
+        ["display_name","username","project_role","added_at","added_by"],
+        drows(data.get("members",[])),"MembersTable",date_headers={"added_at"})
+
+    excel_sheet_from_rows_v1522(wb,"Statusrapporter",
+        ["report_date","overall_rag","scope_rag","schedule_rag","budget_rag","resources_rag","summary","achievements","next_steps","created_by","created_at"],
+        drows(data.get("status_reports",[])),"StatusReportsTable",
+        date_headers={"report_date","created_at"},wide_headers={"summary","achievements","next_steps"})
+
+    excel_sheet_from_rows_v1522(wb,"RAID",
+        ["item_type","title","owner","status","due_date","details"],
+        drows(data.get("raid",[])),"RaidTable",date_headers={"due_date"},wide_headers={"details"})
+
+    excel_sheet_from_rows_v1522(wb,"Godkännanden",
+        ["entity_type","entity_id","status","requested_by","requested_at","decided_by","decided_at","comment"],
+        drows(data.get("approvals",[])),"ApprovalsTable",
+        date_headers={"requested_at","decided_at"},wide_headers={"comment"})
+
+    excel_sheet_from_rows_v1522(wb,"Tid",
+        ["work_date","user_name","task_title","hours","billable","note"],
+        drows(data.get("time_entries",[])),"TimeEntriesTable",date_headers={"work_date"},wide_headers={"note"})
+
+    excel_sheet_from_rows_v1522(wb,"Dokument",
+        ["title","body","updated_by","updated_at"],
+        drows(data.get("documents",[])),"DocumentsTable",date_headers={"updated_at"},wide_headers={"body"})
+
+    excel_sheet_from_rows_v1522(wb,"Bilagor",
+        ["filename","stored_name","content_type","size_bytes","uploaded_by","uploaded_at"],
+        drows(data.get("attachments",[])),"AttachmentsTable",date_headers={"uploaded_at"})
+
+    comments=[]
+    for r in drows(data.get("comments",[])):
+        comments.append({"källa":"Kommentar","user_name":r.get("user_name",""),"body":r.get("body",""),"created_at":r.get("created_at","")})
+    for r in drows(data.get("project_comments",[])):
+        comments.append({"källa":"Project Comment","user_name":r.get("user_name",""),"body":r.get("body",""),"created_at":r.get("created_at","")})
+    excel_sheet_from_rows_v1522(wb,"Kommentarer",
+        ["källa","user_name","body","created_at"],comments,"CommentsTable",date_headers={"created_at"},wide_headers={"body"})
+
+    excel_sheet_from_rows_v1522(wb,"Baselines",
+        ["name","created_at","created_by","snapshot_json"],
+        drows(data.get("baselines",[])),"BaselinesTable",date_headers={"created_at"},wide_headers={"snapshot_json"})
+
+    excel_sheet_from_rows_v1522(wb,"Anpassade fält",
+        ["name","field_type","entity_type","entity_id","value_text","options_json"],
+        drows(data.get("custom_fields",[])),"CustomFieldsTable",wide_headers={"value_text","options_json"})
+
+    excel_sheet_from_rows_v1522(wb,"Miljöer",
+        ["name","environment_type","url","owner","status","notes"],
+        drows(data.get("environments",[])),"EnvironmentsTable",wide_headers={"notes"})
+
+    excel_sheet_from_rows_v1522(wb,"Leverabler",
+        ["title","owner","due_date","status","description"],
+        drows(data.get("deliverables",[])),"DeliverablesTable",date_headers={"due_date"},wide_headers={"description"})
+
+    excel_sheet_from_rows_v1522(wb,"Interfaces",
+        ["name","source_system","target_system","owner","status","description"],
+        drows(data.get("interfaces",[])),"InterfacesTable",wide_headers={"description"})
+
+    excel_sheet_from_rows_v1522(wb,"Testcykler",
+        ["name","start_date","end_date","owner","status","notes"],
+        drows(data.get("test_cycles",[])),"TestCyclesTable",date_headers={"start_date","end_date"},wide_headers={"notes"})
+
+    excel_sheet_from_rows_v1522(wb,"Spårbarhet",
+        ["requirement_id","requirement_title","deliverable_id","test_reference","status","notes"],
+        drows(data.get("traceability",[])),"TraceabilityTable",wide_headers={"notes"})
+
+    excel_sheet_from_rows_v1522(wb,"Cutover",
+        ["title","owner","planned_at","status","sequence_no","notes"],
+        drows(data.get("cutover",[])),"CutoverTable",date_headers={"planned_at"},wide_headers={"notes"})
+
+    excel_sheet_from_rows_v1522(wb,"Projekthälsa historik",
+        list(drows(data.get("health_snapshots",[]))[0].keys()) if data.get("health_snapshots") else ["snapshot_date","health_score","rag","details_json"],
+        drows(data.get("health_snapshots",[])),"HealthHistoryTable",wide_headers={"details_json"})
+
+    excel_sheet_from_rows_v1522(wb,"Projektberoenden",
+        ["predecessor_project","successor_project","predecessor_task","successor_task","link_type","lag_days","status","notes"],
+        drows(data.get("cross_dependencies",[])),"CrossProjectDependenciesTable",wide_headers={"notes"})
+
+    excel_sheet_from_rows_v1522(wb,"Azure DevOps",
+        ["connection_name","devops_project","work_item_id","work_item_type","title","state","assigned_to","task_title","last_synced_at"],
+        drows(data.get("devops_links",[])),"AzureDevOpsLinksTable",date_headers={"last_synced_at"})
+
+    excel_sheet_from_rows_v1522(wb,"Omplaneringshistorik",
+        ["id","title","reason","created_name","created_at","reverted_at","reverted_by"],
+        drows(data.get("schedule_batches",[])),"ScheduleBatchesTable",
+        date_headers={"created_at","reverted_at"},wide_headers={"reason"})
+
+    excel_sheet_from_rows_v1522(wb,"Omplaneringsdetaljer",
+        ["batch_id","task_title","old_start","old_end","new_start","new_end"],
+        drows(data.get("schedule_items",[])),"ScheduleItemsTable",
+        date_headers={"old_start","old_end","new_start","new_end"})
+
+    excel_sheet_from_rows_v1522(wb,"Finanssammanfattning",
+        list(drows(data.get("project_finance",[]))[0].keys()) if data.get("project_finance") else ["planned_budget","approved_budget","forecast","actual"],
+        drows(data.get("project_finance",[])),"FinanceSummaryTable",
+        money_headers={"planned_budget","approved_budget","forecast","actual"})
+
+    # Ensure the user lands on the instructions sheet.
+    wb.active=0
+    wb.properties.title=f"{project['name']} – Komplett Project Planer Excel-mall"
+    wb.properties.subject="Full project workbook / template"
+    wb.properties.description=f"Project Planer v{APP_VERSION} · komplett Excel-mall med projektets round-trip-data och referensinnehåll."
+    return wb
+
+@app.get("/projects/<int:project_id>/excel/template/complete")
+@login_required
+def excel_complete_template_v1522(project_id):
+    p=project_or_404(project_id)
+    data=excel_complete_data_v1522(project_id)
+    wb=build_complete_excel_template_v1522(p,data)
+    bio=BytesIO(); wb.save(bio); bio.seek(0)
+    audit(project_id,"project",project_id,"excel_complete_template",f"app={APP_VERSION}")
+    safe=re.sub(r"[^A-Za-z0-9ÅÄÖåäö _.-]","",p["name"] or "project").strip().replace(" ","-")
+    return send_file(
+        bio,as_attachment=True,
+        download_name=f"{safe}-KOMPLETT-Excel-mall.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 
 @app.route("/projects/<int:project_id>/excel/import",methods=["GET","POST"])
 @login_required
