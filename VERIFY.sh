@@ -54,3 +54,9 @@ if grep -Fq 'enumerate(info_rows,4)' app/app.py; then
   echo "ERROR: Regression: Projectinformation starts inside merged subtitle rows." >&2
   exit 1
 fi
+
+echo "[v15.3.0] Verifying Multi-Project Excel..."
+grep -Fq 'def excel_multi_project_workbook_v1530' app/app.py || { echo "ERROR: Multi-Project workbook builder missing" >&2; exit 1; }
+grep -Fq 'def excel_multi_project_import_v1530' app/app.py || { echo "ERROR: Multi-Project importer missing" >&2; exit 1; }
+grep -Fq 'template_kind","multi_project_complete' app/app.py || { echo "ERROR: Multi-Project metadata missing" >&2; exit 1; }
+grep -Fq 'Projektkod' app/templates/excel_multi_import_v1530.html || { echo "ERROR: Multi-Project UI missing" >&2; exit 1; }

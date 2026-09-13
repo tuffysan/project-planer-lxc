@@ -173,3 +173,8 @@ Den globala tomma Excel-mallen byggs nu från en helt ny workbook utan Excel Tab
 ## v15.2.9 – Excel MergedCell Fix
 
 Fixar installationsfelet i v15.2.8 där `Projektinformation` försökte skriva till `B4/B5`, som ingick i den sammanslagna underrubriken `A4:F5`. Projektfälten börjar nu på rad 7 och kontrolleras innan XLSX-filen skapas.
+
+
+## v15.3.0 – Multi-Project Excel
+
+Project Planer kan nu planera och importera flera projekt från samma Excel-arbetsbok. Ett nytt blad **Projekt** innehåller projektlistan och kolumnen **Projektkod** kopplar aktiviteter, risker, resurser, kostnader, beslut, möten, actions, nyttor och beroenden till rätt projekt.

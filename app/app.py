@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.9"
+APP_VERSION = "15.3.0"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -5207,6 +5207,407 @@ def excel_new_project_from_workbook_v1525(file_storage):
     audit(pid,"project",pid,"excel_create_project",f"created_items={created}")
     return pid,created
 
+
+def excel_multi_project_workbook_v1530():
+    """Create a clean, Microsoft Excel-friendly workbook for many projects.
+
+    Each project is identified by a stable Projektkod. All importable child
+    sheets carry the same Projektkod so WBS values can repeat safely between
+    projects.
+    """
+    wb=Workbook()
+    wb.remove(wb.active)
+
+    navy="0F4C81"; green="E9F6EE"; grey="F4F6F8"; border="D0D7DE"; text="172B4D"; muted="667085"
+    thin=Side(style="thin",color=border)
+
+    def title(ws, heading, subtitle=None):
+        ws.sheet_view.showGridLines=False
+        ws["A1"]="Project Planer"
+        ws["A1"].font=Font(size=11,bold=True,color="FFFFFF")
+        ws["A1"].fill=PatternFill("solid",fgColor=navy)
+        ws["B1"]=f"Multi-Project Excel · v{APP_VERSION}"
+        ws["B1"].font=Font(size=11,color="FFFFFF")
+        ws["B1"].fill=PatternFill("solid",fgColor=navy)
+        ws.merge_cells("B1:G1")
+        ws["A3"]=heading
+        ws["A3"].font=Font(size=20,bold=True,color=text)
+        ws.merge_cells("A3:G3")
+        if subtitle:
+            ws["A4"]=subtitle
+            ws["A4"].font=Font(size=10,color=muted)
+            ws["A4"].alignment=Alignment(wrap_text=True,vertical="top")
+            ws.merge_cells("A4:G5")
+
+    def entry_sheet(name, headers, editable=True, rows=300, date_headers=None, money_headers=None):
+        ws=wb.create_sheet(name)
+        ws.sheet_view.showGridLines=False
+        ws.freeze_panes="A2"
+        ws.append(headers)
+        for c in ws[1]:
+            c.fill=PatternFill("solid",fgColor=navy)
+            c.font=Font(bold=True,color="FFFFFF")
+            c.alignment=Alignment(vertical="center",wrap_text=True)
+            c.border=Border(bottom=thin)
+        ws.row_dimensions[1].height=28
+        date_headers=set(date_headers or [])
+        money_headers=set(money_headers or [])
+        for idx,h in enumerate(headers,1):
+            letter=get_column_letter(idx)
+            width=18
+            if h=="Projektkod": width=16
+            elif h in {"Projektnamn","Aktivitet","Titel","Rubrik","Beskrivning","Åtgärd","Kommentar","Anteckningar"}: width=34
+            elif h in {"WBS","Typ","Status","Prioritet","Enhet"}: width=15
+            elif "datum" in h.lower() or "date" in h.lower() or h in {"Plan start","Plan slut","Faktisk start","Faktiskt slut","Vecka","Datum","Mätdatum","Förfallodatum"}: width=16
+            ws.column_dimensions[letter].width=width
+            for r in range(2,rows+2):
+                cell=ws.cell(r,idx)
+                cell.fill=PatternFill("solid",fgColor=(green if editable else grey))
+                cell.border=Border(bottom=Side(style="hair",color="E8ECF0"))
+                cell.alignment=Alignment(vertical="top",wrap_text=h in {"Projektnamn","Aktivitet","Titel","Rubrik","Beskrivning","Åtgärd","Kommentar","Anteckningar"})
+                if h in date_headers: cell.number_format="yyyy-mm-dd"
+                elif h in money_headers: cell.number_format='#,##0.00'
+        ws.auto_filter.ref=f"A1:{get_column_letter(len(headers))}{rows+1}"
+        return ws
+
+    readme=wb.create_sheet("LÄS MIG")
+    title(readme,"Multi-Project Excel","Planera och importera flera projekt i samma Excel-fil. Projektkod kopplar varje rad till rätt projekt.")
+    steps=[
+        ("1","Lägg in alla projekt på bladet Projekt. Projektkod måste vara unik, t.ex. PRJ-001."),
+        ("2","Använd samma Projektkod på Uppgifter, Risker, Resurser, Kostnader och övriga importblad."),
+        ("3","WBS behöver bara vara unik inom respektive projekt. PRJ-001 och PRJ-002 kan båda ha WBS 1.1."),
+        ("4","I Project Planer: Excel → Importera flera projekt."),
+        ("5","Importen är atomisk: om validering misslyckas skapas inga delvisa projekt.")
+    ]
+    for row,(n,txt) in enumerate(steps,7):
+        readme.cell(row,1,n).font=Font(bold=True,color=navy)
+        readme.cell(row,2,txt).alignment=Alignment(wrap_text=True,vertical="top")
+    readme["A14"]="Viktigt"
+    readme["B14"]="Projektkod är nyckeln i hela arbetsboken. Rader på importbladen utan Projektkod ignoreras endast om resten av raden också är tom; annars stoppas importen."
+    readme["B14"].alignment=Alignment(wrap_text=True,vertical="top")
+    readme.column_dimensions["A"].width=12
+    readme.column_dimensions["B"].width=105
+
+    project_headers=["Projektkod","Projektnamn","Kund","Projektledare","Beskrivning","Plan start","Plan slut"]
+    entry_sheet("Projekt",project_headers,editable=True,rows=100,date_headers={"Plan start","Plan slut"})
+
+    core=[
+      ("Uppgifter",["Projektkod"]+list(EXCEL_SPECS["Uppgifter"]["headers"].keys()),{"Plan start","Plan slut","Faktisk start","Faktiskt slut"},set()),
+      ("Beroenden",["Projektkod","Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"],set(),set()),
+      ("Risker",["Projektkod"]+list(EXCEL_SPECS["Risker"]["headers"].keys()),{"Förfallodatum"},set()),
+      ("Ändringsärenden",["Projektkod"]+list(EXCEL_SPECS["Ändringsärenden"]["headers"].keys()),set(),{"Kostnad"}),
+      ("Resurser",["Projektkod"]+list(EXCEL_SPECS["Resurser"]["headers"].keys()),{"Vecka"},set()),
+      ("Kostnader",["Projektkod"]+list(EXCEL_SPECS["Kostnader"]["headers"].keys()),{"Datum"},{"Planerat","Utfall"}),
+      ("Beslut",["Projektkod"]+list(EXCEL_SPECS["Beslut"]["headers"].keys()),{"Beslutsdatum"},set()),
+      ("Möten",["Projektkod"]+list(EXCEL_SPECS["Möten"]["headers"].keys()),{"Datum"},set()),
+      ("Åtgärder",["Projektkod"]+list(EXCEL_SPECS["Åtgärder"]["headers"].keys()),{"Förfallodatum"},set()),
+      ("Nyttor",["Projektkod"]+list(EXCEL_SPECS["Nyttor"]["headers"].keys()),{"Mätdatum"},{"Baslinje","Mål","Utfall"}),
+    ]
+    for name,headers,dates,money in core:
+        entry_sheet(name,headers,editable=True,rows=500,date_headers=dates,money_headers=money)
+
+    validations={
+      "Uppgifter":{"Status":["Ej påbörjad","Pågår","Blockerad","Klar"],"Prioritet":["Låg","Medium","Hög","Kritisk"],"Milstolpe":["Nej","Ja"]},
+      "Beroenden":{"Typ":["FS","SS","FF","SF"]},
+      "Risker":{"Typ":["Risk","Issue"],"Status":["Open","Closed"]},
+      "Ändringsärenden":{"Status":["Open","Approved","Rejected","Closed"]},
+      "Åtgärder":{"Status":["Open","Pågår","Klar","Closed"]},
+      "Nyttor":{"Status":["Open","Pågår","Realiserad","Closed"]},
+    }
+    for sheet_name,cols in validations.items():
+        ws=wb[sheet_name]
+        hdr={excel_text(c.value):c.column for c in ws[1]}
+        for header,values in cols.items():
+            if header not in hdr: continue
+            col=get_column_letter(hdr[header])
+            dv=DataValidation(type="list",formula1='"'+','.join(values)+'"',allow_blank=True)
+            dv.error="Välj ett värde i listan."
+            dv.errorTitle="Ogiltigt värde"
+            ws.add_data_validation(dv)
+            dv.add(f"{col}2:{col}501")
+
+    # Read-only reference sheets also use Projektkod so users can keep a full portfolio workbook.
+    reference_specs=[
+      ("Milstolpar",["Projektkod","WBS","Milstolpe","Ansvarig","Plan slut","Status","Progress %"]),
+      ("Medlemmar",["Projektkod","display_name","username","project_role","added_at","added_by"]),
+      ("Statusrapporter",["Projektkod","report_date","overall_rag","scope_rag","schedule_rag","budget_rag","resources_rag","summary","achievements","next_steps","created_by","created_at"]),
+      ("RAID",["Projektkod","item_type","title","owner","status","due_date","details"]),
+      ("Godkännanden",["Projektkod","entity_type","entity_id","status","requested_by","requested_at","decided_by","decided_at","comment"]),
+      ("Tid",["Projektkod","work_date","user_name","task_title","hours","billable","note"]),
+      ("Dokument",["Projektkod","title","body","updated_by","updated_at"]),
+      ("Bilagor",["Projektkod","filename","stored_name","content_type","size_bytes","uploaded_by","uploaded_at"]),
+      ("Kommentarer",["Projektkod","källa","user_name","body","created_at"]),
+      ("Baselines",["Projektkod","name","created_at","created_by","snapshot_json"]),
+      ("Anpassade fält",["Projektkod","name","field_type","entity_type","entity_id","value_text","options_json"]),
+      ("Miljöer",["Projektkod","name","environment_type","url","owner","status","notes"]),
+      ("Leverabler",["Projektkod","title","owner","due_date","status","description"]),
+      ("Interfaces",["Projektkod","name","source_system","target_system","owner","status","description"]),
+      ("Testcykler",["Projektkod","name","start_date","end_date","owner","status","notes"]),
+      ("Spårbarhet",["Projektkod","requirement_id","requirement_title","deliverable_id","test_reference","status","notes"]),
+      ("Cutover",["Projektkod","title","owner","planned_at","status","sequence_no","notes"]),
+      ("Projekthälsa",["Projektkod","captured_at","overall_score","scope_score","schedule_score","budget_score","risk_score","resource_score","details_json"]),
+      ("Projektberoenden",["Projektkod","related_project_id","relation_type","description","owner","status"]),
+      ("Azure DevOps",["Projektkod","work_item_id","work_item_type","title","state","assigned_to","url","last_synced_at"]),
+      ("Omplaneringshistorik",["Projektkod","batch_id","title","reason","created_by","created_at","reverted_at","reverted_by"]),
+      ("Omplaneringsdetaljer",["Projektkod","batch_id","task_id","old_start","old_end","new_start","new_end"]),
+      ("Finanssammanfattning",["Projektkod","metric","value"])
+    ]
+    for name,headers in reference_specs:
+        entry_sheet(name,headers,editable=False,rows=120)
+
+    dm=wb.create_sheet("Datamodell")
+    dm.append(["Blad","Nyckel","Importeras","Beskrivning"])
+    for c in dm[1]:
+        c.fill=PatternFill("solid",fgColor=navy); c.font=Font(bold=True,color="FFFFFF")
+    dm.append(["Projekt","Projektkod","Ja","En rad per projekt. Projektkod är unik i arbetsboken."])
+    for sheet_name in [x[0] for x in core]:
+        dm.append([sheet_name,"Projektkod","Ja",f"Varje rad kopplas till ett projekt med Projektkod."])
+    for name,_headers in reference_specs:
+        dm.append([name,"Projektkod","Nej","Referens-/planeringsblad i v15.3.0."])
+    dm.freeze_panes="A2"
+    dm.auto_filter.ref=f"A1:D{dm.max_row}"
+    dm.column_dimensions["A"].width=28; dm.column_dimensions["B"].width=22; dm.column_dimensions["C"].width=16; dm.column_dimensions["D"].width=56
+
+    meta=wb.create_sheet("_Metadata")
+    meta.append(["key","value"])
+    for k,v in [
+      ("schema_version",EXCEL_SCHEMA_VERSION),
+      ("project_id","0"),
+      ("project_name","MULTI_PROJECT_TEMPLATE"),
+      ("project_hash",""),
+      ("app_version",APP_VERSION),
+      ("exported_at",datetime.now().isoformat(timespec="seconds")),
+      ("template_kind","multi_project_complete"),
+      ("multi_project_version","1")
+    ]:
+        meta.append([k,v])
+    meta.sheet_state="hidden"
+
+    wb.active=0
+    wb.properties.creator="Project Planer"
+    wb.properties.title="Project Planer – Multi-Project Excel"
+    wb.properties.subject="Flera projekt i samma Excel-fil"
+    wb.properties.description=f"Project Planer v{APP_VERSION} · Multi-Project Excel."
+    return wb
+
+def excel_multi_project_import_v1530(file_storage):
+    if not file_storage or not file_storage.filename:
+        raise ValueError("Välj en Excel-fil.")
+    if not file_storage.filename.lower().endswith(".xlsx"):
+        raise ValueError("Endast .xlsx stöds.")
+
+    payload=file_storage.read()
+    if len(payload)>25*1024*1024:
+        raise ValueError("Excel-filen är större än 25 MB.")
+    try:
+        wb=load_workbook(BytesIO(payload),data_only=False)
+    except Exception as ex:
+        raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
+
+    meta=excel_parse_metadata(wb)
+    if meta.get("schema_version")!=EXCEL_SCHEMA_VERSION:
+        raise ValueError("Filen är inte en kompatibel Project Planer Excel-fil.")
+    if meta.get("template_kind")!="multi_project_complete":
+        raise ValueError("Detta är inte en Multi-Project Excel-mall. Använd rätt importfunktion.")
+    if "Projekt" not in wb.sheetnames:
+        raise ValueError("Bladet Projekt saknas.")
+
+    ws=wb["Projekt"]
+    hdr=excel_headers(ws)
+    required_headers=["Projektkod","Projektnamn","Kund","Projektledare","Beskrivning","Plan start","Plan slut"]
+    missing=[h for h in required_headers if h not in hdr]
+    if missing:
+        raise ValueError("Projekt-bladet saknar kolumner: "+", ".join(missing))
+
+    projects=[]
+    seen=set()
+    for row_no in range(2,ws.max_row+1):
+        code=excel_text(ws.cell(row_no,hdr["Projektkod"]).value).strip()
+        name=excel_text(ws.cell(row_no,hdr["Projektnamn"]).value).strip()
+        other=[ws.cell(row_no,hdr[h]).value for h in required_headers[2:]]
+        if not code and not name and all(v in (None,"") for v in other):
+            continue
+        if not code:
+            raise ValueError(f"Projekt, rad {row_no}: Projektkod krävs.")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,49}",code):
+            raise ValueError(f"Projekt, rad {row_no}: Projektkod '{code}' är ogiltig. Använd bokstäver, siffror, punkt, _ eller -.")
+        key=code.lower()
+        if key in seen:
+            raise ValueError(f"Projekt, rad {row_no}: Projektkod '{code}' förekommer flera gånger.")
+        seen.add(key)
+        if not name:
+            raise ValueError(f"Projekt, rad {row_no}: Projektnamn krävs.")
+        if len(name)>200:
+            raise ValueError(f"Projekt, rad {row_no}: Projektnamnet är för långt.")
+        start=excel_date(ws.cell(row_no,hdr["Plan start"]).value)
+        end=excel_date(ws.cell(row_no,hdr["Plan slut"]).value)
+        sd=_v15_date(start) if start else None
+        ed=_v15_date(end) if end else None
+        if start and not sd: raise ValueError(f"Projekt, rad {row_no}: Ogiltigt startdatum.")
+        if end and not ed: raise ValueError(f"Projekt, rad {row_no}: Ogiltigt slutdatum.")
+        if sd and ed and ed<sd:
+            raise ValueError(f"Projekt, rad {row_no}: Slutdatum kan inte ligga före startdatum.")
+        projects.append({
+            "code":code,
+            "name":name,
+            "customer":excel_text(ws.cell(row_no,hdr["Kund"]).value),
+            "project_manager":excel_text(ws.cell(row_no,hdr["Projektledare"]).value),
+            "description":excel_text(ws.cell(row_no,hdr["Beskrivning"]).value),
+            "start_date":start,
+            "end_date":end,
+        })
+
+    if not projects:
+        raise ValueError("Bladet Projekt innehåller inga projekt.")
+    if len(projects)>100:
+        raise ValueError("Max 100 projekt kan skapas i samma import.")
+
+    known={p["code"].lower():p for p in projects}
+    summary={"projects":0,"items":0,"dependencies":0,"by_sheet":{},"project_rows":[]}
+
+    # Validate all importable rows before touching the database.
+    normalized_rows={}
+    total_rows=0
+    for sheet_name,spec in EXCEL_SPECS.items():
+        if sheet_name not in wb.sheetnames:
+            continue
+        sheet=wb[sheet_name]
+        h=excel_headers(sheet)
+        expected=["Projektkod"]+list(spec["headers"].keys())
+        missing=[name for name in expected if name not in h]
+        if missing:
+            raise ValueError(f"{sheet_name}: saknar kolumner: "+", ".join(missing))
+        rows=[]
+        for row_no in range(2,sheet.max_row+1):
+            code=excel_text(sheet.cell(row_no,h["Projektkod"]).value).strip()
+            rawrow={field:sheet.cell(row_no,h[label]).value for label,field in spec["headers"].items()}
+            has_data=any(v not in (None,"") for v in rawrow.values())
+            if not code and not has_data:
+                continue
+            if not code:
+                raise ValueError(f"{sheet_name}, rad {row_no}: Projektkod krävs.")
+            if code.lower() not in known:
+                raise ValueError(f"{sheet_name}, rad {row_no}: okänd Projektkod '{code}'.")
+            data=excel_normalize_row(spec,rawrow)
+            required=excel_text(data.get(spec["required"]))
+            if not required:
+                raise ValueError(f"{sheet_name}, rad {row_no}: obligatoriskt namn/rubrik saknas.")
+            rows.append((code.lower(),data,row_no))
+            total_rows+=1
+        normalized_rows[sheet_name]=rows
+
+    dep_rows=[]
+    if "Beroenden" in wb.sheetnames:
+        sheet=wb["Beroenden"]; h=excel_headers(sheet)
+        needed=["Projektkod","Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"]
+        missing=[x for x in needed if x not in h]
+        if missing:
+            raise ValueError("Beroenden: saknar kolumner: "+", ".join(missing))
+        for row_no in range(2,sheet.max_row+1):
+            code=excel_text(sheet.cell(row_no,h["Projektkod"]).value).strip()
+            pred=excel_text(sheet.cell(row_no,h["Föregående WBS"]).value).strip()
+            succ=excel_text(sheet.cell(row_no,h["Efterföljande WBS"]).value).strip()
+            typ=excel_text(sheet.cell(row_no,h["Typ"]).value).strip() or "FS"
+            lag=excel_int(sheet.cell(row_no,h["Förskjutning dagar"]).value)
+            if not code and not pred and not succ:
+                continue
+            if not code:
+                raise ValueError(f"Beroenden, rad {row_no}: Projektkod krävs.")
+            if code.lower() not in known:
+                raise ValueError(f"Beroenden, rad {row_no}: okänd Projektkod '{code}'.")
+            if not pred or not succ:
+                raise ValueError(f"Beroenden, rad {row_no}: både Föregående WBS och Efterföljande WBS krävs.")
+            if typ not in ("FS","SS","FF","SF"):
+                raise ValueError(f"Beroenden, rad {row_no}: ogiltig typ '{typ}'.")
+            dep_rows.append((code.lower(),pred,succ,typ,lag,row_no))
+            total_rows+=1
+
+    if total_rows>10000:
+        raise ValueError("Importen innehåller fler än 10 000 projektposter.")
+
+    uid=session.get("user_id")
+    project_ids={}
+    with db() as conn:
+        conn.execute("BEGIN")
+        try:
+            for p in projects:
+                cur=conn.execute("""INSERT INTO projects(
+                    name,customer,project_manager,description,start_date,end_date,created_by,created_at
+                ) VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",(
+                    p["name"],p["customer"],p["project_manager"],p["description"],
+                    p["start_date"],p["end_date"],uid
+                ))
+                pid=cur.lastrowid
+                project_ids[p["code"].lower()]=pid
+                conn.execute("""INSERT OR IGNORE INTO project_members(
+                    project_id,user_id,project_role,added_at,added_by
+                ) VALUES(?,?,?,CURRENT_TIMESTAMP,?)""",(pid,uid,"pm",uid))
+                summary["project_rows"].append({"code":p["code"],"name":p["name"],"id":pid})
+            summary["projects"]=len(projects)
+
+            for sheet_name,spec in EXCEL_SPECS.items():
+                rows=normalized_rows.get(sheet_name,[])
+                count=0
+                for code,data,_row_no in rows:
+                    excel_insert(conn,spec["table"],project_ids[code],data)
+                    count+=1
+                if count:
+                    summary["by_sheet"][sheet_name]=count
+                    summary["items"]+=count
+
+            # Resolve dependencies independently inside each project.
+            task_maps={}
+            for code,pid in project_ids.items():
+                rows=conn.execute("SELECT id,wbs FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall()
+                task_maps[code]={excel_text(r["wbs"]):int(r["id"]) for r in rows if excel_text(r["wbs"])}
+            for code,pred,succ,typ,lag,row_no in dep_rows:
+                id_by_wbs=task_maps.get(code,{})
+                if pred not in id_by_wbs or succ not in id_by_wbs:
+                    display=known[code]["code"]
+                    raise ValueError(f"Beroenden, rad {row_no}: WBS {pred} eller {succ} finns inte i projekt {display}.")
+                conn.execute("""INSERT INTO task_links(
+                    project_id,predecessor_id,successor_id,link_type,lag_days
+                ) VALUES(?,?,?,?,?)""",(project_ids[code],id_by_wbs[pred],id_by_wbs[succ],typ,lag))
+                summary["dependencies"]+=1
+            if summary["dependencies"]:
+                summary["by_sheet"]["Beroenden"]=summary["dependencies"]
+
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    for row in summary["project_rows"]:
+        audit(row["id"],"project",row["id"],"excel_multi_create",
+              f"Multi-Project Excel import; code={row['code']}; app={APP_VERSION}")
+    return summary
+
+@app.get("/excel/template/multi")
+@login_required
+def excel_multi_template_v1530():
+    wb=excel_multi_project_workbook_v1530()
+    payload=excel_serialize_workbook_v1527(wb)
+    return send_file(BytesIO(payload),as_attachment=True,
+        download_name="Project-Planer-MULTI-PROJECT-projektmall.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.route("/excel/import-multi",methods=["GET","POST"])
+@login_required
+def excel_multi_import_v1530():
+    user=current_user()
+    if user["role"] not in ("admin","pm"):
+        abort(403)
+    if request.method=="POST":
+        try:
+            result=excel_multi_project_import_v1530(request.files.get("file"))
+            return render_template("excel_multi_result_v1530.html",result=result)
+        except ValueError as ex:
+            flash(str(ex),"error")
+        except Exception as ex:
+            app.logger.exception("Multi-Project Excel import failed")
+            flash("Kunde inte importera Multi-Project Excel: "+str(ex),"error")
+    return render_template("excel_multi_import_v1530.html")
+
 @app.get("/excel")
 @login_required
 def excel_start_center_v1525():
@@ -5250,7 +5651,8 @@ def health_ui_v1526():
         "status": "ok" if excel_nav else "degraded",
         "version": APP_VERSION,
         "excel_nav": excel_nav,
-        "excel_start_center": True
+        "excel_start_center": True,
+        "multi_project_excel": True
     }), (200 if excel_nav else 503)
 
 @app.get("/ultimate/compare")

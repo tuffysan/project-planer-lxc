@@ -1115,3 +1115,25 @@ body{background:var(--v15-bg)}
   background:rgba(31,111,67,.10);
   color:#185b37;
 }
+
+/* v15.3.0 Multi-Project Excel */
+.excel-multi-hero{
+  display:flex;justify-content:space-between;align-items:center;gap:24px;
+  padding:20px 22px;margin:0 0 18px;border-radius:16px;
+  background:linear-gradient(135deg,#eef9f2,#f4f8fc);border:1px solid #bcdac8;
+}
+.excel-multi-hero h2{margin:4px 0 6px}
+.excel-multi-hero p{margin:0;color:var(--v15-muted);max-width:760px}
+.excel-multi-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.excel-import-checklist{display:flex;flex-direction:column;gap:7px;padding:14px;border-radius:12px;background:#f7faf8;border:1px solid #dbe9df}
+.excel-multi-project-list{display:flex;flex-direction:column;gap:8px}
+.excel-multi-project-list a{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--v15-border);border-radius:10px;text-decoration:none;color:inherit}
+.excel-multi-project-list a:hover{background:#f6f9fb}
+.excel-multi-project-list span{color:var(--v15-muted)}
+.excel-import-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.excel-import-summary>div{display:flex;justify-content:space-between;padding:11px 12px;border:1px solid var(--v15-border);border-radius:10px;background:#fafcfd}
+@media(max-width:800px){
+  .excel-multi-hero{flex-direction:column;align-items:flex-start}
+  .excel-multi-actions{justify-content:flex-start}
+  .excel-import-summary{grid-template-columns:1fr}
+}

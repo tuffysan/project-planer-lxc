@@ -154,12 +154,16 @@ echo "Verifierar Excel-mallen med riktig runtime..."
 (
   cd "$RELEASE_DIR"
   "$VENV_DIR/bin/python" - <<'PY'
-from app.app import excel_blank_complete_workbook_v1525, excel_serialize_workbook_v1527
-wb=excel_blank_complete_workbook_v1525()
-payload=excel_serialize_workbook_v1527(wb)
-if len(payload) < 5000:
-    raise SystemExit("XLSX SMOKE TEST FAILED: generated workbook is unexpectedly small")
-print("XLSX smoke test OK:", len(payload), "bytes,", len(wb.sheetnames), "sheets")
+from app.app import excel_blank_complete_workbook_v1525, excel_multi_project_workbook_v1530, excel_serialize_workbook_v1527
+for label,builder in [
+    ("single",excel_blank_complete_workbook_v1525),
+    ("multi",excel_multi_project_workbook_v1530),
+]:
+    wb=builder()
+    payload=excel_serialize_workbook_v1527(wb)
+    if len(payload) < 5000:
+        raise SystemExit(f"XLSX SMOKE TEST FAILED ({label}): generated workbook is unexpectedly small")
+    print(f"XLSX smoke test OK ({label}):", len(payload), "bytes,", len(wb.sheetnames), "sheets")
 PY
 )
 

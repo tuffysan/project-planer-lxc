@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Multi-Project import klar · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+  <section class="v15-hero compact">
+    <div>
+      <span class="v15-kicker">IMPORT KLAR</span>
+      <h1>{{result.projects}} projekt skapades</h1>
+      <p>{{result.items}} projektposter och {{result.dependencies}} beroenden importerades.</p>
+    </div>
+    <a class="btn primary" href="/portfolio-cockpit">Öppna Portfolio</a>
+  </section>
+
+  <div class="v15-metrics">
+    <div class="v15-metric"><small>Projekt</small><strong>{{result.projects}}</strong></div>
+    <div class="v15-metric"><small>Projektposter</small><strong>{{result.items}}</strong></div>
+    <div class="v15-metric"><small>Beroenden</small><strong>{{result.dependencies}}</strong></div>
+  </div>
+
+  <section class="v15-panel">
+    <div class="v15-panel-head"><div><span class="v15-kicker">SKAPADE PROJEKT</span><h2>Projekt</h2></div></div>
+    <div class="excel-multi-project-list">
+      {% for p in result.project_rows %}
+      <a href="{{url_for('ultimate_project_v140',project_id=p.id)}}">
+        <strong>{{p.code}} · {{p.name}}</strong><span>Öppna projekt →</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if result.by_sheet %}
+  <section class="v15-panel">
+    <div class="v15-panel-head"><div><span class="v15-kicker">IMPORTSAMMANFATTNING</span><h2>Importerade poster</h2></div></div>
+    <div class="excel-import-summary">
+      {% for sheet,count in result.by_sheet.items() %}
+      <div><span>{{sheet}}</span><strong>{{count}}</strong></div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
