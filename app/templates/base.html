@@ -30,6 +30,7 @@
     <button class="ultimate-search-trigger" type="button" data-command-open aria-label="{{ui('search')}}">⌘ {{ui("search")}}</button>
     {% if current_user['role'] in ['admin','pm'] %}
       <a class="nav-accent" href="/projects/new-guided">＋ {{ui("create")}}</a>
+      <a class="excel-global-shortcut" href="/excel">Excel</a>
     {% endif %}
     {% if current_user['role']=='admin' %}
       <a href="/admin">{{ui("admin")}}</a>

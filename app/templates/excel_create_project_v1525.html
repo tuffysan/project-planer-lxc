@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Skapa projekt från Excel · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+<div class="project-breadcrumb"><a href="/excel">Excel</a><span>›</span><strong>Skapa projekt från Excel</strong></div>
+<section class="v15-hero compact"><div><span class="v15-kicker">IMPORT</span><h1>Importera Excel och skapa projekt</h1>
+<p>Använd den tomma Project Planer-mallen. Projektnamn måste vara ifyllt på bladet Projektinformation.</p></div></section>
+<div class="v15-grid-main">
+<section class="v15-panel">
+<form method="post" enctype="multipart/form-data" class="excel-new-project-form">
+  <input type="hidden" name="_csrf" value="{{csrf_token}}">
+  <label><span>Excel-fil (.xlsx)</span><input type="file" name="file" accept=".xlsx" required></label>
+  <div class="v1523-create-actions"><a class="btn" href="/excel">Avbryt</a><button class="btn primary">Skapa projekt från Excel</button></div>
+</form>
+</section>
+<aside class="v15-panel"><span class="v15-kicker">SAKNAR DU MALL?</span><h2>Börja med komplett mall</h2>
+<p>Den innehåller projektinformation, WBS, beroenden, risker, changes, resurser, kostnader, beslut, möten, actions och mycket mer.</p>
+<a class="btn primary full" href="{{url_for('excel_blank_template_v1525')}}">Ladda ner tom Excel-mall</a></aside>
+</div></div>
+{% endblock %}

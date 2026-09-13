@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.4"
+APP_VERSION = "15.2.5"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -4846,6 +4846,173 @@ def devops_pull_link_v1520(link_id):
 def project_excel_hub_v1524(project_id):
     project_or_404(project_id)
     return redirect(url_for("excel_center_v810",project_id=project_id))
+
+def excel_blank_complete_workbook_v1525():
+    project={
+        "id":0,"name":"","customer":"","project_manager":"","description":"",
+        "start_date":"","end_date":"","created_by":0,"created_at":""
+    }
+    empty={k:[] for k in ("tasks","links","risks","changes","resources","costs","decisions","meetings","actions","benefits",
+                           "members","status_reports","raid","approvals","time_entries","documents","attachments",
+                           "comments","project_comments","baselines","custom_fields","environments","deliverables",
+                           "interfaces","test_cycles","traceability","cutover","health_snapshots","cross_dependencies",
+                           "devops_links","schedule_batches","schedule_items","project_finance")}
+    wb=build_complete_excel_template_v1522(project,empty)
+
+    # Make the workbook practical as a blank project template.
+    if "LÄS MIG" in wb.sheetnames:
+        ws=wb["LÄS MIG"]
+        ws["B3"]="NYTT PROJEKT"
+        ws["A8"]="Fyll först i bladet Projektinformation och därefter de blad du behöver. När filen är klar väljer du Excel → Importera Excel och skapa projekt i Project Planer."
+    if "_Metadata" in wb.sheetnames:
+        meta=wb["_Metadata"]
+        for row in meta.iter_rows(min_row=2,max_col=2):
+            if row[0].value=="project_id": row[1].value="0"
+            elif row[0].value=="project_name": row[1].value="NEW_PROJECT_TEMPLATE"
+            elif row[0].value=="project_hash": row[1].value=""
+            elif row[0].value=="app_version": row[1].value=APP_VERSION
+
+    # Add writable example rows to the core sheets without IDs/hashes.
+    examples={
+      "Uppgifter":["1","Exempelaktivitet","","","","","","Not started","Medium",0,"Nej","","",""],
+      "Risker":["Risk","Exempelrisk","Beskriv risken",3,3,"","Åtgärd","Open","","",""],
+      "Resurser":["Exempelresurs","",0,0,"",""],
+      "Kostnader":["Övrigt","Exempelkostnad",0,0,"","",""],
+      "Beslut":["Exempelbeslut","","","","","",""],
+      "Möten":["Kickoff","","","","",""],
+      "Åtgärder":["Exempelåtgärd","","","Open","",""],
+      "Nyttor":["Exempelnytta","st",0,0,"","","","Open","",""]
+    }
+    for sheet,row in examples.items():
+        if sheet in wb.sheetnames and wb[sheet].max_row==1:
+            wb[sheet].append(row)
+    return wb
+
+def excel_new_project_from_workbook_v1525(file_storage):
+    if not file_storage or not file_storage.filename:
+        raise ValueError("Välj en Excel-fil.")
+    if not file_storage.filename.lower().endswith(".xlsx"):
+        raise ValueError("Endast .xlsx stöds.")
+    payload=file_storage.read()
+    if len(payload)>15*1024*1024:
+        raise ValueError("Excel-filen är större än 15 MB.")
+    try:
+        wb=load_workbook(BytesIO(payload),data_only=False)
+    except Exception as ex:
+        raise ValueError(f"Kunde inte läsa Excel-filen: {ex}")
+
+    meta=excel_parse_metadata(wb)
+    if meta.get("schema_version")!=EXCEL_SCHEMA_VERSION:
+        raise ValueError("Filen är inte en kompatibel Project Planer Excel-fil.")
+    if excel_int(meta.get("project_id")) not in (0,):
+        raise ValueError("Filen tillhör redan ett befintligt projekt. Använd projektets vanliga Excel-import.")
+
+    raw={"name":"","customer":"","project_manager":"","description":"","start_date":"","end_date":""}
+    if "Projektinformation" in wb.sheetnames:
+        ws=wb["Projektinformation"]
+        mapping={"Projektnamn":"name","Kund":"customer","Projektledare":"project_manager","Beskrivning":"description","Plan start":"start_date","Plan slut":"end_date"}
+        for row in ws.iter_rows(min_row=4,max_col=2):
+            label=excel_text(row[0].value)
+            if label in mapping:
+                field=mapping[label]
+                raw[field]=excel_date(row[1].value) if field in ("start_date","end_date") else excel_text(row[1].value)
+    if not raw["name"]:
+        raise ValueError("Fyll i Projektnamn på bladet Projektinformation innan import.")
+
+    start_d=_v15_date(raw["start_date"]) if raw["start_date"] else None
+    end_d=_v15_date(raw["end_date"]) if raw["end_date"] else None
+    if raw["start_date"] and not start_d: raise ValueError("Ogiltigt startdatum i Projektinformation.")
+    if raw["end_date"] and not end_d: raise ValueError("Ogiltigt slutdatum i Projektinformation.")
+    if start_d and end_d and end_d<start_d: raise ValueError("Slutdatum kan inte ligga före startdatum.")
+
+    with db() as conn:
+        conn.execute("BEGIN")
+        try:
+            cur=conn.execute("""INSERT INTO projects(name,customer,project_manager,description,start_date,end_date,created_by,created_at)
+                                VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",
+                             (raw["name"],raw["customer"],raw["project_manager"],raw["description"],
+                              raw["start_date"],raw["end_date"],session.get("user_id")))
+            pid=cur.lastrowid
+            conn.execute("""INSERT OR IGNORE INTO project_members(project_id,user_id,project_role,added_at,added_by)
+                            VALUES(?,?,?,CURRENT_TIMESTAMP,?)""",
+                         (pid,session.get("user_id"),"pm",session.get("user_id")))
+
+            created=0
+            # Import normal editable sheets first. IDs/hashes are intentionally ignored for a new project.
+            for sheet_name,spec in EXCEL_SPECS.items():
+                if sheet_name not in wb.sheetnames: continue
+                ws=wb[sheet_name]; hdr=excel_headers(ws)
+                missing=[h for h in spec["headers"] if h not in hdr]
+                if missing: continue
+                for row_no in range(2,ws.max_row+1):
+                    rawrow={field:ws.cell(row_no,hdr[label]).value for label,field in spec["headers"].items()}
+                    data=excel_normalize_row(spec,rawrow)
+                    required=excel_text(data.get(spec["required"]))
+                    # Ignore the example rows if user left them untouched.
+                    if required.startswith("Exempel") or required=="Kickoff":
+                        continue
+                    if not required and all(v in ("",None,0,0.0) for v in data.values()):
+                        continue
+                    if not required:
+                        raise ValueError(f"{sheet_name}, rad {row_no}: obligatoriskt namn/rubrik saknas.")
+                    excel_insert(conn,spec["table"],pid,data)
+                    created+=1
+
+            # Dependencies are imported after tasks so WBS can be resolved.
+            if "Beroenden" in wb.sheetnames:
+                ws=wb["Beroenden"]; hdr=excel_headers(ws)
+                needed=["Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"]
+                if all(h in hdr for h in needed):
+                    tasks=conn.execute("SELECT id,wbs FROM tasks WHERE project_id=? AND deleted_at IS NULL",(pid,)).fetchall()
+                    id_by_wbs={excel_text(t["wbs"]):int(t["id"]) for t in tasks if excel_text(t["wbs"])}
+                    for row_no in range(2,ws.max_row+1):
+                        pred=excel_text(ws.cell(row_no,hdr["Föregående WBS"]).value)
+                        succ=excel_text(ws.cell(row_no,hdr["Efterföljande WBS"]).value)
+                        if not pred and not succ: continue
+                        if pred not in id_by_wbs or succ not in id_by_wbs:
+                            raise ValueError(f"Beroenden, rad {row_no}: WBS {pred} eller {succ} finns inte i Uppgifter.")
+                        typ=excel_text(ws.cell(row_no,hdr["Typ"]).value) or "FS"
+                        lag=excel_int(ws.cell(row_no,hdr["Förskjutning dagar"]).value)
+                        conn.execute("""INSERT INTO task_links(project_id,predecessor_id,successor_id,link_type,lag_days)
+                                      VALUES(?,?,?,?,?)""",(pid,id_by_wbs[pred],id_by_wbs[succ],typ,lag))
+                        created+=1
+
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+    audit(pid,"project",pid,"excel_create_project",f"created_items={created}")
+    return pid,created
+
+@app.get("/excel")
+@login_required
+def excel_start_center_v1525():
+    return render_template("excel_start_v1525.html")
+
+@app.get("/excel/template")
+@login_required
+def excel_blank_template_v1525():
+    wb=excel_blank_complete_workbook_v1525()
+    bio=BytesIO(); wb.save(bio); bio.seek(0)
+    return send_file(bio,as_attachment=True,
+        download_name="Project-Planer-KOMPLETT-projektmall.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+@app.route("/excel/create-project",methods=["GET","POST"])
+@login_required
+def excel_create_project_v1525():
+    user=current_user()
+    if user["role"] not in ("admin","pm"): abort(403)
+    if request.method=="POST":
+        try:
+            pid,count=excel_new_project_from_workbook_v1525(request.files.get("file"))
+            flash(f"Projektet skapades från Excel. {count} projektposter importerades.","success")
+            return redirect(url_for("ultimate_project_v140",project_id=pid))
+        except ValueError as ex:
+            flash(str(ex),"error")
+        except Exception as ex:
+            flash("Kunde inte skapa projekt från Excel: "+str(ex),"error")
+    return render_template("excel_create_project_v1525.html")
 
 @app.get("/ultimate/compare")
 @login_required

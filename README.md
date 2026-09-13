@@ -150,3 +150,8 @@ Fixar HTTP 500 på **Skapa projekt** genom att rätta den felaktiga CSRF-renderi
 ## v15.2.4 – Excel Discoverability
 
 Excel är nu en förstaklassfunktion i projektvyn med tydlig **Excel ▾**-meny, permanent Excel-flik, snabbpanel och rekommenderad komplett Excel-export högst upp i Excel Center.
+
+
+## v15.2.5 – Excel Start Center
+
+Excel kan nu användas utan ett befintligt projekt. Huvudmenyn har en permanent **Excel**-genväg för tom komplett mall och för att importera en ifylld mall som ett nytt projekt.
