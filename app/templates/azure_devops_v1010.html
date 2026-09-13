@@ -5,7 +5,7 @@
 <p class="lead">Koppla Project Planer till Azure DevOps. Project Planer behåller PM-/projektnivån och DevOps utvecklingsarbetet.</p></div></section>
 <div class="roadmap-grid">
   <section class="roadmap-card"><h3>Ny anslutning</h3>
-  <form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <form method="post"><input type="hidden" name="_csrf" value="{{csrf_token}}">
   <label>Namn<input name="name" required placeholder="Utveckling DevOps"></label>
   <label>Organisation<input name="organization_url" required placeholder="https://dev.azure.com/organisation"></label>
   <label>DevOps-projekt<input name="project_name" required></label>

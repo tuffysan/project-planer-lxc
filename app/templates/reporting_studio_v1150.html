@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block title %}Rapportstudio 2{% endblock %}
 {% block content %}<section class="next-hero"><div class="eyebrow">v11.5</div><h1>Rapportstudio 2</h1><p>Rapportprofiler för styrgrupp, projektteam och portfolio med återanvändbara presets.</p></section>
-<div class="next-grid"><section class="next-card"><h2>Ny rapportprofil</h2><form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}">
+<div class="next-grid"><section class="next-card"><h2>Ny rapportprofil</h2><form method="post"><input type="hidden" name="_csrf" value="{{csrf_token}}">
 <label>Namn<input name="name" required placeholder="Månadsrapport styrgrupp"></label>
 <label>Målgrupp<select name="audience"><option>Styrgrupp</option><option>Projektteam</option><option>Portfolio</option><option>Kund</option></select></label>
 <label>Format<select name="format"><option>PPTX</option><option>PDF</option><option>XLSX</option></select></label>

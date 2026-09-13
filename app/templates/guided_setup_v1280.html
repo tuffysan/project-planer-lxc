@@ -1,3 +1,53 @@
-{% extends "base.html" %}{% block title %}Skapa projekt{% endblock %}{% block content %}<div class="simple-shell">
-<section class="simple-hero"><div class="eyebrow">v12.8</div><h1>Skapa projekt</h1><p>Skapa projekt med en kort stegvis wizard och bra standardvärden.</p></section><section class="simple-card">
-<form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><label>Vad heter projektet?<input name="name" required autofocus></label><label>Kund<input name="customer"></label><label>Projektledare<input name="project_manager"></label><div class="simple-grid"><label>Start<input type="date" name="start_date"></label><label>Mål/slut<input type="date" name="end_date"></label></div><button>Skapa projekt</button></form></section></div>{% endblock %}
+{% extends "base.html" %}
+{% block title %}Skapa projekt · Project Planer{% endblock %}
+{% block content %}
+<div class="v15-shell">
+  <div class="project-breadcrumb"><a href="/home">Idag</a><span>›</span><strong>Skapa projekt</strong></div>
+  <section class="v15-hero compact">
+    <div>
+      <span class="v15-kicker">NYTT PROJEKT</span>
+      <h1>Skapa projekt</h1>
+      <p>Fyll i grunduppgifterna. Plan, team, risker, resurser och ekonomi kan kompletteras direkt efteråt.</p>
+    </div>
+  </section>
+
+  <div class="v1523-create-layout">
+    <section class="v15-panel">
+      <form method="post" class="v1523-create-form">
+        <input type="hidden" name="_csrf" value="{{csrf_token}}">
+        <label>
+          <span>Projektnamn <b>*</b></span>
+          <input name="name" required maxlength="200" autofocus value="{{form.name or ''}}" placeholder="Exempel: SampleManager 21.3 Upgrade">
+        </label>
+        <div class="two">
+          <label><span>Kund</span><input name="customer" maxlength="200" value="{{form.customer or ''}}" placeholder="Kund eller organisation"></label>
+          <label><span>Projektledare</span><input name="project_manager" maxlength="200" value="{{form.project_manager or current_user.display_name or ''}}" placeholder="Namn"></label>
+        </div>
+        <label>
+          <span>Beskrivning</span>
+          <textarea name="description" rows="4" placeholder="Kort beskrivning av syfte, omfattning och mål">{{form.description or ''}}</textarea>
+        </label>
+        <div class="two">
+          <label><span>Startdatum</span><input type="date" name="start_date" value="{{form.start_date or ''}}"></label>
+          <label><span>Mål-/slutdatum</span><input type="date" name="end_date" value="{{form.end_date or ''}}"></label>
+        </div>
+        <div class="v1523-create-actions">
+          <a class="btn" href="/home">Avbryt</a>
+          <button class="btn primary" type="submit">Skapa projekt</button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="v15-panel">
+      <span class="v15-kicker">EFTER SKAPANDE</span>
+      <h2>Projektet blir direkt arbetsklart</h2>
+      <div class="v1523-create-steps">
+        <div><b>1</b><span><strong>Planera</strong><small>WBS, aktiviteter, milstolpar och beroenden.</small></span></div>
+        <div><b>2</b><span><strong>Bemanna</strong><small>Projektmedlemmar, roller och kapacitet.</small></span></div>
+        <div><b>3</b><span><strong>Styr</strong><small>Risker, RAID, beslut, changes och status.</small></span></div>
+        <div><b>4</b><span><strong>Följ upp</strong><small>Ekonomi, prognos och leveranshälsa.</small></span></div>
+      </div>
+    </aside>
+  </div>
+</div>
+{% endblock %}

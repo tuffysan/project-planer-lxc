@@ -140,3 +140,8 @@ Rättar grundorsaken till den trasiga språkmenyn i Windows-publishflödet och e
 ## v15.2.2 – Complete Excel Template
 
 Nytt val **Komplett Excel-mall** exporterar en enda arbetsbok med hela projektets planerings-, styrnings-, leverans-, resurs-, ekonomi-, integrations- och historikdata. Round-trip-kompatibla blad kan fortsatt importeras tillbaka via Excel-importen.
+
+
+## v15.2.3 – Create Project Fix
+
+Fixar HTTP 500 på **Skapa projekt** genom att rätta den felaktiga CSRF-renderingen i äldre mallar. Skapaflödet är dessutom ombyggt med v15-UX, validering, automatisk projektroll och audit-logg.

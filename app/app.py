@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.2"
+APP_VERSION = "15.2.3"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -3924,22 +3924,57 @@ def notifications_v1270():
 @app.route("/projects/new-guided",methods=["GET","POST"])
 @login_required
 def guided_setup_v1280():
+    user=current_user()
+    if not user:
+        return redirect(url_for("login"))
+    if user["role"] not in ("admin","pm"):
+        abort(403)
+
+    form={
+        "name":(request.form.get("name") or "").strip(),
+        "customer":(request.form.get("customer") or "").strip(),
+        "project_manager":(request.form.get("project_manager") or "").strip(),
+        "description":(request.form.get("description") or "").strip(),
+        "start_date":(request.form.get("start_date") or "").strip(),
+        "end_date":(request.form.get("end_date") or "").strip(),
+    }
+
     if request.method=="POST":
-        name=(request.form.get("name") or "").strip()
-        customer=(request.form.get("customer") or "").strip()
-        pm=(request.form.get("project_manager") or "").strip()
-        start=(request.form.get("start_date") or "").strip() or None
-        end=(request.form.get("end_date") or "").strip() or None
-        if not name:
-            flash("Projektnamn krävs.","error")
+        errors=[]
+        if not form["name"]:
+            errors.append("Projektnamn krävs.")
+        if len(form["name"])>200:
+            errors.append("Projektnamnet är för långt.")
+        start_d=_v15_date(form["start_date"]) if form["start_date"] else None
+        end_d=_v15_date(form["end_date"]) if form["end_date"] else None
+        if form["start_date"] and not start_d:
+            errors.append("Ogiltigt startdatum.")
+        if form["end_date"] and not end_d:
+            errors.append("Ogiltigt slutdatum.")
+        if start_d and end_d and end_d < start_d:
+            errors.append("Slutdatum kan inte ligga före startdatum.")
+
+        if errors:
+            for msg in errors:
+                flash(msg,"error")
         else:
             with db() as conn:
-                cur=conn.execute("""INSERT INTO projects(name,customer,project_manager,description,start_date,end_date,created_by,created_at)
-                VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",(name,customer,pm,"",start,end,session.get("user_id")))
-                pid=cur.lastrowid; conn.commit()
-            flash("Projekt skapat.","success")
-            return redirect(f"/projects/{pid}/workspace-3")
-    return render_template("guided_setup_v1280.html")
+                cur=conn.execute("""INSERT INTO projects(
+                    name,customer,project_manager,description,start_date,end_date,created_by,created_at
+                ) VALUES(?,?,?,?,?,?,?,CURRENT_TIMESTAMP)""",(
+                    form["name"],form["customer"],form["project_manager"],form["description"],
+                    form["start_date"],form["end_date"],session.get("user_id")
+                ))
+                pid=cur.lastrowid
+                conn.execute("""INSERT OR IGNORE INTO project_members(project_id,user_id,project_role,added_at,added_by)
+                                VALUES(?,?,?,CURRENT_TIMESTAMP,?)""",
+                             (pid,session.get("user_id"),"pm",session.get("user_id")))
+                conn.commit()
+            audit(pid,"project",pid,"create",f"Projekt skapat: {form['name']}")
+            flash("Projektet skapades.","success")
+            return redirect(url_for("ultimate_project_v140",project_id=pid))
+
+    return render_template("guided_setup_v1280.html",form=form)
 
 def ensure_personalization_v1290(conn):
     conn.execute("""CREATE TABLE IF NOT EXISTS user_favorites(

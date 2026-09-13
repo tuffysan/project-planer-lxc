@@ -1,6 +1,6 @@
 {% extends "base.html" %}{% block title %}{{project.name}} · Samarbete{% endblock %}
 {% block content %}<section class="next-hero"><div class="eyebrow">v11.8</div><h1>Samarbete · {{project.name}}</h1><p>Projektkommentarer, watchers och aktivitet i samma projektkontext.</p></section>
-<div class="next-actions"><form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="action" value="{{'unwatch' if watching else 'watch'}}"><button>{{'Sluta bevaka' if watching else 'Bevaka projekt'}}</button></form></div>
-<section class="next-card"><form method="post"><input type="hidden" name="csrf_token" value="{{csrf_token()}}"><input type="hidden" name="action" value="comment">
+<div class="next-actions"><form method="post"><input type="hidden" name="_csrf" value="{{csrf_token}}"><input type="hidden" name="action" value="{{'unwatch' if watching else 'watch'}}"><button>{{'Sluta bevaka' if watching else 'Bevaka projekt'}}</button></form></div>
+<section class="next-card"><form method="post"><input type="hidden" name="_csrf" value="{{csrf_token}}"><input type="hidden" name="action" value="comment">
 <textarea name="body" rows="3" required placeholder="Skriv en projektkommentar…"></textarea><button type="submit">Publicera</button></form></section>
 <section class="next-card"><h2>Aktivitet</h2>{% for c in comments %}<article><strong>{{c.author}}</strong> · {{c.created_at}}<p>{{c.body}}</p></article>{% else %}<p>Ingen aktivitet ännu.</p>{% endfor %}</section>{% endblock %}
