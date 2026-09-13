@@ -30,7 +30,7 @@ grep -Fq 'href="/excel"' app/templates/base.html || {
   exit 1
 }
 
-echo "[v15.2.7] Verifying XLSX integrity code..."
+echo "[v15.2.8] Verifying XLSX integrity code..."
 grep -Fq 'def excel_xlsx_integrity_check_v1527' app/app.py || {
   echo "ERROR: XLSX integrity checker missing" >&2
   exit 1

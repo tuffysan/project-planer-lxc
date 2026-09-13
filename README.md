@@ -165,3 +165,6 @@ Den globala **Excel**-genvägen ligger nu direkt i huvudnavigationen mellan **Po
 ## v15.2.7 – XLSX Integrity
 
 Den kompletta tomma Excel-mallen normaliseras och valideras innan den skickas till webbläsaren. Installationen kör dessutom ett riktigt XLSX-smoketest med release-versionens Python/openpyxl-miljö.
+
+## v15.2.8 – Clean Excel Template Rebuild
+Den globala tomma Excel-mallen byggs nu från en helt ny workbook utan Excel Tables, charts eller defined names. Det minimerar Microsoft Excel-specifika reparationsproblem och behåller full importkompatibilitet för de centrala projektbladen.

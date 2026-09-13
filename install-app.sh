@@ -103,7 +103,7 @@ rollback() {
 
 # v15.2.6 release-integrity guard: do not activate a package that lacks
 # the global Excel navigation promised by this release.
-if [[ "$VERSION_VALUE" == "15.2.6" || "$VERSION_VALUE" == "15.2.7" ]]; then
+if [[ "$VERSION_VALUE" == "15.2.6" || "$VERSION_VALUE" == "15.2.8" ]]; then
   if ! grep -Fq 'href="/excel"' "$SOURCE_DIR/app/templates/base.html"; then
     echo "FEL: release saknar Excel-genvägen i den faktiska huvudnavigationen." >&2
     exit 1

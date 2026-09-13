@@ -16,7 +16,7 @@ from openpyxl.chart import BarChart, DoughnutChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
-APP_VERSION = "15.2.7"
+APP_VERSION = "15.2.8"
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "projectplan.db"
@@ -4907,46 +4907,198 @@ def excel_serialize_workbook_v1527(wb):
     return final_payload
 
 def excel_blank_complete_workbook_v1525():
-    """v15.2.7: create a clean blank template without post-build example rows."""
-    project={
-        "id":0,"name":"","customer":"","project_manager":"","description":"",
-        "start_date":"","end_date":"","created_by":0,"created_at":""
+    """v15.2.8: build the blank template from a fresh Workbook.
+
+    This intentionally does NOT reuse build_roundtrip_workbook() or
+    build_complete_excel_template_v1522().  Microsoft Excel is stricter than
+    openpyxl about some combinations of empty tables, filters, names and
+    relationships.  The global blank template therefore uses only standard
+    cells/styles and no tables/charts/defined names.
+    """
+    wb=Workbook()
+    default=wb.active
+    wb.remove(default)
+
+    navy="0F4C81"; blue="DCEAF7"; green="E9F6EE"; grey="F4F6F8"; border="D0D7DE"; text="172B4D"; muted="667085"
+    thin=Side(style="thin",color=border)
+
+    def title(ws,title,subtitle=None):
+        ws.sheet_view.showGridLines=False
+        ws["A1"]="Project Planer"
+        ws["A1"].font=Font(size=11,bold=True,color="FFFFFF")
+        ws["A1"].fill=PatternFill("solid",fgColor=navy)
+        ws["B1"]=f"Komplett projektmall · v{APP_VERSION}"
+        ws["B1"].font=Font(size=11,color="FFFFFF")
+        ws["B1"].fill=PatternFill("solid",fgColor=navy)
+        ws.merge_cells("B1:F1")
+        ws["A3"]=title
+        ws["A3"].font=Font(size=20,bold=True,color=text)
+        ws.merge_cells("A3:F3")
+        if subtitle:
+            ws["A4"]=subtitle
+            ws["A4"].font=Font(size=10,color=muted)
+            ws["A4"].alignment=Alignment(wrap_text=True,vertical="top")
+            ws.merge_cells("A4:F5")
+        for col,w in {"A":24,"B":28,"C":20,"D":20,"E":20,"F":22}.items(): ws.column_dimensions[col].width=w
+
+    def plain_sheet(name,headers,description="",editable=True,rows=120,date_headers=None,money_headers=None,percent_headers=None):
+        ws=wb.create_sheet(name)
+        ws.sheet_view.showGridLines=False
+        ws.freeze_panes="A2"
+        ws.append(headers)
+        for c in ws[1]:
+            c.fill=PatternFill("solid",fgColor=navy); c.font=Font(bold=True,color="FFFFFF")
+            c.alignment=Alignment(vertical="center",wrap_text=True); c.border=Border(bottom=thin)
+        ws.row_dimensions[1].height=28
+        date_headers=set(date_headers or [])
+        money_headers=set(money_headers or [])
+        percent_headers=set(percent_headers or [])
+        for idx,h in enumerate(headers,1):
+            letter=get_column_letter(idx)
+            width=18
+            if h in {"Aktivitet","Titel","Rubrik","Beskrivning","Åtgärd","Kommentar","Anteckningar","notes","body","details","details_json","snapshot_json"}: width=38
+            elif h in {"WBS","Typ","Status","Prioritet","Enhet"}: width=16
+            elif "datum" in h.lower() or "date" in h.lower() or h in {"Plan start","Plan slut","Faktisk start","Faktiskt slut","Vecka","Datum","Mätdatum","Förfallodatum"}: width=16
+            ws.column_dimensions[letter].width=width
+            for r in range(2,rows+2):
+                cell=ws.cell(r,idx)
+                cell.fill=PatternFill("solid",fgColor=(green if editable else grey))
+                cell.border=Border(bottom=Side(style="hair",color="E8ECF0"))
+                cell.alignment=Alignment(vertical="top",wrap_text=h in {"Aktivitet","Titel","Rubrik","Beskrivning","Åtgärd","Kommentar","Anteckningar","notes","body","details","details_json","snapshot_json"})
+                if h in date_headers: cell.number_format="yyyy-mm-dd"
+                elif h in money_headers: cell.number_format='#,##0.00'
+                elif h in percent_headers: cell.number_format='0%'
+        # A plain AutoFilter on a populated entry range is valid and useful.
+        # Do not create an Excel Table; this avoids Excel repair warnings on blank templates.
+        ws.auto_filter.ref=f"A1:{get_column_letter(len(headers))}{rows+1}"
+        ws.freeze_panes="A2"
+        if description:
+            ws.sheet_properties.pageSetUpPr.fitToPage=True
+        return ws
+
+    # Instructions first.
+    readme=wb.create_sheet("LÄS MIG")
+    title(readme,"Komplett Project Planer-mall","Denna arbetsbok är skapad från grunden för att vara stabil i Microsoft Excel. Fyll först i Projektinformation och sedan de blad du behöver.")
+    readme["A7"]="1"
+    readme["B7"]="Fyll i Projektinformation"
+    readme["A8"]="2"
+    readme["B8"]="Lägg in WBS/aktiviteter, risker, resurser, kostnader och övrigt innehåll"
+    readme["A9"]="3"
+    readme["B9"]="I Project Planer: Excel → Importera Excel och skapa projekt"
+    readme["A10"]="4"
+    readme["B10"]="Projektet öppnas automatiskt i Project Cockpit"
+    readme["A12"]="Viktigt"
+    readme["B12"]="Bladen Uppgifter, Beroenden, Risker, Ändringsärenden, Resurser, Kostnader, Beslut, Möten, Åtgärder och Nyttor importeras när ett nytt projekt skapas. Övriga blad finns med som komplett planerings- och referensstruktur."
+    readme["B12"].alignment=Alignment(wrap_text=True,vertical="top")
+    readme.column_dimensions["A"].width=12; readme.column_dimensions["B"].width=95
+
+    info=wb.create_sheet("Projektinformation")
+    title(info,"Projektinformation","Projektnamn är obligatoriskt när Excel-filen ska skapa ett nytt projekt.")
+    info_rows=[("Projektnamn",""),("Kund",""),("Projektledare",""),("Beskrivning",""),("Plan start",""),("Plan slut","")]
+    for r,(label,value) in enumerate(info_rows,4):
+        info.cell(r,1,label).font=Font(bold=True,color=text)
+        info.cell(r,2,value).fill=PatternFill("solid",fgColor=green)
+        info.cell(r,2).border=Border(bottom=thin)
+        if label in ("Plan start","Plan slut"): info.cell(r,2).number_format="yyyy-mm-dd"
+    info.column_dimensions["A"].width=24; info.column_dimensions["B"].width=60
+
+    # Import-compatible sheets: exact headers expected by EXCEL_SPECS / dependency importer.
+    core=[
+      ("Uppgifter",list(EXCEL_SPECS["Uppgifter"]["headers"].keys()),{"Plan start","Plan slut","Faktisk start","Faktiskt slut"},set(),set()),
+      ("Beroenden",["Föregående WBS","Efterföljande WBS","Typ","Förskjutning dagar"],set(),set(),set()),
+      ("Risker",list(EXCEL_SPECS["Risker"]["headers"].keys()),{"Förfallodatum"},set(),set()),
+      ("Ändringsärenden",list(EXCEL_SPECS["Ändringsärenden"]["headers"].keys()),set(),{"Kostnad"},set()),
+      ("Resurser",list(EXCEL_SPECS["Resurser"]["headers"].keys()),{"Vecka"},set(),set()),
+      ("Kostnader",list(EXCEL_SPECS["Kostnader"]["headers"].keys()),{"Datum"},{"Planerat","Utfall"},set()),
+      ("Beslut",list(EXCEL_SPECS["Beslut"]["headers"].keys()),{"Beslutsdatum"},set(),set()),
+      ("Möten",list(EXCEL_SPECS["Möten"]["headers"].keys()),{"Datum"},set(),set()),
+      ("Åtgärder",list(EXCEL_SPECS["Åtgärder"]["headers"].keys()),{"Förfallodatum"},set(),set()),
+      ("Nyttor",list(EXCEL_SPECS["Nyttor"]["headers"].keys()),{"Mätdatum"},{"Baslinje","Mål","Utfall"},set()),
+    ]
+    for name,headers,dates,money,pct in core:
+        plain_sheet(name,headers,editable=True,date_headers=dates,money_headers=money,percent_headers=pct)
+
+    # Helpful data validation only on simple literal lists. No defined names or cross-sheet formulas.
+    validations={
+      "Uppgifter":{"Status":["Ej påbörjad","Pågår","Blockerad","Klar"],"Prioritet":["Låg","Medium","Hög","Kritisk"],"Milstolpe":["Nej","Ja"]},
+      "Beroenden":{"Typ":["FS","SS","FF","SF"]},
+      "Risker":{"Typ":["Risk","Issue"],"Status":["Open","Closed"]},
+      "Ändringsärenden":{"Status":["Open","Approved","Rejected","Closed"]},
+      "Åtgärder":{"Status":["Open","Pågår","Klar","Closed"]},
+      "Nyttor":{"Status":["Open","Pågår","Realiserad","Closed"]},
     }
-    empty={k:[] for k in ("tasks","links","risks","changes","resources","costs","decisions","meetings","actions","benefits",
-                           "members","status_reports","raid","approvals","time_entries","documents","attachments",
-                           "comments","project_comments","baselines","custom_fields","environments","deliverables",
-                           "interfaces","test_cycles","traceability","cutover","health_snapshots","cross_dependencies",
-                           "devops_links","schedule_batches","schedule_items","project_finance")}
-    wb=build_complete_excel_template_v1522(project,empty)
+    for sheet_name,cols in validations.items():
+        ws=wb[sheet_name]
+        header_map={excel_text(c.value):c.column for c in ws[1]}
+        for header,values in cols.items():
+            if header not in header_map: continue
+            col=get_column_letter(header_map[header])
+            formula='"'+','.join(values)+'"'
+            dv=DataValidation(type="list",formula1=formula,allow_blank=True)
+            dv.error="Välj ett värde i listan."; dv.errorTitle="Ogiltigt värde"
+            ws.add_data_validation(dv); dv.add(f"{col}2:{col}121")
 
-    # Make this explicitly a NEW PROJECT template.
-    if "LÄS MIG" in wb.sheetnames:
-        ws=wb["LÄS MIG"]
-        ws["B3"]="NYTT PROJEKT"
-        ws["A8"]="Fyll först i bladet Projektinformation och därefter de blad du behöver. När filen är klar väljer du Excel → Importera Excel och skapa projekt i Project Planer."
-        ws["A8"].alignment=Alignment(wrap_text=True,vertical="top")
-    if "_Metadata" in wb.sheetnames:
-        meta=wb["_Metadata"]
-        for row in meta.iter_rows(min_row=2,max_col=2):
-            key=excel_text(row[0].value)
-            if key=="project_id": row[1].value="0"
-            elif key=="project_name": row[1].value="NEW_PROJECT_TEMPLATE"
-            elif key=="project_hash": row[1].value=""
-            elif key=="app_version": row[1].value=APP_VERSION
+    # A read-only milestone planning sheet; milestones themselves are entered in Uppgifter.
+    plain_sheet("Milstolpar",["WBS","Milstolpe","Ansvarig","Plan slut","Status","Progress %"],editable=False,date_headers={"Plan slut"})
 
-    # Excel is strict about table/AutoFilter ranges in empty template sheets.
-    # Blank sheets therefore keep headers + formatting/validation, but no
-    # header-only AutoFilter and no zero-row tables.
+    # Complete reference structure. These sheets are intentionally plain so Excel has nothing to repair.
+    reference_specs=[
+      ("Medlemmar",["display_name","username","project_role","added_at","added_by"]),
+      ("Statusrapporter",["report_date","overall_rag","scope_rag","schedule_rag","budget_rag","resources_rag","summary","achievements","next_steps","created_by","created_at"]),
+      ("RAID",["item_type","title","owner","status","due_date","details"]),
+      ("Godkännanden",["entity_type","entity_id","status","requested_by","requested_at","decided_by","decided_at","comment"]),
+      ("Tid",["work_date","user_name","task_title","hours","billable","note"]),
+      ("Dokument",["title","body","updated_by","updated_at"]),
+      ("Bilagor",["filename","stored_name","content_type","size_bytes","uploaded_by","uploaded_at"]),
+      ("Kommentarer",["källa","user_name","body","created_at"]),
+      ("Baselines",["name","created_at","created_by","snapshot_json"]),
+      ("Anpassade fält",["name","field_type","entity_type","entity_id","value_text","options_json"]),
+      ("Miljöer",["name","environment_type","url","owner","status","notes"]),
+      ("Leverabler",["title","owner","due_date","status","description"]),
+      ("Interfaces",["name","source_system","target_system","owner","status","description"]),
+      ("Testcykler",["name","start_date","end_date","owner","status","notes"]),
+      ("Spårbarhet",["requirement_id","requirement_title","deliverable_id","test_reference","status","notes"]),
+      ("Cutover",["title","owner","planned_at","status","sequence_no","notes"]),
+      ("Projekthälsa historik",["snapshot_date","health_score","rag","details_json"]),
+      ("Projektberoenden",["predecessor_project","successor_project","predecessor_task","successor_task","link_type","lag_days","status","notes"]),
+      ("Azure DevOps",["connection_name","devops_project","work_item_id","work_item_type","title","state","assigned_to","task_title","last_synced_at"]),
+      ("Omplaneringshistorik",["id","title","reason","created_name","created_at","reverted_at","reverted_by"]),
+      ("Omplaneringsdetaljer",["batch_id","task_title","old_start","old_end","new_start","new_end"]),
+      ("Finanssammanfattning",["planned_budget","approved_budget","forecast","actual"]),
+    ]
+    for name,headers in reference_specs:
+        plain_sheet(name,headers,editable=False,rows=20)
+
+    # Data dictionary.
+    dd=wb.create_sheet("Datamodell",2)
+    dd.sheet_view.showGridLines=False
+    dd.append(["Blad","Syfte","Import till nytt projekt","Kommentar"])
+    for c in dd[1]: c.fill=PatternFill("solid",fgColor=navy); c.font=Font(bold=True,color="FFFFFF")
+    purposes={
+      "Projektinformation":"Projektets grunddata","Uppgifter":"WBS och aktiviteter","Beroenden":"Aktivitetsberoenden","Risker":"Risker och issues","Ändringsärenden":"Change control","Resurser":"Resursallokering","Kostnader":"Projektkostnader","Beslut":"Beslut","Möten":"Möten","Åtgärder":"Actions","Nyttor":"Benefits"
+    }
+    importable=set(purposes)
     for ws in wb.worksheets:
-        if ws.max_row <= 1:
-            ws.auto_filter.ref=None
-            # Defensive cleanup: empty sheets must not contain tables.
-            for table_name in list(ws.tables.keys()):
-                del ws.tables[table_name]
+        if ws.title in {"LÄS MIG","Datamodell"}: continue
+        dd.append([ws.title,purposes.get(ws.title,"Komplett projekt-/referensinnehåll"),"Ja" if ws.title in importable else "Nej","Fyll i efter behov."])
+    dd.freeze_panes="A2"; dd.auto_filter.ref=f"A1:D{dd.max_row}"
+    dd.column_dimensions["A"].width=28; dd.column_dimensions["B"].width=38; dd.column_dimensions["C"].width=24; dd.column_dimensions["D"].width=38
 
-    # Do not append example rows after workbook/table finalization.
-    # That was the main structural difference between the normal project
-    # workbook and the blank template and could leave package ranges stale.
+    # Metadata required by the importer. Keep simple key/value cells and use hidden (not veryHidden).
+    meta=wb.create_sheet("_Metadata")
+    meta.append(["key","value"])
+    for k,v in [
+      ("schema_version",EXCEL_SCHEMA_VERSION),("project_id","0"),("project_name","NEW_PROJECT_TEMPLATE"),
+      ("project_hash",""),("app_version",APP_VERSION),("exported_at",datetime.now().isoformat(timespec="seconds")),
+      ("template_kind","new_project_complete")
+    ]: meta.append([k,v])
+    meta.sheet_state="hidden"
+
+    wb.active=0
+    wb.properties.creator="Project Planer"
+    wb.properties.title="Project Planer – Komplett projektmall"
+    wb.properties.subject="Ny projektmall"
+    wb.properties.description=f"Project Planer v{APP_VERSION} · ren Microsoft Excel-kompatibel mall byggd från grunden."
     return wb
 
 def excel_new_project_from_workbook_v1525(file_storage):
